@@ -1,0 +1,64 @@
+---
+persistence:
+  redis:
+    host: 127.0.0.1  # The IP address or the hostname to your Redis server, 127.0.0.1 if same as BBGO  
+    port: 6379  # Port to Redis server, default 6379
+    db: 0  # DB number to use. You can set to another DB to avoid conflict if other applications are using Redis too.
+
+sessions:
+  okex:
+    exchange: okex
+    envVarPrefix: okex
+    margin: true
+    isolatedMargin: false
+    isolatedMarginSymbol: OPUSDT
+
+exchangeStrategies:
+- on: okex
+  demo:
+    symbol: OPUSDT
+    interval: 1m
+    leverage: 3
+    trend_threshold: 0.05
+
+sync:
+  # since is the date you want to start sync
+  since: "2023-01-01"
+
+  # if you have multiple sessions defined, but you don't want to sync all sessions, you can define a list here
+  sessions:
+  - okex
+
+  # symbols is the symbol you want to sync
+  # If not defined, BBGO will try to guess your symbols by your existing account balances
+  symbols:
+  - OPUSDT
+
+backtest:
+  # your back-test will start at the 2021-01-10, be sure to sync the data before 2021-01-10 
+  # because some indicator like EMA needs more data to calculate the current EMA value.
+  startTime: "2023-01-28T00:00:00+08:00"
+
+  # your back-test will end at the 2021-01-10
+  endTime: "2023-01-28T09:00:00+08:00"
+  
+  # the symbol data that you want to sync and back-test
+  symbols:
+  - OPUSDT
+
+  sessions:
+  - okex
+  
+  # feeMode is optional
+  # valid values are: quote, native, token
+  #   quote: always deduct fee from the quote balance
+  #   native: the crypto exchange fee deduction, base fee for buy order, quote fee for sell order.
+  #   token: count fee as crypto exchange fee token
+  # feeMode: quote
+  
+  accounts:
+    # the initial account balance you want to start with
+    okex: # exchange name
+      balances:
+        BTC: 0.0
+        USDT: 7.0

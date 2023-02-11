@@ -1,0 +1,3 @@
+[submodule "libs/bbgo"]
+	path = libs/bbgo
+	url = git@github.com:yubing744/bbgo.git

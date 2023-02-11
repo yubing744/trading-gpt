@@ -1,1 +1,0 @@
-# trading_bot
