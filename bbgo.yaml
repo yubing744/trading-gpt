@@ -15,9 +15,12 @@ sessions:
 
 exchangeStrategies:
 - on: okex
-  demo:
+  jarvis:
+    chat:
+      feishu:
+        server_port: 3000
     symbol: OPUSDT
-    interval: 1m
+    interval: 5m
     leverage: 3
     trend_threshold: 0.05
 

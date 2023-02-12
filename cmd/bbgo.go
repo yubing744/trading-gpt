@@ -6,7 +6,8 @@ import (
 
 	"github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/cmd"
-	_ "github.com/yubing744/trading-bot"
+
+	_ "github.com/yubing744/trading-bot/pkg"
 )
 
 func init() {

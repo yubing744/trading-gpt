@@ -1,11 +1,14 @@
-package demo
+package pkg
 
 import (
 	"context"
-	"strings"
+	"fmt"
+	"os"
 	"sync"
 
 	"github.com/sirupsen/logrus"
+	"github.com/yubing744/trading-bot/pkg/chat/feishu"
+	"github.com/yubing744/trading-bot/pkg/config"
 
 	"github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/fixedpoint"
@@ -15,11 +18,11 @@ import (
 
 // ID is the unique strategy ID, it needs to be in all lower case
 // For example, grid strategy uses "grid"
-const ID = "trading-bot"
+const ID = "jarvis"
 
 // log is a logrus.Entry that will be reused.
 // This line attaches the strategy field to the logger with our ID, so that the logs from this strategy will be tagged with our ID
-var log = logrus.WithField("trading-bot", ID)
+var log = logrus.WithField("jarvis", ID)
 
 // init is a special function of golang, it will be called when the program is started
 // importing this package will trigger the init function call.
@@ -33,12 +36,19 @@ func init() {
 // State is a struct contains the information that we want to keep in the persistence layer,
 // for example, redis or json file.
 type State struct {
-	Counter int `json:"counter,omitempty"`
+	Counter       int             `json:"counter,omitempty"`
+	Delay         int             `json:"delay,omitempty"`
+	LastTrend     types.Direction `json:"last_trend,omitempty"`
+	LastIndex     int             `json:"last_index,omitempty"`
+	LastOpenIndex int             `json:"last_open_index,omitempty"`
+	LastHighIndex int             `json:"last_high_index,omitempty"`
+	LastLowIndex  int             `json:"last_low_index,omitempty"`
 }
 
 // Strategy is a struct that contains the settings of your strategy.
 // These settings will be loaded from the BBGO YAML config file "bbgo.yaml" automatically.
 type Strategy struct {
+	config.Config
 	Environment *bbgo.Environment
 	Market      types.Market
 
@@ -109,8 +119,16 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 	instanceID := s.InstanceID()
 
 	// Initialize the default value for state
-	s.State = &State{
-		Counter: 0,
+	if s.State == nil {
+		s.State = &State{
+			Counter:       1,
+			Delay:         0,
+			LastTrend:     types.DirectionNone,
+			LastIndex:     0,
+			LastOpenIndex: 0,
+			LastHighIndex: 0,
+			LastLowIndex:  0,
+		}
 	}
 
 	// If position is nil, we need to allocate a new position for calculation
@@ -139,6 +157,11 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		bbgo.Sync(ctx, s)
 	})
 
+	s.Position.OnModify(func(baseQty, quoteQty, price fixedpoint.Value) {
+		log.WithField("price", price).Info("update currentStopLossPrice")
+		s.currentStopLossPrice = price
+	})
+
 	// StrategyController
 	s.Status = types.StrategyStatusRunning
 	s.OnSuspend(func() {
@@ -151,6 +174,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		//_ = s.ClosePosition(ctx, fixedpoint.One)
 	})
 
+	s.setupBot()
 	s.setupIndicators()
 
 	// if you need to do something when the user data stream is ready
@@ -166,8 +190,17 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 			return
 		}
 
+		bollDown := s.BOLL.LastDownBand()
+		bollUp := s.BOLL.LastUpBand()
+		bollMid := (bollDown + bollUp) / 2
+		section := (bollUp - bollDown) / 10
+		sma := s.BOLL.SMA
+
 		log.Debug("")
-		log.WithField("counter", s.State.Counter).
+		log.WithField("bollDown", bollDown).
+			WithField("bollMid", bollMid).
+			WithField("bollUp", bollUp).
+			WithField("time", kline.GetStartTime()).
 			Debug("boll values")
 
 		if kline.Symbol != s.Symbol {
@@ -177,47 +210,57 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 
 		bbgo.Sync(ctx, s)
 
-		closePrice := kline.GetClose()
+		// Call LastPrice(symbol) If you need to get the latest price
+		// Note this last price is updated by the closed kline
+		closePrice := kline.Close
+		index := int((kline.Close.Float64() - bollMid) / section)
+		openIndex := int((kline.Open.Float64() - bollMid) / section)
+		lowIndex := int((kline.Low.Float64() - bollMid) / section)
+		highIndex := int((kline.High.Float64() - bollMid) / section)
+		trend := s.getTrend(sma)
+		state := s.State
 
-		if s.State.Counter%10 == 0 {
-			side := types.SideTypeBuy
-			orderQty := s.calculateQuantity(ctx, closePrice, side)
+		log.WithField("index", index).
+			WithField("open_index", openIndex).
+			WithField("low_index", lowIndex).
+			WithField("high_index", highIndex).
+			WithField("delay", s.State.Delay).
+			WithField("counter", s.State.Counter).
+			WithField("trend", trend).
+			WithField("time", kline.GetStartTime()).
+			Infof("current state")
 
-			for {
-				if orderQty.Compare(fixedpoint.NewFromFloat(1)) < 0 {
-					log.Errorf("can not place %s open position order, orderQty too small %f", s.Symbol, orderQty.Float64())
-					break
-				}
+		log.WithField("last_index", s.State.LastIndex).
+			WithField("last_open", s.State.LastOpenIndex).
+			WithField("last_low", s.State.LastLowIndex).
+			WithField("last_high", s.State.LastHighIndex).
+			WithField("last_trend", s.State.LastTrend).
+			WithField("time", kline.GetStartTime()).
+			Infof("last state")
 
-				orderForm := s.generateOrderForm(side, orderQty, types.SideEffectTypeMarginBuy)
-				log.Infof("submit open position order %v", orderForm)
-				_, err := s.orderExecutor.SubmitOrders(ctx, orderForm)
+		log.WithField("position", s.Position).
+			Infof("current position")
+
+		// TP/SL if there's non-dust position and meets the criteria
+		if !s.Market.IsDustQuantity(s.Position.GetBase().Abs(), closePrice) {
+			shouldStop, delay, reason := s.shouldStop(kline, state, trend, lowIndex, openIndex, index, highIndex)
+			if shouldStop {
+				log.WithField("reason", reason).Info("close position")
+
+				err := s.orderExecutor.ClosePosition(ctx, fixedpoint.One, "stop")
 				if err != nil {
-					if strings.Contains(err.Error(), "Insufficient USDT") {
-						log.WithField("orderQty", orderQty.Float64()).Error("Insufficient USDT, try reduce orderQty")
-						orderQty = orderQty.Mul(fixedpoint.NewFromFloat(0.99))
-						continue
-					}
-
-					log.WithError(err).Errorf("can not place %s open position order", s.Symbol)
-					log.Infof("can not place %s open position order", s.Symbol)
-					return
+					log.WithError(err).Error("close position error")
+				} else {
+					s.State.Delay = delay
+					s.currentStopLossPrice = fixedpoint.Zero
+					s.currentTakeProfitPrice = fixedpoint.Zero
 				}
-
-				break
+			} else {
+				log.Info("skip close position")
 			}
-
-		} else if s.State.Counter%10 == 3 {
-			perc := fixedpoint.One
-			err := s.orderExecutor.ClosePosition(ctx, perc)
-			if err != nil {
-				log.WithError(err).Error("close position error")
-			}
+		} else {
+			log.Debug("market dust quantity")
 		}
-
-		// Update our counter and sync the changes to the persistence layer on time
-		// If you don't do this, BBGO will sync it automatically when BBGO shuts down.
-		s.State.Counter++
 	}))
 
 	// Graceful shutdown
@@ -228,6 +271,25 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 	})
 
 	return nil
+}
+
+func (s *Strategy) setupBot() {
+	feishuCfg := s.Chat.Feishu
+	if feishuCfg != nil && os.Getenv("CHAT_FEISHU_APP_ID") != "" {
+		feishuCfg.AppId = os.Getenv("CHAT_FEISHU_APP_ID")
+		feishuCfg.AppSecret = os.Getenv("CHAT_FEISHU_APP_SECRET")
+		feishuCfg.EventEncryptKey = os.Getenv("CHAT_FEISHU_EVENT_ENCRYPT_KEY")
+		feishuCfg.VerificationToken = os.Getenv("CHAT_FEISHU_VERIFICATION_TOKEN")
+	}
+
+	chat := feishu.NewFeishuChatProvider(feishuCfg)
+
+	go func() {
+		err := chat.Start()
+		if err != nil {
+			log.WithError(err).Error("feishu chat start error")
+		}
+	}()
 }
 
 // setupIndicators initializes indicators
@@ -241,35 +303,57 @@ func (s *Strategy) setupIndicators() {
 	}, 2)
 }
 
-func (s *Strategy) generateOrderForm(side types.SideType, quantity fixedpoint.Value, marginOrderSideEffect types.MarginOrderSideEffectType) types.SubmitOrder {
-	orderForm := types.SubmitOrder{
-		Symbol:           s.Symbol,
-		Market:           s.Market,
-		Side:             side,
-		Type:             types.OrderTypeMarket,
-		Quantity:         quantity,
-		MarginSideEffect: marginOrderSideEffect,
+func (s *Strategy) getTrend(line types.SeriesExtend) types.Direction {
+	if line.Length() > 2 {
+		last := line.Index(0)
+		first := line.Index(2)
+		rate := (last - first) * 100 / first
+		log.WithField("rate", rate).Debug("get trend")
+
+		if rate > s.TrendThreshold.Float64() {
+			return types.DirectionUp
+		} else if rate < s.TrendThreshold.Neg().Float64() {
+			return types.DirectionDown
+		}
 	}
 
-	return orderForm
+	return types.DirectionNone
 }
 
-// calculateQuantity returns leveraged quantity
-func (s *Strategy) calculateQuantity(ctx context.Context, currentPrice fixedpoint.Value, side types.SideType) fixedpoint.Value {
-	// Quantity takes precedence
-	if !s.Quantity.IsZero() {
-		return s.Quantity
+func (s *Strategy) shouldStop(kline types.KLine, state *State, trend types.Direction, lowIndex int, openIndex int, closeIndex int, highIndex int) (bool, int, string) {
+	stopNow := false
+	delay := 0
+	stopReason := ""
+
+	if !s.currentStopLossPrice.IsZero() {
+		if s.Position.IsShort() && kline.GetClose().Compare(s.currentStopLossPrice.Mul(fixedpoint.NewFromFloat(1.01))) > 0 {
+			stopNow = true
+			delay = 15
+			stopReason = fmt.Sprintf("%s stop loss by triggering the kline high", s.Symbol)
+			return stopNow, delay, stopReason
+		} else if s.Position.IsLong() && kline.GetClose().Compare(s.currentStopLossPrice.Mul(fixedpoint.NewFromFloat(0.99))) < 0 {
+			stopNow = true
+			delay = 15
+			stopReason = fmt.Sprintf("%s stop loss by triggering the kline low", s.Symbol)
+			return stopNow, delay, stopReason
+		}
 	}
 
-	quoteQty, err := bbgo.CalculateQuoteQuantity(ctx, s.session, s.Market.QuoteCurrency, s.Leverage)
-	if err != nil {
-		log.WithError(err).Errorf("can not update %s quote balance from exchange", s.Symbol)
-		return fixedpoint.Zero
+	if s.Position.IsLong() {
+		// Long
+		if highIndex >= 5 {
+			stopNow = true
+			delay = 0
+			stopReason = "high price rebound to upper boundary"
+		}
+	} else if s.Position.IsShort() {
+		// short
+		if lowIndex <= -5 {
+			stopNow = true
+			delay = 0
+			stopReason = "low price rebound to lower boundary"
+		}
 	}
 
-	if side == types.SideTypeSell {
-		return quoteQty.Div(currentPrice)
-	} else {
-		return quoteQty
-	}
+	return stopNow, delay, stopReason
 }
