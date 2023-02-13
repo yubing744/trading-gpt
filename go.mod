@@ -88,6 +88,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.0 // indirect
 	github.com/rollbar/rollbar-go v1.4.5 // indirect
 	github.com/sajari/regression v1.0.1 // indirect
+	github.com/sashabaranov/go-gpt3 v1.0.1 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/slack-go/slack v0.10.1 // indirect
 	github.com/spf13/afero v1.5.1 // indirect
