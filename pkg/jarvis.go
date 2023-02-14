@@ -6,9 +6,12 @@ import (
 	"os"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/yubing744/trading-bot/pkg/agent/openai"
 	"github.com/yubing744/trading-bot/pkg/chat/feishu"
 	"github.com/yubing744/trading-bot/pkg/config"
+	ttypes "github.com/yubing744/trading-bot/pkg/types"
 
 	"github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/fixedpoint"
@@ -274,6 +277,8 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 }
 
 func (s *Strategy) setupBot() {
+	openaiAgent := openai.NewOpenAIAgent(&s.Agent.OpenAI)
+
 	feishuCfg := s.Chat.Feishu
 	if feishuCfg != nil && os.Getenv("CHAT_FEISHU_APP_ID") != "" {
 		feishuCfg.AppId = os.Getenv("CHAT_FEISHU_APP_ID")
@@ -284,12 +289,33 @@ func (s *Strategy) setupBot() {
 
 	chat := feishu.NewFeishuChatProvider(feishuCfg)
 
-	go func() {
-		err := chat.Start()
-		if err != nil {
-			log.WithError(err).Error("feishu chat start error")
+	err := chat.Listen(func(ch ttypes.Channel) {
+		messageHandle := func(msg *ttypes.Message) {
+			evt := &ttypes.Event{
+				ID: msg.ID,
+			}
+
+			action, err := openaiAgent.GenAction(uuid.NewString(), evt)
+			if err != nil {
+				log.WithError(err).Error("gen action error")
+				return
+			}
+
+			log.WithField("action", action).Info("do action")
+
+			err = ch.Reply(&ttypes.Message{
+				ID: uuid.NewString(),
+			})
+			if err != nil {
+				log.WithError(err).Error("reply message error")
+			}
 		}
-	}()
+
+		ch.OnMessage(messageHandle)
+	})
+	if err != nil {
+		log.WithError(err).Error("listen chat error")
+	}
 }
 
 // setupIndicators initializes indicators

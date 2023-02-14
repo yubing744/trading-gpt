@@ -1,5 +1,6 @@
 package config
 
 type Config struct {
-	Chat ChatConfig `json:"chat"`
+	Chat  ChatConfig  `json:"chat"`
+	Agent AgentConfig `json:"agent"`
 }

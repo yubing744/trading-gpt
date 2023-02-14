@@ -5,6 +5,6 @@ import (
 )
 
 type Agent interface {
-	GenAction(sessionID string, event types.Event) (types.Action, error)
+	GenAction(sessionID string, event *types.Event) (*types.Action, error)
 	RegisterActions(actions []types.ActionDesc)
 }

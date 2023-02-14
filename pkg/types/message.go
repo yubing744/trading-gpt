@@ -1,5 +1,5 @@
 package types
 
-type Event struct {
+type Message struct {
 	ID string
 }
