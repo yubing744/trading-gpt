@@ -57,9 +57,17 @@ func (feishu *FeishuChatProvider) Listen(cb chat.ListenCallback) error {
 		// 获取租户 key 并发送消息
 		tenantKey := event.TenantKey()
 
+		receiveIdType := larkim.ReceiveIdTypeOpenId
+		receiveId := *event.Event.Sender.SenderId.OpenId
+
+		if event.Event.Message != nil && *event.Event.Message.ChatType == "group" {
+			receiveIdType = larkim.ReceiveIdTypeChatId
+			receiveId = *event.Event.Message.ChatId
+		}
+
 		channel, ok := feishu.channels[tenantKey]
 		if !ok {
-			channel = NewFeishuChatChannel(feishu.client, tenantKey, *event.Event.Sender.SenderId.OpenId)
+			channel = NewFeishuChatChannel(feishu.client, tenantKey, receiveIdType, receiveId)
 			feishu.channels[tenantKey] = channel
 			cb(channel)
 		}

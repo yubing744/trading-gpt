@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"github.com/yubing744/trading-bot/pkg/agent"
 	"github.com/yubing744/trading-bot/pkg/config"
 	"github.com/yubing744/trading-bot/pkg/types"
 
@@ -16,6 +18,8 @@ import (
 const (
 	HumanLable = "You"
 )
+
+var log = logrus.WithField("agent", "openai")
 
 type OpenAIAgent struct {
 	client    *gogpt.Client
@@ -56,28 +60,28 @@ func (agent *OpenAIAgent) genPrompt(event *types.Event) string {
 	return builder.String()
 }
 
-func (agent *OpenAIAgent) SetBackgroup(backgroup string) {
-	agent.backgroup = backgroup
+func (a *OpenAIAgent) SetBackgroup(backgroup string) {
+	a.backgroup = backgroup
 }
 
-func (agent *OpenAIAgent) RegisterActions(ctx context.Context, actions []*types.ActionDesc) {
+func (a *OpenAIAgent) RegisterActions(ctx context.Context, actions []*types.ActionDesc) {
 	for _, def := range actions {
-		agent.actions[def.Name] = def
+		a.actions[def.Name] = def
 
 		for _, sample := range def.Samples {
-			agent.chats = append(agent.chats, fmt.Sprintf("%s:%s", HumanLable, sample))
-			agent.chats = append(agent.chats, fmt.Sprintf("%s:%s", agent.name, def.Name))
+			a.chats = append(a.chats, fmt.Sprintf("%s:%s", HumanLable, sample))
+			a.chats = append(a.chats, fmt.Sprintf("%s:%s", a.name, def.Name))
 		}
 	}
 }
 
-func (agent *OpenAIAgent) GenActions(ctx context.Context, sessionID string, event *types.Event) ([]*types.Action, error) {
-	prompt := agent.genPrompt(event)
+func (a *OpenAIAgent) GenActions(ctx context.Context, sessionID string, event *types.Event) (*agent.GenResult, error) {
+	prompt := a.genPrompt(event)
 
 	req := gogpt.CompletionRequest{
 		Model:            gogpt.GPT3TextDavinci003,
 		Temperature:      0.5,
-		MaxTokens:        5,
+		MaxTokens:        256,
 		TopP:             0.3,
 		FrequencyPenalty: 0.5,
 		PresencePenalty:  0,
@@ -85,14 +89,17 @@ func (agent *OpenAIAgent) GenActions(ctx context.Context, sessionID string, even
 		Stream:           true,
 	}
 
-	stream, err := agent.client.CreateCompletionStream(ctx, req)
+	stream, err := a.client.CreateCompletionStream(ctx, req)
 	if err != nil {
 		return nil, errors.Wrap(err, "create CreateCompletionStream error")
 	}
 
 	defer stream.Close()
 
-	result := make([]*types.Action, 0)
+	result := &agent.GenResult{
+		Actions: make([]*types.Action, 0),
+		Texts:   make([]string, 0),
+	}
 
 	for {
 		resp, err := stream.Recv()
@@ -105,14 +112,24 @@ func (agent *OpenAIAgent) GenActions(ctx context.Context, sessionID string, even
 		}
 
 		if len(resp.Choices) > 0 {
-			actionDef, ok := agent.actions[resp.Choices[0].Text]
+			text := resp.Choices[0].Text
+			log.WithField("text", text).Info("resp.Choices[0].Text")
+
+			result.Texts = append(result.Texts, text)
+
+			actionDef, ok := a.actions[text]
 			if ok {
-				result = append(result, &types.Action{
+				result.Actions = append(result.Actions, &types.Action{
 					Name: actionDef.Name,
 					Args: []string{},
 				})
 			}
 		}
+	}
+
+	if len(result.Texts) > 0 {
+		a.chats = append(a.chats, fmt.Sprintf("%s:%s", HumanLable, event.Data))
+		a.chats = append(a.chats, fmt.Sprintf("%s:%s", a.name, strings.Join(result.Texts, "")))
 	}
 
 	return result, nil

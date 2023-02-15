@@ -2,6 +2,7 @@ package feishu
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/pkg/errors"
 	"github.com/yubing744/trading-bot/pkg/types"
@@ -12,17 +13,19 @@ import (
 )
 
 type FeishuChatChannel struct {
-	client    *lark.Client
-	tenantKey string
-	receiveId string
-	callbacks []types.MessageCallback
+	client        *lark.Client
+	tenantKey     string
+	receiveIdType string
+	receiveId     string
+	callbacks     []types.MessageCallback
 }
 
-func NewFeishuChatChannel(client *lark.Client, tenantKey string, receiveId string) *FeishuChatChannel {
+func NewFeishuChatChannel(client *lark.Client, tenantKey string, receiveIdType string, receiveId string) *FeishuChatChannel {
 	return &FeishuChatChannel{
-		client:    client,
-		tenantKey: tenantKey,
-		receiveId: receiveId,
+		client:        client,
+		tenantKey:     tenantKey,
+		receiveIdType: receiveIdType,
+		receiveId:     receiveId,
 	}
 }
 
@@ -45,13 +48,18 @@ func (ch *FeishuChatChannel) OnMessage(cb types.MessageCallback) {
 }
 
 func (ch *FeishuChatChannel) Reply(msg *types.Message) error {
+	content := map[string]string{
+		"text": msg.Text,
+	}
+	contentBody, _ := json.Marshal(content)
+
 	// ISV 给指定租户发送消息
 	resp, err := ch.client.Im.Message.Create(context.Background(), larkim.NewCreateMessageReqBuilder().
-		ReceiveIdType(larkim.ReceiveIdTypeOpenId).
+		ReceiveIdType(ch.receiveIdType).
 		Body(larkim.NewCreateMessageReqBodyBuilder().
-			MsgType(larkim.MsgTypePost).
+			MsgType(larkim.MsgTypeText).
 			ReceiveId(ch.receiveId).
-			Content(msg.Text).
+			Content(string(contentBody)).
 			Build()).
 		Build(), larkcore.WithTenantKey(ch.tenantKey))
 

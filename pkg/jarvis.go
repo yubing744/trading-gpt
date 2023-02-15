@@ -308,18 +308,18 @@ func (s *Strategy) setupBot() {
 				Data: msg.Text,
 			}
 
-			actions, err := openaiAgent.GenActions(ctx, uuid.NewString(), evt)
+			result, err := openaiAgent.GenActions(ctx, uuid.NewString(), evt)
 			if err != nil {
 				log.WithError(err).Error("gen action error")
 				return
 			}
 
-			log.WithField("actions", actions).Info("do action")
+			log.WithField("result", result).Info("gen actions")
 
-			if len(actions) > 0 {
+			if len(result.Texts) > 0 {
 				err = ch.Reply(&ttypes.Message{
 					ID:   uuid.NewString(),
-					Text: fmt.Sprintf("%s %s", actions[0].Name, strings.Join(actions[0].Args, ",")),
+					Text: strings.Join(result.Texts, ""),
 				})
 				if err != nil {
 					log.WithError(err).Error("reply message error")
@@ -330,7 +330,7 @@ func (s *Strategy) setupBot() {
 
 			err = ch.Reply(&ttypes.Message{
 				ID:   uuid.NewString(),
-				Text: "no actions",
+				Text: "no reply text",
 			})
 			if err != nil {
 				log.WithError(err).Error("reply message error")

@@ -53,12 +53,12 @@ func TestGenAction(t *testing.T) {
 		},
 	})
 
-	actions, err := agent.GenActions(ctx, "test_session_1", &types.Event{
+	result, err := agent.GenActions(ctx, "test_session_1", &types.Event{
 		ID:   "1",
 		Type: "text_message",
 		Data: "1.1 1.2 1.3 1.4 1.5 1.6 1.7",
 	})
 	assert.NoError(t, err)
-	assert.NotNil(t, actions)
-	assert.Equal(t, "buy", actions[0].Name)
+	assert.NotNil(t, result)
+	assert.Equal(t, "buy", result.Actions[0].Name)
 }
