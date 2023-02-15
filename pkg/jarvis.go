@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -277,6 +278,11 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 }
 
 func (s *Strategy) setupBot() {
+	openaiCfg := &s.Agent.OpenAI
+	if openaiCfg != nil {
+		openaiCfg.Token = os.Getenv("AGENT_OPENAI_TOKEN")
+	}
+
 	openaiAgent := openai.NewOpenAIAgent(&s.Agent.OpenAI)
 
 	feishuCfg := s.Chat.Feishu
@@ -290,21 +296,41 @@ func (s *Strategy) setupBot() {
 	chat := feishu.NewFeishuChatProvider(feishuCfg)
 
 	err := chat.Listen(func(ch ttypes.Channel) {
+		log.WithField("channel", ch).Info("new channel")
+
 		messageHandle := func(msg *ttypes.Message) {
+			log.WithField("msg", msg).Info("new message")
+
+			ctx := context.Background()
 			evt := &ttypes.Event{
-				ID: msg.ID,
+				ID:   msg.ID,
+				Type: "text_message",
+				Data: msg.Text,
 			}
 
-			action, err := openaiAgent.GenAction(uuid.NewString(), evt)
+			actions, err := openaiAgent.GenActions(ctx, uuid.NewString(), evt)
 			if err != nil {
 				log.WithError(err).Error("gen action error")
 				return
 			}
 
-			log.WithField("action", action).Info("do action")
+			log.WithField("actions", actions).Info("do action")
+
+			if len(actions) > 0 {
+				err = ch.Reply(&ttypes.Message{
+					ID:   uuid.NewString(),
+					Text: fmt.Sprintf("%s %s", actions[0].Name, strings.Join(actions[0].Args, ",")),
+				})
+				if err != nil {
+					log.WithError(err).Error("reply message error")
+				}
+
+				return
+			}
 
 			err = ch.Reply(&ttypes.Message{
-				ID: uuid.NewString(),
+				ID:   uuid.NewString(),
+				Text: "no actions",
 			})
 			if err != nil {
 				log.WithError(err).Error("reply message error")

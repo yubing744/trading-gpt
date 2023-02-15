@@ -59,8 +59,9 @@ func (feishu *FeishuChatProvider) Listen(cb chat.ListenCallback) error {
 
 		channel, ok := feishu.channels[tenantKey]
 		if !ok {
-			channel = NewFeishuChatChannel(feishu.client, tenantKey)
+			channel = NewFeishuChatChannel(feishu.client, tenantKey, *event.Event.Sender.SenderId.OpenId)
 			feishu.channels[tenantKey] = channel
+			cb(channel)
 		}
 
 		channel.handleEvent(event)

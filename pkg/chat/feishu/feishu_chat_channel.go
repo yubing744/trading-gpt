@@ -14,19 +14,22 @@ import (
 type FeishuChatChannel struct {
 	client    *lark.Client
 	tenantKey string
+	receiveId string
 	callbacks []types.MessageCallback
 }
 
-func NewFeishuChatChannel(client *lark.Client, tenantKey string) *FeishuChatChannel {
+func NewFeishuChatChannel(client *lark.Client, tenantKey string, receiveId string) *FeishuChatChannel {
 	return &FeishuChatChannel{
 		client:    client,
 		tenantKey: tenantKey,
+		receiveId: receiveId,
 	}
 }
 
 func (ch *FeishuChatChannel) toMessage(event *larkim.P2MessageReceiveV1) *types.Message {
 	return &types.Message{
-		ID: event.EventReq.RequestId(),
+		ID:   event.EventReq.RequestId(),
+		Text: *event.Event.Message.Content,
 	}
 }
 
@@ -47,8 +50,8 @@ func (ch *FeishuChatChannel) Reply(msg *types.Message) error {
 		ReceiveIdType(larkim.ReceiveIdTypeOpenId).
 		Body(larkim.NewCreateMessageReqBodyBuilder().
 			MsgType(larkim.MsgTypePost).
-			ReceiveId("ou_c245b0a7dff2725cfa2fb104f8b48b9d").
-			Content("text").
+			ReceiveId(ch.receiveId).
+			Content(msg.Text).
 			Build()).
 		Build(), larkcore.WithTenantKey(ch.tenantKey))
 

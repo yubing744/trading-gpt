@@ -1,11 +1,12 @@
 package types
 
 type ActionDesc struct {
-	name        string
-	description string
+	Name        string
+	Description string
+	Samples     []string
 }
 
 type Action struct {
-	name string
+	Name string
 	Args []string
 }

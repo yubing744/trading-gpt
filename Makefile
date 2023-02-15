@@ -1,4 +1,4 @@
-.PHONY: clean sync backtest build run docker-build docker-push docker-run start stop logs deploy
+.PHONY: clean sync backtest build test run docker-build docker-push docker-run start stop logs deploy
 
 NAME=trading-bot
 VERSION=0.1.0
@@ -17,6 +17,9 @@ backtest:
 
 build: clean
 	CGO_ENABLED=0 go build -o ./build/bbgo ./cmd/bbgo.go
+
+test:
+	go test ./...
 
 run: build
 	./build/bbgo run
