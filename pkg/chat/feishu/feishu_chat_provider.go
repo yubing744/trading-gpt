@@ -6,13 +6,12 @@ import (
 	"io"
 	"net/http"
 
-	lark "github.com/larksuite/oapi-sdk-go/v3"
+	"github.com/kataras/go-events"
 	"github.com/sirupsen/logrus"
 	"github.com/yubing744/trading-bot/pkg/chat"
 	"github.com/yubing744/trading-bot/pkg/config"
 
-	"github.com/kataras/go-events"
-
+	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 	"github.com/larksuite/oapi-sdk-go/v3/core/httpserverext"
 	larkevent "github.com/larksuite/oapi-sdk-go/v3/event"
@@ -48,15 +47,11 @@ func NewFeishuChatProvider(cfg *config.ChatFeishuConfig) *FeishuChatProvider {
 }
 
 func (feishu *FeishuChatProvider) Listen(cb chat.ListenCallback) error {
-	// 注册消息处理器
 	handler := feishu.dispatcher.OnP2MessageReceiveV1(func(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
-		// 处理消息 event，这里简单打印消息的内容
 		fmt.Println(larkcore.Prettify(event))
 		fmt.Println(event.RequestId())
 
-		// 获取租户 key 并发送消息
 		tenantKey := event.TenantKey()
-
 		receiveIdType := larkim.ReceiveIdTypeOpenId
 		receiveId := *event.Event.Sender.SenderId.OpenId
 
@@ -65,14 +60,18 @@ func (feishu *FeishuChatProvider) Listen(cb chat.ListenCallback) error {
 			receiveId = *event.Event.Message.ChatId
 		}
 
-		channel, ok := feishu.channels[tenantKey]
+		// create channel
+		channelKey := fmt.Sprintf("%s:%s:%s", tenantKey, receiveIdType, receiveId)
+		channel, ok := feishu.channels[channelKey]
 		if !ok {
 			channel = NewFeishuChatChannel(feishu.client, tenantKey, receiveIdType, receiveId)
-			feishu.channels[tenantKey] = channel
+			feishu.channels[channelKey] = channel
 			cb(channel)
 		}
 
-		channel.handleEvent(event)
+		go func() {
+			channel.handleEvent(event)
+		}()
 
 		return nil
 	})

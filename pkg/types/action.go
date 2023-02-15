@@ -7,6 +7,7 @@ type ActionDesc struct {
 }
 
 type Action struct {
-	Name string
-	Args []string
+	Target string
+	Name   string
+	Args   []string
 }

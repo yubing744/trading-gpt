@@ -3,7 +3,6 @@ package openai
 import (
 	"context"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -60,6 +59,10 @@ func (agent *OpenAIAgent) genPrompt(event *types.Event) string {
 	return builder.String()
 }
 
+func (a *OpenAIAgent) SetName(name string) {
+	a.name = name
+}
+
 func (a *OpenAIAgent) SetBackgroup(backgroup string) {
 	a.backgroup = backgroup
 }
@@ -86,39 +89,26 @@ func (a *OpenAIAgent) GenActions(ctx context.Context, sessionID string, event *t
 		FrequencyPenalty: 0.5,
 		PresencePenalty:  0,
 		Prompt:           prompt,
-		Stream:           true,
 	}
 
-	stream, err := a.client.CreateCompletionStream(ctx, req)
+	resp, err := a.client.CreateCompletion(ctx, req)
 	if err != nil {
 		return nil, errors.Wrap(err, "create CreateCompletionStream error")
 	}
-
-	defer stream.Close()
 
 	result := &agent.GenResult{
 		Actions: make([]*types.Action, 0),
 		Texts:   make([]string, 0),
 	}
 
-	for {
-		resp, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
+	if len(resp.Choices) > 0 {
+		text := resp.Choices[0].Text
+		log.WithField("text", text).Info("resp.Choices[0].Text")
 
-		if err != nil {
-			return nil, errors.Wrap(err, "read stream error")
-		}
+		result.Texts = append(result.Texts, text)
 
-		if len(resp.Choices) > 0 {
-			text := resp.Choices[0].Text
-			log.WithField("text", text).Info("resp.Choices[0].Text")
-
-			result.Texts = append(result.Texts, text)
-
-			actionDef, ok := a.actions[text]
-			if ok {
+		for _, actionDef := range a.actions {
+			if strings.Contains(text, actionDef.Name) {
 				result.Actions = append(result.Actions, &types.Action{
 					Name: actionDef.Name,
 					Args: []string{},
