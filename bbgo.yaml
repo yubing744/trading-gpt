@@ -19,10 +19,11 @@ exchangeStrategies:
     chat:
       feishu:
         server_port: 3000
+    agent:
+      openai:
+        name: "小派"
     symbol: OPUSDT
     interval: 5m
-    leverage: 3
-    trend_threshold: 0.05
 
 sync:
   # since is the date you want to start sync

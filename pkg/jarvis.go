@@ -2,8 +2,14 @@ package pkg
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
 
+	"github.com/c9s/bbgo/pkg/bbgo"
+	"github.com/c9s/bbgo/pkg/datatype/floats"
+	"github.com/c9s/bbgo/pkg/types"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/yubing744/trading-bot/pkg/agent/openai"
 	"github.com/yubing744/trading-bot/pkg/chat"
@@ -11,10 +17,8 @@ import (
 	"github.com/yubing744/trading-bot/pkg/config"
 	"github.com/yubing744/trading-bot/pkg/env"
 	"github.com/yubing744/trading-bot/pkg/env/exchange"
-	ttypes "github.com/yubing744/trading-bot/pkg/types"
 
-	"github.com/c9s/bbgo/pkg/bbgo"
-	"github.com/c9s/bbgo/pkg/types"
+	ttypes "github.com/yubing744/trading-bot/pkg/types"
 )
 
 // ID is the unique strategy ID, it needs to be in all lower case
@@ -116,6 +120,8 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 	env := env.NewEnvironment()
 	env.RegisterEntity(exchange.NewExchangeEntity(
 		"exchange",
+		s.Symbol,
+		s.Interval,
 		s.Env.ExchangeConfig,
 		s.session,
 		s.orderExecutor,
@@ -175,19 +181,92 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 	err = chatProvider.Listen(func(ch ttypes.Channel) {
 		log.WithField("channel", ch).Info("new channel")
 
-		session := chat.NewChatSession(ch, agent, env)
+		chatSession := chat.NewChatSession(ch, agent, env)
 
-		err := session.Start()
-		if err != nil {
-			log.
-				WithError(err).
-				WithField("session", session).
-				Error("start session error")
-		}
+		ch.OnMessage(func(msg *ttypes.Message) {
+			s.handleChatMessage(chatSession, msg)
+		})
+
+		env.OnEvent(func(evt *ttypes.Event) {
+			s.handleEnvEvent(chatSession, evt)
+		})
 	})
 	if err != nil {
 		log.WithError(err).Error("listen chat error")
 	}
 
 	return nil
+}
+
+func (s *Strategy) agentAction(ctx context.Context, chatSession *chat.ChatSession, evt *ttypes.Event) {
+	result, err := chatSession.Agent.GenActions(ctx, uuid.NewString(), evt)
+	if err != nil {
+		log.WithError(err).Error("gen action error")
+		return
+	}
+
+	log.WithField("result", result).Info("gen actions result")
+
+	if len(result.Actions) > 0 {
+		for _, action := range result.Actions {
+			chatSession.Env.SendCommand(context.Background(), action.Target, action.Name, action.Args)
+		}
+	}
+
+	if len(result.Texts) > 0 {
+		err = chatSession.Channel.Reply(&ttypes.Message{
+			ID:   uuid.NewString(),
+			Text: strings.Join(result.Texts, ""),
+		})
+		if err != nil {
+			log.WithError(err).Error("reply message error")
+		}
+
+		return
+	}
+
+	err = chatSession.Channel.Reply(&ttypes.Message{
+		ID:   uuid.NewString(),
+		Text: "no reply text",
+	})
+	if err != nil {
+		log.WithError(err).Error("reply message error")
+	}
+}
+
+func (s *Strategy) handleChatMessage(chatSession *chat.ChatSession, msg *ttypes.Message) {
+	log.WithField("msg", msg).Info("new message")
+
+	ctx := context.Background()
+	evt := &ttypes.Event{
+		ID:   msg.ID,
+		Type: "text_message",
+		Data: msg.Text,
+	}
+
+	s.agentAction(ctx, chatSession, evt)
+}
+
+func (s *Strategy) handleEnvEvent(chatSession *chat.ChatSession, evt *ttypes.Event) {
+	log.WithField("event", evt).Info("handle env event")
+
+	switch evt.Type {
+	case "sma_changed":
+		smaValues := evt.Data.(floats.Slice)
+		s.handleSMAValuesChanged(chatSession, smaValues)
+	}
+}
+
+func (s *Strategy) handleSMAValuesChanged(chatSession *chat.ChatSession, smaValues floats.Slice) {
+	log.WithField("smaValues", smaValues).Info("handle sma values changed")
+
+	ctx := context.Background()
+
+	evt := &ttypes.Event{
+		ID:   uuid.NewString(),
+		Type: "text_message",
+		Data: fmt.Sprintf("%v", smaValues),
+	}
+
+	s.agentAction(ctx, chatSession, evt)
 }

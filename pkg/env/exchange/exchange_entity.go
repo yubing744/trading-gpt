@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/c9s/bbgo/pkg/bbgo"
+	"github.com/c9s/bbgo/pkg/indicator"
 	"github.com/c9s/bbgo/pkg/types"
 	"github.com/sirupsen/logrus"
 	"github.com/yubing744/trading-bot/pkg/config"
@@ -13,7 +14,10 @@ import (
 var log = logrus.WithField("entity", "exchange")
 
 type ExchangeEntity struct {
-	id  string
+	id       string
+	symbol   string
+	interval types.Interval
+
 	cfg *config.EnvExchangeConfig
 
 	session       *bbgo.ExchangeSession
@@ -21,10 +25,13 @@ type ExchangeEntity struct {
 	position      *types.Position
 
 	Status types.StrategyStatus
+	BOLL   *indicator.BOLL
 }
 
 func NewExchangeEntity(
 	id string,
+	symbol string,
+	interval types.Interval,
 	cfg *config.EnvExchangeConfig,
 	session *bbgo.ExchangeSession,
 	orderExecutor *bbgo.GeneralOrderExecutor,
@@ -32,6 +39,8 @@ func NewExchangeEntity(
 ) *ExchangeEntity {
 	return &ExchangeEntity{
 		id:            id,
+		symbol:        symbol,
+		interval:      interval,
 		cfg:           cfg,
 		session:       session,
 		orderExecutor: orderExecutor,
@@ -55,25 +64,44 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 
 	ent.Status = types.StrategyStatusRunning
 
+	ent.setupIndicators()
+
 	// if you need to do something when the user data stream is ready
 	// note that you only receive order update, trade update, balance update when the user data stream is connect.
 	session.UserDataStream.OnStart(func() {
 		log.Infof("connected")
 	})
 
-	log.WithField("session", session).
-		Infof("run")
-	/*
-		session.MarketDataStream.OnKLineClosed(types.KLineWith(ent.cfg.Symbol, ent.cfg.Interval, func(kline types.KLine) {
-			// StrategyController
-			if ent.Status != types.StrategyStatusRunning {
-				log.Info("strategy status not running")
-				return
-			}
+	log.Infof("exchange entity run")
 
-			log.WithField("position", ent.position).
-				Infof("current position")
+	session.MarketDataStream.OnKLineClosed(types.KLineWith(ent.symbol, ent.interval, func(kline types.KLine) {
+		// StrategyController
+		if ent.Status != types.StrategyStatusRunning {
+			log.Info("strategy status not running")
+			return
+		}
 
-		}))
-	*/
+		ent.emitEvent(ch, &ttypes.Event{
+			Type: "sma_changed",
+			Data: ent.BOLL.SMA.Values,
+		})
+	}))
+
+}
+
+// setupIndicators initializes indicators
+func (ent *ExchangeEntity) setupIndicators() {
+	log.Infof("setupIndicators")
+
+	indicators := ent.session.StandardIndicatorSet(ent.symbol)
+	ent.BOLL = indicators.BOLL(types.IntervalWindow{
+		Interval: ent.interval,
+		Window:   20,
+	}, 2)
+}
+
+func (ent *ExchangeEntity) emitEvent(ch chan *ttypes.Event, evt *ttypes.Event) {
+	log.WithField("event", evt).Info("emit event")
+
+	ch <- evt
 }
