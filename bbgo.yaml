@@ -22,6 +22,7 @@ exchangeStrategies:
     agent:
       openai:
         name: "小派"
+        max_context_length: 4097
     env:
       exchange:
 

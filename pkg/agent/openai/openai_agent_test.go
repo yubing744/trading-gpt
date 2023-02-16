@@ -11,17 +11,98 @@ import (
 
 func TestNewOpenAIAgent(t *testing.T) {
 	cfg := &config.AgentOpenAIConfig{
-		Token: "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",
+		Token:            "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",
+		MaxContextLength: 500,
 	}
 	agent := NewOpenAIAgent(cfg)
 	assert.NotNil(t, agent)
+}
+
+func TestGenPrompt(t *testing.T) {
+	cfg := &config.AgentOpenAIConfig{
+		Token:            "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",
+		MaxContextLength: 500,
+	}
+	agent := NewOpenAIAgent(cfg)
+	assert.NotNil(t, agent)
+
+	prompt, err := agent.GenPrompt([]string{}, &types.Event{
+		Data: "xxx",
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "\n\nYou:xxx\nAI:", prompt)
+}
+
+func TestGenPromptWithTooLong(t *testing.T) {
+	cfg := &config.AgentOpenAIConfig{
+		Token:            "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",
+		MaxContextLength: 12,
+	}
+	agent := NewOpenAIAgent(cfg)
+	assert.NotNil(t, agent)
+
+	_, err := agent.GenPrompt([]string{}, &types.Event{
+		Data: "xxx",
+	})
+
+	assert.Error(t, err)
+}
+
+func TestGenPromptBySplitChats(t *testing.T) {
+	cfg := &config.AgentOpenAIConfig{
+		Token:            "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",
+		MaxContextLength: 13,
+	}
+	agent := NewOpenAIAgent(cfg)
+	assert.NotNil(t, agent)
+
+	prompt, err := agent.GenPrompt([]string{"msg xxxx"}, &types.Event{
+		Data: "xxx",
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "\n\nYou:xxx\nAI:", prompt)
+}
+
+func TestGenPromptBySplitChats2(t *testing.T) {
+	cfg := &config.AgentOpenAIConfig{
+		Token:            "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",
+		MaxContextLength: 23,
+	}
+	agent := NewOpenAIAgent(cfg)
+	assert.NotNil(t, agent)
+
+	prompt, err := agent.GenPrompt([]string{"msg xxxx1", "msg xxxx2"}, &types.Event{
+		Data: "xxx",
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "\n\nmsg xxxx2\nYou:xxx\nAI:", prompt)
+}
+
+func TestGenPromptBySplitChats3(t *testing.T) {
+	cfg := &config.AgentOpenAIConfig{
+		Token:            "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",
+		MaxContextLength: 100,
+	}
+	agent := NewOpenAIAgent(cfg)
+	assert.NotNil(t, agent)
+
+	prompt, err := agent.GenPrompt([]string{"msg xxxx1", "msg xxxx2"}, &types.Event{
+		Data: "xxx",
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "\n\nmsg xxxx1\nmsg xxxx2\nYou:xxx\nAI:", prompt)
 }
 
 func TestGenAction(t *testing.T) {
 	ctx := context.Background()
 
 	cfg := &config.AgentOpenAIConfig{
-		Token: "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",
+		Token:            "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",
+		MaxContextLength: 500,
 	}
 	agent := NewOpenAIAgent(cfg)
 	assert.NotNil(t, agent)
@@ -53,7 +134,9 @@ func TestGenAction(t *testing.T) {
 		},
 	})
 
-	result, err := agent.GenActions(ctx, "test_session_1", &types.Event{
+	session := types.NewMockSession("session_1")
+
+	result, err := agent.GenActions(ctx, session, &types.Event{
 		ID:   "1",
 		Type: "text_message",
 		Data: "1.1 1.2 1.3 1.4 1.5 1.6 1.7",

@@ -10,6 +10,9 @@ import (
 type ChatSession struct {
 	events.EventEmmiter
 
+	id    string
+	chats []string
+
 	Channel types.Channel
 	Agent   agent.Agent
 	Env     *env.Environment
@@ -17,9 +20,23 @@ type ChatSession struct {
 
 func NewChatSession(channel types.Channel, agent agent.Agent, env *env.Environment) *ChatSession {
 	return &ChatSession{
+		id:           channel.GetID(),
+		chats:        make([]string, 0),
 		EventEmmiter: events.New(),
 		Channel:      channel,
 		Agent:        agent,
 		Env:          env,
 	}
+}
+
+func (s *ChatSession) GetID() string {
+	return s.id
+}
+
+func (s *ChatSession) GetChats() []string {
+	return s.chats
+}
+
+func (s *ChatSession) AddChat(chat string) {
+	s.chats = append(s.chats, chat)
 }

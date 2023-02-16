@@ -3,6 +3,7 @@ package feishu
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/pkg/errors"
 	"github.com/yubing744/trading-bot/pkg/types"
@@ -13,6 +14,7 @@ import (
 )
 
 type FeishuChatChannel struct {
+	id            string
 	client        *lark.Client
 	tenantKey     string
 	receiveIdType string
@@ -22,11 +24,16 @@ type FeishuChatChannel struct {
 
 func NewFeishuChatChannel(client *lark.Client, tenantKey string, receiveIdType string, receiveId string) *FeishuChatChannel {
 	return &FeishuChatChannel{
+		id:            fmt.Sprintf("%s:%s:%s", tenantKey, receiveIdType, receiveId),
 		client:        client,
 		tenantKey:     tenantKey,
 		receiveIdType: receiveIdType,
 		receiveId:     receiveId,
 	}
+}
+
+func (ch *FeishuChatChannel) GetID() string {
+	return ch.id
 }
 
 func (ch *FeishuChatChannel) toMessage(event *larkim.P2MessageReceiveV1) *types.Message {

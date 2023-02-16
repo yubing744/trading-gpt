@@ -201,7 +201,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 }
 
 func (s *Strategy) agentAction(ctx context.Context, chatSession *chat.ChatSession, evt *ttypes.Event) {
-	result, err := chatSession.Agent.GenActions(ctx, uuid.NewString(), evt)
+	result, err := chatSession.Agent.GenActions(ctx, chatSession, evt)
 	if err != nil {
 		log.WithError(err).Error("gen action error")
 		return

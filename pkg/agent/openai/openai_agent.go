@@ -21,26 +21,53 @@ const (
 var log = logrus.WithField("agent", "openai")
 
 type OpenAIAgent struct {
-	client    *gogpt.Client
-	name      string
-	backgroup string
-	chats     []string
-	actions   map[string]*types.ActionDesc
+	client           *gogpt.Client
+	name             string
+	backgroup        string
+	chats            []string
+	actions          map[string]*types.ActionDesc
+	maxContextLength int
 }
 
 func NewOpenAIAgent(cfg *config.AgentOpenAIConfig) *OpenAIAgent {
 	client := gogpt.NewClient(cfg.Token)
 
 	return &OpenAIAgent{
-		client:    client,
-		name:      "AI",
-		backgroup: "",
-		chats:     make([]string, 0),
-		actions:   make(map[string]*types.ActionDesc, 0),
+		client:           client,
+		name:             "AI",
+		backgroup:        "",
+		chats:            make([]string, 0),
+		actions:          make(map[string]*types.ActionDesc, 0),
+		maxContextLength: cfg.MaxContextLength,
 	}
 }
 
-func (agent *OpenAIAgent) genPrompt(event *types.Event) string {
+func (agent *OpenAIAgent) toPrompt(event *types.Event) string {
+	var builder strings.Builder
+
+	builder.WriteString(fmt.Sprintf("%s:%s", HumanLable, event.Data))
+	builder.WriteString("\n")
+
+	builder.WriteString(fmt.Sprintf("%s:", agent.name))
+
+	return builder.String()
+}
+
+func (agent *OpenAIAgent) splitChatsByLength(sessionChats []string, maxLength int) []string {
+	length := 0
+
+	for i := len(sessionChats) - 1; i >= 0; i-- {
+		if length+len(sessionChats[i])+1 > maxLength {
+			return sessionChats[i+1:]
+		} else {
+			length = length + len(sessionChats[i])
+		}
+	}
+
+	return sessionChats
+}
+
+func (agent *OpenAIAgent) GenPrompt(sessionChats []string, event *types.Event) (string, error) {
 	var builder strings.Builder
 
 	builder.WriteString(agent.backgroup)
@@ -51,12 +78,24 @@ func (agent *OpenAIAgent) genPrompt(event *types.Event) string {
 		builder.WriteString("\n")
 	}
 
-	builder.WriteString(fmt.Sprintf("%s:%s", HumanLable, event.Data))
-	builder.WriteString("\n")
+	eventPrompt := agent.toPrompt(event)
 
-	builder.WriteString(fmt.Sprintf("%s:", agent.name))
+	subChats := agent.splitChatsByLength(sessionChats, agent.maxContextLength-builder.Len()-len(eventPrompt))
 
-	return builder.String()
+	for _, chat := range subChats {
+		builder.WriteString(chat)
+		builder.WriteString("\n")
+	}
+
+	builder.WriteString(eventPrompt)
+
+	prompt := builder.String()
+
+	if len(prompt) > agent.maxContextLength {
+		return "", errors.New("Gen prompt too long")
+	}
+
+	return prompt, nil
 }
 
 func (a *OpenAIAgent) SetName(name string) {
@@ -78,8 +117,11 @@ func (a *OpenAIAgent) RegisterActions(ctx context.Context, actions []*types.Acti
 	}
 }
 
-func (a *OpenAIAgent) GenActions(ctx context.Context, sessionID string, event *types.Event) (*agent.GenResult, error) {
-	prompt := a.genPrompt(event)
+func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, event *types.Event) (*agent.GenResult, error) {
+	prompt, err := a.GenPrompt(session.GetChats(), event)
+	if err != nil {
+		return nil, err
+	}
 
 	req := gogpt.CompletionRequest{
 		Model:            gogpt.GPT3TextDavinci003,
@@ -118,8 +160,8 @@ func (a *OpenAIAgent) GenActions(ctx context.Context, sessionID string, event *t
 	}
 
 	if len(result.Texts) > 0 {
-		a.chats = append(a.chats, fmt.Sprintf("%s:%s", HumanLable, event.Data))
-		a.chats = append(a.chats, fmt.Sprintf("%s:%s", a.name, strings.Join(result.Texts, "")))
+		session.AddChat(fmt.Sprintf("%s:%s", HumanLable, event.Data))
+		session.AddChat(fmt.Sprintf("%s:%s", a.name, strings.Join(result.Texts, "")))
 	}
 
 	return result, nil
