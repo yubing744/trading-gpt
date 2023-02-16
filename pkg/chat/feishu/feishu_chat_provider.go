@@ -89,5 +89,6 @@ func (feishu *FeishuChatProvider) Listen(cb chat.ListenCallback) error {
 	port := fmt.Sprintf(":%d", feishu.serverPort)
 	log.Infof("start chat feishu at %s ok", port)
 	err := http.ListenAndServe(port, mux)
+
 	return err
 }

@@ -178,22 +178,24 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 	chatProvider := feishu.NewFeishuChatProvider(feishuCfg)
 
 	// init chat provider and start session
-	err = chatProvider.Listen(func(ch ttypes.Channel) {
-		log.WithField("channel", ch).Info("new channel")
+	go func() {
+		err = chatProvider.Listen(func(ch ttypes.Channel) {
+			log.WithField("channel", ch).Info("new channel")
 
-		chatSession := chat.NewChatSession(ch, agent, env)
+			chatSession := chat.NewChatSession(ch, agent, env)
 
-		ch.OnMessage(func(msg *ttypes.Message) {
-			s.handleChatMessage(chatSession, msg)
+			ch.OnMessage(func(msg *ttypes.Message) {
+				s.handleChatMessage(chatSession, msg)
+			})
+
+			env.OnEvent(func(evt *ttypes.Event) {
+				s.handleEnvEvent(chatSession, evt)
+			})
 		})
-
-		env.OnEvent(func(evt *ttypes.Event) {
-			s.handleEnvEvent(chatSession, evt)
-		})
-	})
-	if err != nil {
-		log.WithError(err).Error("listen chat error")
-	}
+		if err != nil {
+			log.WithError(err).Error("listen chat error")
+		}
+	}()
 
 	return nil
 }
@@ -266,6 +268,14 @@ func (s *Strategy) handleSMAValuesChanged(chatSession *chat.ChatSession, smaValu
 		ID:   uuid.NewString(),
 		Type: "text_message",
 		Data: fmt.Sprintf("%v", smaValues),
+	}
+
+	err := chatSession.Channel.Reply(&ttypes.Message{
+		ID:   uuid.NewString(),
+		Text: fmt.Sprintf("SMA changed: %s", evt.Data),
+	})
+	if err != nil {
+		log.WithError(err).Error("reply message error")
 	}
 
 	s.agentAction(ctx, chatSession, evt)

@@ -72,7 +72,10 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 		log.Infof("connected")
 	})
 
-	log.Infof("exchange entity run")
+	log.
+		WithField("symbol", ent.symbol).
+		WithField("interval", ent.interval).
+		Info("exchange entity run")
 
 	session.MarketDataStream.OnKLineClosed(types.KLineWith(ent.symbol, ent.interval, func(kline types.KLine) {
 		// StrategyController
@@ -80,6 +83,8 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 			log.Info("strategy status not running")
 			return
 		}
+
+		log.WithField("kline", kline).Info("kline closed")
 
 		ent.emitEvent(ch, &ttypes.Event{
 			Type: "sma_changed",
@@ -91,7 +96,7 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 
 // setupIndicators initializes indicators
 func (ent *ExchangeEntity) setupIndicators() {
-	log.Infof("setupIndicators")
+	log.Infof("setup indicators")
 
 	indicators := ent.session.StandardIndicatorSet(ent.symbol)
 	ent.BOLL = indicators.BOLL(types.IntervalWindow{

@@ -22,8 +22,11 @@ exchangeStrategies:
     agent:
       openai:
         name: "小派"
+    env:
+      exchange:
+
     symbol: OPUSDT
-    interval: 5m
+    interval: 1h
 
 sync:
   # since is the date you want to start sync
