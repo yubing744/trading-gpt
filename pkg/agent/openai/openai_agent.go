@@ -92,7 +92,7 @@ func (agent *OpenAIAgent) GenPrompt(sessionChats []string, event *types.Event) (
 	prompt := builder.String()
 
 	if len(prompt) > agent.maxContextLength {
-		return "", errors.New("Gen prompt too long")
+		return "", errors.Errorf("Gen prompt too long, current: %d, max: %d", len(prompt), agent.maxContextLength)
 	}
 
 	return prompt, nil
@@ -106,13 +106,13 @@ func (a *OpenAIAgent) SetBackgroup(backgroup string) {
 	a.backgroup = backgroup
 }
 
-func (a *OpenAIAgent) RegisterActions(ctx context.Context, actions []*types.ActionDesc) {
+func (a *OpenAIAgent) RegisterActions(ctx context.Context, name string, actions []*types.ActionDesc) {
 	for _, def := range actions {
 		a.actions[def.Name] = def
 
 		for _, sample := range def.Samples {
 			a.chats = append(a.chats, fmt.Sprintf("%s:%s", HumanLable, sample))
-			a.chats = append(a.chats, fmt.Sprintf("%s:%s", a.name, def.Name))
+			a.chats = append(a.chats, fmt.Sprintf("%s:/%s", a.name, def.Name))
 		}
 	}
 }
@@ -122,6 +122,15 @@ func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, ev
 	if err != nil {
 		return nil, err
 	}
+
+	log.
+		WithField("prompt_length", len(prompt)).
+		Info("gen prompt")
+
+	log.
+		WithField("prompt", prompt).
+		WithField("prompt_length", len(prompt)).
+		Debug("gen prompt detail")
 
 	req := gogpt.CompletionRequest{
 		Model:            gogpt.GPT3TextDavinci003,
@@ -150,10 +159,13 @@ func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, ev
 		result.Texts = append(result.Texts, text)
 
 		for _, actionDef := range a.actions {
-			if strings.Contains(text, actionDef.Name) {
+			if strings.Contains(strings.ToLower(text), fmt.Sprintf("%s", actionDef.Name)) {
+				log.WithField("action", actionDef.Name).Info("match action")
+
 				result.Actions = append(result.Actions, &types.Action{
-					Name: actionDef.Name,
-					Args: []string{},
+					Target: "exchange",
+					Name:   actionDef.Name,
+					Args:   []string{},
 				})
 			}
 		}

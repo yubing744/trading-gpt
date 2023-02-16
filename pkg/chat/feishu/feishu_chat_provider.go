@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 
 	"github.com/kataras/go-events"
 	"github.com/sirupsen/logrus"
@@ -31,7 +32,13 @@ type FeishuChatProvider struct {
 
 func NewFeishuChatProvider(cfg *config.ChatFeishuConfig) *FeishuChatProvider {
 	// 创建 API Client
-	var cli = lark.NewClient(cfg.AppId, cfg.AppSecret, lark.WithLogReqAtDebug(true), lark.WithLogLevel(larkcore.LogLevelDebug))
+	opts := []lark.ClientOptionFunc{}
+	debugMock := os.Getenv("DEBUG")
+	if debugMock == "true" {
+		opts = append(opts, lark.WithLogReqAtDebug(true))
+		opts = append(opts, lark.WithLogLevel(larkcore.LogLevelDebug))
+	}
+	var cli = lark.NewClient(cfg.AppId, cfg.AppSecret, opts...)
 
 	eventEncryptKey := cfg.EventEncryptKey
 	verificationToken := cfg.VerificationToken

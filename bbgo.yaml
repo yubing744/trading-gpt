@@ -28,6 +28,8 @@ exchangeStrategies:
 
     symbol: OPUSDT
     interval: 1h
+    leverage: 3
+    max_window_size: 21
 
 sync:
   # since is the date you want to start sync

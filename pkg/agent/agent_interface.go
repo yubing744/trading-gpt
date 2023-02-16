@@ -14,6 +14,6 @@ type GenResult struct {
 type Agent interface {
 	SetName(name string)
 	SetBackgroup(backgroup string)
+	RegisterActions(ctx context.Context, name string, actions []*types.ActionDesc)
 	GenActions(ctx context.Context, session types.ISession, event *types.Event) (*GenResult, error)
-	RegisterActions(ctx context.Context, actions []*types.ActionDesc)
 }

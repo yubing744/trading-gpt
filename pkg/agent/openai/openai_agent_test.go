@@ -108,7 +108,7 @@ func TestGenAction(t *testing.T) {
 	assert.NotNil(t, agent)
 
 	agent.SetBackgroup("以下是和股票交易助手的对话，股票交易助手支持注册实体，支持输出指令控制实体，支持根据股价数据生成K线形态。")
-	agent.RegisterActions(ctx, []*types.ActionDesc{
+	agent.RegisterActions(ctx, "exchange", []*types.ActionDesc{
 		{
 			Name:        "buy",
 			Description: "购买指令",

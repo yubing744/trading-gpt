@@ -25,13 +25,13 @@ func (env *Environment) RegisterEntity(entity Entity) {
 	env.entites[entity.GetID()] = entity
 }
 
-func (env *Environment) SendCommand(ctx context.Context, entityId string, cmd string, args []string) {
-	entity, ok := env.entites[entityId]
+func (env *Environment) SendCommand(ctx context.Context, name string, cmd string, args []string) {
+	entity, ok := env.entites[name]
 	if ok {
 		entity.HandleCommand(ctx, cmd, args)
 	} else {
 		log.
-			WithField("entityId", entityId).
+			WithField("entityName", name).
 			WithField("cmd", cmd).
 			WithField("args", args).
 			Debug("not found entity")
@@ -64,12 +64,15 @@ func (env *Environment) run(ctx context.Context, ch chan *types.Event) error {
 		case evt := <-ch:
 			env.emitEvent(evt)
 		case <-ctx.Done():
+			log.Info("env context done")
 			break
 		}
 	}
 }
 
 func (env *Environment) emitEvent(evt *types.Event) {
+	log.WithField("evnet", evt).Info("env emit event")
+
 	for _, cb := range env.callbacks {
 		cb(evt)
 	}

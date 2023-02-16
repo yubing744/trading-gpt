@@ -1,8 +1,14 @@
 package types
 
+type ArgmentDesc struct {
+	Name        string
+	Description string
+}
+
 type ActionDesc struct {
 	Name        string
 	Description string
+	Args        []ArgmentDesc
 	Samples     []string
 }
 

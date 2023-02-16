@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/c9s/bbgo/pkg/bbgo"
-	"github.com/c9s/bbgo/pkg/datatype/floats"
+	"github.com/c9s/bbgo/pkg/indicator"
 	"github.com/c9s/bbgo/pkg/types"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -17,6 +17,7 @@ import (
 	"github.com/yubing744/trading-bot/pkg/config"
 	"github.com/yubing744/trading-bot/pkg/env"
 	"github.com/yubing744/trading-bot/pkg/env/exchange"
+	"github.com/yubing744/trading-bot/pkg/utils"
 
 	ttypes "github.com/yubing744/trading-bot/pkg/types"
 )
@@ -122,6 +123,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		"exchange",
 		s.Symbol,
 		s.Interval,
+		s.Leverage,
 		s.Env.ExchangeConfig,
 		s.session,
 		s.orderExecutor,
@@ -139,29 +141,27 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 	}
 
 	agent := openai.NewOpenAIAgent(&s.Agent.OpenAI)
-	agent.SetBackgroup("以下是和股票交易助手的对话，股票交易助手支持注册实体，支持输出指令控制实体，支持根据股价数据生成K线形态。")
-	agent.RegisterActions(ctx, []*ttypes.ActionDesc{
+	agent.SetBackgroup("以下是和股票交易助手的对话，股票交易助手支持注册实体，支持输出命令控制实体，支持分析股票指标数据并生成交易信号。")
+	agent.RegisterActions(ctx, "exchange", []*ttypes.ActionDesc{
 		{
 			Name:        "buy",
-			Description: "购买指令",
+			Description: "买入命令",
 			Samples: []string{
-				"1.0 1.1 1.2 1.3 1.4 1.5 1.6",
-				"1.0 1.1 1.0 1.1 1.2 1.3 1.4",
+				"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
 			},
 		},
 		{
 			Name:        "sell",
-			Description: "卖出指令",
+			Description: "卖出命令",
 			Samples: []string{
-				"1.6 1.5 1.4 1.3 1.2 1.1 1.0",
-				"1.0 1.1 1.2 1.3 1.4 1.3 1.2",
+				"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.90 2.92 2.94 2.94 2.94 2.95 2.95 2.96], SMA:[2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.86 2.86 2.86 2.87 2.87 2.87 2.88 2.88], DownBand:[2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.81 2.80 2.79 2.79 2.79 2.80 2.80 2.80]}",
 			},
 		},
 		{
 			Name:        "hold",
-			Description: "持仓",
+			Description: "持仓命令",
 			Samples: []string{
-				"1.2 1.3 1.4 1.5 1.6 1.7 1.8",
+				"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90], SMA:[2.86 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85], DownBand:[2.80 2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81]",
 			},
 		},
 	})
@@ -253,30 +253,55 @@ func (s *Strategy) handleEnvEvent(chatSession *chat.ChatSession, evt *ttypes.Eve
 	log.WithField("event", evt).Info("handle env event")
 
 	switch evt.Type {
-	case "sma_changed":
-		smaValues := evt.Data.(floats.Slice)
-		s.handleSMAValuesChanged(chatSession, smaValues)
+	case "boll_changed":
+		boll, ok := evt.Data.(*indicator.BOLL)
+		if ok {
+			s.handleBOLLValuesChanged(chatSession, boll)
+		} else {
+			log.Warn("event data Type not match")
+		}
+	default:
+		log.WithField("eventType", evt.Type).Warn("no match event type")
 	}
 }
 
-func (s *Strategy) handleSMAValuesChanged(chatSession *chat.ChatSession, smaValues floats.Slice) {
-	log.WithField("smaValues", smaValues).Info("handle sma values changed")
+func (s *Strategy) handleBOLLValuesChanged(chatSession *chat.ChatSession, boll *indicator.BOLL) {
+	log.WithField("boll", boll).Info("handle boll values changed")
 
 	ctx := context.Background()
 
-	evt := &ttypes.Event{
-		ID:   uuid.NewString(),
-		Type: "text_message",
-		Data: fmt.Sprintf("%v", smaValues),
+	upVals := boll.UpBand
+	if len(upVals) > s.MaxWindowSize {
+		upVals = upVals[len(upVals)-s.MaxWindowSize:]
 	}
+
+	midVals := boll.SMA.Values
+	if len(midVals) > s.MaxWindowSize {
+		midVals = midVals[len(midVals)-s.MaxWindowSize:]
+	}
+
+	downVals := boll.DownBand
+	if len(downVals) > s.MaxWindowSize {
+		downVals = downVals[len(downVals)-s.MaxWindowSize:]
+	}
+
+	msg := fmt.Sprintf("BOLL data changed: UpBand:[%s], SMA:[%s], DownBand:[%s]",
+		utils.JoinFloatSlice([]float64(upVals), " "),
+		utils.JoinFloatSlice([]float64(midVals), " "),
+		utils.JoinFloatSlice([]float64(downVals), " "),
+	)
 
 	err := chatSession.Channel.Reply(&ttypes.Message{
 		ID:   uuid.NewString(),
-		Text: fmt.Sprintf("SMA changed: %s", evt.Data),
+		Text: msg,
 	})
 	if err != nil {
 		log.WithError(err).Error("reply message error")
 	}
 
-	s.agentAction(ctx, chatSession, evt)
+	s.agentAction(ctx, chatSession, &ttypes.Event{
+		ID:   uuid.NewString(),
+		Type: "text_message",
+		Data: msg,
+	})
 }
