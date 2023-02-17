@@ -148,6 +148,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 			Description: "买入命令",
 			Samples: []string{
 				"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
+				"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
 			},
 		},
 		{
@@ -155,6 +156,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 			Description: "卖出命令",
 			Samples: []string{
 				"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.90 2.92 2.94 2.94 2.94 2.95 2.95 2.96], SMA:[2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.86 2.86 2.86 2.87 2.87 2.87 2.88 2.88], DownBand:[2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.81 2.80 2.79 2.79 2.79 2.80 2.80 2.80]}",
+				"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
 			},
 		},
 		{
@@ -162,6 +164,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 			Description: "持仓命令",
 			Samples: []string{
 				"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90], SMA:[2.86 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85], DownBand:[2.80 2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81]",
+				"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
 			},
 		},
 	})
@@ -253,6 +256,15 @@ func (s *Strategy) handleEnvEvent(ctx context.Context, chatSession *chat.ChatSes
 		} else {
 			log.Warn("event data Type not match")
 		}
+	case "vwma_changed":
+		vwma, ok := evt.Data.(*indicator.VWMA)
+		if ok {
+			s.handleVWMAValuesChanged(ctx, chatSession, vwma)
+		} else {
+			log.Warn("event data Type not match")
+		}
+	case "update_finish":
+		s.handleUpdateFinish(ctx, chatSession)
 	default:
 		log.WithField("eventType", evt.Type).Warn("no match event type")
 	}
@@ -284,7 +296,45 @@ func (s *Strategy) handleBOLLValuesChanged(ctx context.Context, chatSession *cha
 
 	s.replyMsg(ctx, chatSession, msg)
 
-	s.agentAction(ctx, chatSession, []*ttypes.Message{{
+	tempMsgs, _ := chatSession.GetState().([]*ttypes.Message)
+	tempMsgs = append(tempMsgs, &ttypes.Message{
 		Text: msg,
-	}})
+	})
+
+	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
+	chatSession.SetState(tempMsgs)
+}
+
+func (s *Strategy) handleVWMAValuesChanged(ctx context.Context, chatSession *chat.ChatSession, vwma *indicator.VWMA) {
+	log.WithField("vwma", vwma).Info("handle vwma values changed")
+
+	midVals := vwma.Values
+	if len(midVals) > s.MaxWindowSize {
+		midVals = midVals[len(midVals)-s.MaxWindowSize:]
+	}
+
+	msg := fmt.Sprintf("VWMA data changed: [%s]",
+		utils.JoinFloatSlice([]float64(midVals), " "),
+	)
+
+	s.replyMsg(ctx, chatSession, msg)
+
+	tempMsgs, _ := chatSession.GetState().([]*ttypes.Message)
+	tempMsgs = append(tempMsgs, &ttypes.Message{
+		Text: msg,
+	})
+
+	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
+	chatSession.SetState(tempMsgs)
+}
+
+func (s *Strategy) handleUpdateFinish(ctx context.Context, chatSession *chat.ChatSession) {
+	tempMsgs, ok := chatSession.GetState().([]*ttypes.Message)
+	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
+
+	if ok {
+		s.agentAction(ctx, chatSession, tempMsgs)
+	}
+
+	chatSession.SetState(nil)
 }

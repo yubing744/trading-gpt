@@ -32,6 +32,7 @@ type ExchangeEntity struct {
 
 	Status       types.StrategyStatus
 	BOLL         *indicator.BOLL
+	VWMA         *indicator.VWMA
 	CurrentKline *types.KLine
 }
 
@@ -145,11 +146,18 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 		ent.CurrentKline = &kline
 		log.WithField("kline", kline).Info("kline closed")
 
-		bollVal := *ent.BOLL
-
 		ent.emitEvent(ch, &ttypes.Event{
 			Type: "boll_changed",
-			Data: &bollVal,
+			Data: ent.BOLL,
+		})
+
+		ent.emitEvent(ch, &ttypes.Event{
+			Type: "vwma_changed",
+			Data: ent.VWMA,
+		})
+
+		ent.emitEvent(ch, &ttypes.Event{
+			Type: "update_finish",
 		})
 	}))
 }
@@ -163,6 +171,11 @@ func (ent *ExchangeEntity) setupIndicators() {
 		Interval: ent.interval,
 		Window:   20,
 	}, 2)
+
+	ent.VWMA = indicators.VWMA(types.IntervalWindow{
+		Interval: ent.interval,
+		Window:   20,
+	})
 }
 
 func (ent *ExchangeEntity) emitEvent(ch chan *ttypes.Event, evt *ttypes.Event) {

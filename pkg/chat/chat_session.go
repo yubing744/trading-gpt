@@ -12,6 +12,7 @@ type ChatSession struct {
 
 	id    string
 	chats []string
+	state interface{}
 
 	Channel types.Channel
 	Agent   agent.Agent
@@ -39,4 +40,12 @@ func (s *ChatSession) GetChats() []string {
 
 func (s *ChatSession) AddChat(chat string) {
 	s.chats = append(s.chats, chat)
+}
+
+func (s *ChatSession) SetState(state interface{}) {
+	s.state = state
+}
+
+func (s *ChatSession) GetState() interface{} {
+	return s.state
 }

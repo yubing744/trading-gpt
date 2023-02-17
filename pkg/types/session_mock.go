@@ -3,6 +3,7 @@ package types
 type MockSession struct {
 	id    string
 	chats []string
+	state interface{}
 }
 
 func NewMockSession(id string) *MockSession {
@@ -22,4 +23,12 @@ func (s *MockSession) GetChats() []string {
 
 func (s *MockSession) AddChat(chat string) {
 	s.chats = append(s.chats, chat)
+}
+
+func (s *MockSession) SetState(state interface{}) {
+	s.state = state
+}
+
+func (s *MockSession) GetState() interface{} {
+	return s.state
 }
