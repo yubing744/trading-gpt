@@ -54,14 +54,14 @@ func (ch *FeishuChatChannel) OnMessage(cb types.MessageCallback) {
 	ch.callbacks = append(ch.callbacks, cb)
 }
 
-func (ch *FeishuChatChannel) Reply(msg *types.Message) error {
+func (ch *FeishuChatChannel) Reply(ctx context.Context, msg *types.Message) error {
 	content := map[string]string{
 		"text": msg.Text,
 	}
 	contentBody, _ := json.Marshal(content)
 
 	// ISV 给指定租户发送消息
-	resp, err := ch.client.Im.Message.Create(context.Background(), larkim.NewCreateMessageReqBuilder().
+	resp, err := ch.client.Im.Message.Create(ctx, larkim.NewCreateMessageReqBuilder().
 		ReceiveIdType(ch.receiveIdType).
 		Body(larkim.NewCreateMessageReqBodyBuilder().
 			MsgType(larkim.MsgTypeText).

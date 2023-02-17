@@ -9,8 +9,10 @@ import (
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/indicator"
 	"github.com/c9s/bbgo/pkg/types"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/yubing744/trading-bot/pkg/config"
+
 	ttypes "github.com/yubing744/trading-bot/pkg/types"
 )
 
@@ -70,7 +72,7 @@ func (ent *ExchangeEntity) cmdToSide(cmd string) types.SideType {
 	}
 }
 
-func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args []string) {
+func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args []string) error {
 	log.
 		WithField("cmd", cmd).
 		WithField("args", args).
@@ -78,7 +80,7 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args [
 
 	if ent.CurrentKline == nil {
 		log.Warn("skip for current kline nil")
-		return
+		return errors.New("current kline nil")
 	}
 
 	side := ent.cmdToSide(cmd)
@@ -89,10 +91,14 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args [
 	if !ent.position.IsDust(closePrice) {
 		if (side == types.SideTypeSell && ent.position.IsLong()) || (side == types.SideTypeBuy && ent.position.IsShort()) {
 			log.Infof("close existing %s position before open a new position", ent.symbol)
-			_ = ent.ClosePosition(ctx, closePrice, fixedpoint.One)
+
+			err := ent.ClosePosition(ctx, fixedpoint.One, closePrice)
+			if err != nil {
+				return errors.Wrap(err, "close position error")
+			}
 		} else {
 			log.Infof("existing %s position has the same direction with the signal(%s)", ent.symbol, side)
-			return
+			return nil
 		}
 	}
 
@@ -102,11 +108,13 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args [
 
 		err := ent.OpenPosition(ctx, side, closePrice)
 		if err != nil {
-			log.WithError(err).Error("open position error")
+			return errors.Wrap(err, "open position error")
 		}
 	} else {
 		log.Info("no signal")
 	}
+
+	return nil
 }
 
 func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {

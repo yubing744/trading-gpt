@@ -8,6 +8,6 @@ import (
 
 type Entity interface {
 	GetID() string
-	HandleCommand(ctx context.Context, cmd string, args []string)
+	HandleCommand(ctx context.Context, cmd string, args []string) error
 	Run(ctx context.Context, ch chan *types.Event)
 }

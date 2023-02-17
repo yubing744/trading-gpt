@@ -2,6 +2,7 @@ package env
 
 import (
 	"context"
+	"errors"
 
 	"github.com/sirupsen/logrus"
 	"github.com/yubing744/trading-bot/pkg/types"
@@ -25,17 +26,19 @@ func (env *Environment) RegisterEntity(entity Entity) {
 	env.entites[entity.GetID()] = entity
 }
 
-func (env *Environment) SendCommand(ctx context.Context, name string, cmd string, args []string) {
+func (env *Environment) SendCommand(ctx context.Context, name string, cmd string, args []string) error {
 	entity, ok := env.entites[name]
-	if ok {
-		entity.HandleCommand(ctx, cmd, args)
-	} else {
+	if !ok {
 		log.
 			WithField("entityName", name).
 			WithField("cmd", cmd).
 			WithField("args", args).
 			Debug("not found entity")
+
+		return errors.New("entity not found")
 	}
+
+	return entity.HandleCommand(ctx, cmd, args)
 }
 
 func (env *Environment) OnEvent(cb types.EventCallback) {

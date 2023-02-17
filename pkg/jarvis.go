@@ -200,39 +200,40 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 	return nil
 }
 
+func (s *Strategy) replyMsg(ctx context.Context, chatSession *chat.ChatSession, msg string) {
+	err := chatSession.Channel.Reply(ctx, &ttypes.Message{
+		ID:   uuid.NewString(),
+		Text: msg,
+	})
+	if err != nil {
+		log.WithError(err).Error("reply message error")
+	}
+}
+
 func (s *Strategy) agentAction(ctx context.Context, chatSession *chat.ChatSession, evt *ttypes.Event) {
 	result, err := chatSession.Agent.GenActions(ctx, chatSession, evt)
 	if err != nil {
 		log.WithError(err).Error("gen action error")
+		s.replyMsg(ctx, chatSession, fmt.Sprintf("gen action error: %s", err.Error()))
 		return
 	}
 
 	log.WithField("result", result).Info("gen actions result")
 
+	if len(result.Texts) > 0 {
+		s.replyMsg(ctx, chatSession, strings.Join(result.Texts, ""))
+	}
+
 	if len(result.Actions) > 0 {
 		for _, action := range result.Actions {
-			chatSession.Env.SendCommand(context.Background(), action.Target, action.Name, action.Args)
+			err := chatSession.Env.SendCommand(ctx, action.Target, action.Name, action.Args)
+			if err != nil {
+				log.WithError(err).Error("env send cmd error")
+				s.replyMsg(ctx, chatSession, fmt.Sprintf("cmd /%s [%s] handle fail: %s", action.Name, strings.Join(action.Args, ","), err.Error()))
+			} else {
+				s.replyMsg(ctx, chatSession, fmt.Sprintf("cmd /%s [%s] handle succes", action.Name, strings.Join(action.Args, ",")))
+			}
 		}
-	}
-
-	if len(result.Texts) > 0 {
-		err = chatSession.Channel.Reply(&ttypes.Message{
-			ID:   uuid.NewString(),
-			Text: strings.Join(result.Texts, ""),
-		})
-		if err != nil {
-			log.WithError(err).Error("reply message error")
-		}
-
-		return
-	}
-
-	err = chatSession.Channel.Reply(&ttypes.Message{
-		ID:   uuid.NewString(),
-		Text: "no reply text",
-	})
-	if err != nil {
-		log.WithError(err).Error("reply message error")
 	}
 }
 
@@ -291,13 +292,7 @@ func (s *Strategy) handleBOLLValuesChanged(chatSession *chat.ChatSession, boll *
 		utils.JoinFloatSlice([]float64(downVals), " "),
 	)
 
-	err := chatSession.Channel.Reply(&ttypes.Message{
-		ID:   uuid.NewString(),
-		Text: msg,
-	})
-	if err != nil {
-		log.WithError(err).Error("reply message error")
-	}
+	s.replyMsg(ctx, chatSession, msg)
 
 	s.agentAction(ctx, chatSession, &ttypes.Event{
 		ID:   uuid.NewString(),
