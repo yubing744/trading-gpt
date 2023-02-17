@@ -26,8 +26,10 @@ func TestGenPrompt(t *testing.T) {
 	agent := NewOpenAIAgent(cfg)
 	assert.NotNil(t, agent)
 
-	prompt, err := agent.GenPrompt([]string{}, &types.Event{
-		Data: "xxx",
+	prompt, err := agent.GenPrompt([]string{}, []*types.Message{
+		{
+			Text: "xxx",
+		},
 	})
 
 	assert.NoError(t, err)
@@ -42,8 +44,10 @@ func TestGenPromptWithTooLong(t *testing.T) {
 	agent := NewOpenAIAgent(cfg)
 	assert.NotNil(t, agent)
 
-	_, err := agent.GenPrompt([]string{}, &types.Event{
-		Data: "xxx",
+	_, err := agent.GenPrompt([]string{}, []*types.Message{
+		{
+			Text: "xxx",
+		},
 	})
 
 	assert.Error(t, err)
@@ -57,8 +61,10 @@ func TestGenPromptBySplitChats(t *testing.T) {
 	agent := NewOpenAIAgent(cfg)
 	assert.NotNil(t, agent)
 
-	prompt, err := agent.GenPrompt([]string{"msg xxxx"}, &types.Event{
-		Data: "xxx",
+	prompt, err := agent.GenPrompt([]string{"msg xxxx"}, []*types.Message{
+		{
+			Text: "xxx",
+		},
 	})
 
 	assert.NoError(t, err)
@@ -73,8 +79,10 @@ func TestGenPromptBySplitChats2(t *testing.T) {
 	agent := NewOpenAIAgent(cfg)
 	assert.NotNil(t, agent)
 
-	prompt, err := agent.GenPrompt([]string{"msg xxxx1", "msg xxxx2"}, &types.Event{
-		Data: "xxx",
+	prompt, err := agent.GenPrompt([]string{"msg xxxx1", "msg xxxx2"}, []*types.Message{
+		{
+			Text: "xxx",
+		},
 	})
 
 	assert.NoError(t, err)
@@ -89,8 +97,10 @@ func TestGenPromptBySplitChats3(t *testing.T) {
 	agent := NewOpenAIAgent(cfg)
 	assert.NotNil(t, agent)
 
-	prompt, err := agent.GenPrompt([]string{"msg xxxx1", "msg xxxx2"}, &types.Event{
-		Data: "xxx",
+	prompt, err := agent.GenPrompt([]string{"msg xxxx1", "msg xxxx2"}, []*types.Message{
+		{
+			Text: "xxx",
+		},
 	})
 
 	assert.NoError(t, err)
@@ -136,11 +146,12 @@ func TestGenAction(t *testing.T) {
 
 	session := types.NewMockSession("session_1")
 
-	result, err := agent.GenActions(ctx, session, &types.Event{
-		ID:   "1",
-		Type: "text_message",
-		Data: "1.1 1.2 1.3 1.4 1.5 1.6 1.7",
+	result, err := agent.GenActions(ctx, session, []*types.Message{
+		{
+			Text: "1.1 1.2 1.3 1.4 1.5 1.6 1.7",
+		},
 	})
+
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, "buy", result.Actions[0].Name)

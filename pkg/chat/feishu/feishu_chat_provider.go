@@ -55,8 +55,7 @@ func NewFeishuChatProvider(cfg *config.ChatFeishuConfig) *FeishuChatProvider {
 
 func (feishu *FeishuChatProvider) Listen(cb chat.ListenCallback) error {
 	handler := feishu.dispatcher.OnP2MessageReceiveV1(func(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
-		fmt.Println(larkcore.Prettify(event))
-		fmt.Println(event.RequestId())
+		log.Info(larkcore.Prettify(event))
 
 		tenantKey := event.TenantKey()
 		receiveIdType := larkim.ReceiveIdTypeOpenId

@@ -42,11 +42,13 @@ func NewOpenAIAgent(cfg *config.AgentOpenAIConfig) *OpenAIAgent {
 	}
 }
 
-func (agent *OpenAIAgent) toPrompt(event *types.Event) string {
+func (agent *OpenAIAgent) toPrompt(msgs []*types.Message) string {
 	var builder strings.Builder
 
-	builder.WriteString(fmt.Sprintf("%s:%s", HumanLable, event.Data))
-	builder.WriteString("\n")
+	for _, msg := range msgs {
+		builder.WriteString(fmt.Sprintf("%s:%s", HumanLable, msg.Text))
+		builder.WriteString("\n")
+	}
 
 	builder.WriteString(fmt.Sprintf("%s:", agent.name))
 
@@ -67,7 +69,7 @@ func (agent *OpenAIAgent) splitChatsByLength(sessionChats []string, maxLength in
 	return sessionChats
 }
 
-func (agent *OpenAIAgent) GenPrompt(sessionChats []string, event *types.Event) (string, error) {
+func (agent *OpenAIAgent) GenPrompt(sessionChats []string, msgs []*types.Message) (string, error) {
 	var builder strings.Builder
 
 	builder.WriteString(agent.backgroup)
@@ -78,7 +80,7 @@ func (agent *OpenAIAgent) GenPrompt(sessionChats []string, event *types.Event) (
 		builder.WriteString("\n")
 	}
 
-	eventPrompt := agent.toPrompt(event)
+	eventPrompt := agent.toPrompt(msgs)
 
 	subChats := agent.splitChatsByLength(sessionChats, agent.maxContextLength-builder.Len()-len(eventPrompt))
 
@@ -117,8 +119,8 @@ func (a *OpenAIAgent) RegisterActions(ctx context.Context, name string, actions 
 	}
 }
 
-func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, event *types.Event) (*agent.GenResult, error) {
-	prompt, err := a.GenPrompt(session.GetChats(), event)
+func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, msgs []*types.Message) (*agent.GenResult, error) {
+	prompt, err := a.GenPrompt(session.GetChats(), msgs)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +174,10 @@ func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, ev
 	}
 
 	if len(result.Texts) > 0 {
-		session.AddChat(fmt.Sprintf("%s:%s", HumanLable, event.Data))
+		for _, msg := range msgs {
+			session.AddChat(fmt.Sprintf("%s:%s", HumanLable, msg.Text))
+		}
+
 		session.AddChat(fmt.Sprintf("%s:%s", a.name, strings.Join(result.Texts, "")))
 	}
 

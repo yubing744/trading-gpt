@@ -185,11 +185,11 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 			chatSession := chat.NewChatSession(ch, agent, env)
 
 			ch.OnMessage(func(msg *ttypes.Message) {
-				s.handleChatMessage(chatSession, msg)
+				s.handleChatMessage(context.Background(), chatSession, msg)
 			})
 
 			env.OnEvent(func(evt *ttypes.Event) {
-				s.handleEnvEvent(chatSession, evt)
+				s.handleEnvEvent(context.Background(), chatSession, evt)
 			})
 		})
 		if err != nil {
@@ -210,8 +210,8 @@ func (s *Strategy) replyMsg(ctx context.Context, chatSession *chat.ChatSession, 
 	}
 }
 
-func (s *Strategy) agentAction(ctx context.Context, chatSession *chat.ChatSession, evt *ttypes.Event) {
-	result, err := chatSession.Agent.GenActions(ctx, chatSession, evt)
+func (s *Strategy) agentAction(ctx context.Context, chatSession *chat.ChatSession, msgs []*ttypes.Message) {
+	result, err := chatSession.Agent.GenActions(ctx, chatSession, msgs)
 	if err != nil {
 		log.WithError(err).Error("gen action error")
 		s.replyMsg(ctx, chatSession, fmt.Sprintf("gen action error: %s", err.Error()))
@@ -237,27 +237,19 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession *chat.ChatSessio
 	}
 }
 
-func (s *Strategy) handleChatMessage(chatSession *chat.ChatSession, msg *ttypes.Message) {
+func (s *Strategy) handleChatMessage(ctx context.Context, chatSession *chat.ChatSession, msg *ttypes.Message) {
 	log.WithField("msg", msg).Info("new message")
-
-	ctx := context.Background()
-	evt := &ttypes.Event{
-		ID:   msg.ID,
-		Type: "text_message",
-		Data: msg.Text,
-	}
-
-	s.agentAction(ctx, chatSession, evt)
+	s.agentAction(ctx, chatSession, []*ttypes.Message{msg})
 }
 
-func (s *Strategy) handleEnvEvent(chatSession *chat.ChatSession, evt *ttypes.Event) {
+func (s *Strategy) handleEnvEvent(ctx context.Context, chatSession *chat.ChatSession, evt *ttypes.Event) {
 	log.WithField("event", evt).Info("handle env event")
 
 	switch evt.Type {
 	case "boll_changed":
 		boll, ok := evt.Data.(*indicator.BOLL)
 		if ok {
-			s.handleBOLLValuesChanged(chatSession, boll)
+			s.handleBOLLValuesChanged(ctx, chatSession, boll)
 		} else {
 			log.Warn("event data Type not match")
 		}
@@ -266,10 +258,8 @@ func (s *Strategy) handleEnvEvent(chatSession *chat.ChatSession, evt *ttypes.Eve
 	}
 }
 
-func (s *Strategy) handleBOLLValuesChanged(chatSession *chat.ChatSession, boll *indicator.BOLL) {
+func (s *Strategy) handleBOLLValuesChanged(ctx context.Context, chatSession *chat.ChatSession, boll *indicator.BOLL) {
 	log.WithField("boll", boll).Info("handle boll values changed")
-
-	ctx := context.Background()
 
 	upVals := boll.UpBand
 	if len(upVals) > s.MaxWindowSize {
@@ -294,9 +284,7 @@ func (s *Strategy) handleBOLLValuesChanged(chatSession *chat.ChatSession, boll *
 
 	s.replyMsg(ctx, chatSession, msg)
 
-	s.agentAction(ctx, chatSession, &ttypes.Event{
-		ID:   uuid.NewString(),
-		Type: "text_message",
-		Data: msg,
-	})
+	s.agentAction(ctx, chatSession, []*ttypes.Message{{
+		Text: msg,
+	}})
 }
