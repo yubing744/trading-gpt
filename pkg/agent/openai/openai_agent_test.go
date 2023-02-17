@@ -2,6 +2,7 @@ package openai
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -74,7 +75,7 @@ func TestGenPromptBySplitChats(t *testing.T) {
 func TestGenPromptBySplitChats2(t *testing.T) {
 	cfg := &config.AgentOpenAIConfig{
 		Token:            "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",
-		MaxContextLength: 23,
+		MaxContextLength: 24,
 	}
 	agent := NewOpenAIAgent(cfg)
 	assert.NotNil(t, agent)
@@ -105,6 +106,49 @@ func TestGenPromptBySplitChats3(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "\n\nmsg xxxx1\nmsg xxxx2\nYou:xxx\nAI:", prompt)
+}
+
+func TestGenPromptBySplitChats4(t *testing.T) {
+	cfg := &config.AgentOpenAIConfig{
+		Token:            "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",
+		MaxContextLength: 22,
+	}
+	agent := NewOpenAIAgent(cfg)
+	assert.NotNil(t, agent)
+
+	agent.SetBackgroup("backgroup")
+	prompt, err := agent.GenPrompt([]string{"msg xxxx1", "msg xxxx2"}, []*types.Message{
+		{
+			Text: "xxx",
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "backgroup\n\nYou:xxx\nAI:", prompt)
+}
+
+func TestGenPromptBySplitChats5(t *testing.T) {
+	cfg := &config.AgentOpenAIConfig{
+		Token:            "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",
+		MaxContextLength: 100,
+	}
+	agent := NewOpenAIAgent(cfg)
+	assert.NotNil(t, agent)
+
+	agent.SetBackgroup("backgroup")
+
+	sessionChats := make([]string, 0)
+	for i := 1; i < 4000; i++ {
+		sessionChats = append(sessionChats, fmt.Sprintf("test message %d", i))
+
+		_, err := agent.GenPrompt(sessionChats, []*types.Message{
+			{
+				Text: "xxx",
+			},
+		})
+
+		assert.NoError(t, err)
+	}
 }
 
 func TestGenAction(t *testing.T) {

@@ -62,7 +62,7 @@ func (agent *OpenAIAgent) splitChatsByLength(sessionChats []string, maxLength in
 		if length+len(sessionChats[i])+1 > maxLength {
 			return sessionChats[i+1:]
 		} else {
-			length = length + len(sessionChats[i])
+			length = length + len(sessionChats[i]) + 1
 		}
 	}
 
@@ -81,6 +81,10 @@ func (agent *OpenAIAgent) GenPrompt(sessionChats []string, msgs []*types.Message
 	}
 
 	eventPrompt := agent.toPrompt(msgs)
+
+	if builder.Len()+len(eventPrompt) > agent.maxContextLength {
+		return "", errors.Errorf("Current msgs too long, current: %d, left: %d", len(eventPrompt), agent.maxContextLength-builder.Len())
+	}
 
 	subChats := agent.splitChatsByLength(sessionChats, agent.maxContextLength-builder.Len()-len(eventPrompt))
 
