@@ -11,7 +11,7 @@ type GenResult struct {
 	Texts   []string
 }
 
-type Agent interface {
+type IAgent interface {
 	SetName(name string)
 	SetBackgroup(backgroup string)
 	RegisterActions(ctx context.Context, name string, actions []*types.ActionDesc)

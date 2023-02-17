@@ -1,7 +1,7 @@
 .PHONY: clean sync backtest build test run docker-build docker-push docker-run start stop logs deploy
 
 NAME=trading-bot
-VERSION=0.1.1-beta38
+VERSION=0.1.1-beta39
 TARGET_KEY=-i ~/.ssh/earn-robot_key.pem
 DEPLOY_TARGET=azureuser@20.59.104.24
 DEPLOY_PATH=/home/azureuser/apps/quant/bbgo-strategys/${NAME}

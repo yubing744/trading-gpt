@@ -10,7 +10,9 @@ import (
 	"github.com/c9s/bbgo/pkg/indicator"
 	"github.com/c9s/bbgo/pkg/types"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"github.com/yubing744/trading-bot/pkg/agent"
 	"github.com/yubing744/trading-bot/pkg/agent/openai"
 	"github.com/yubing744/trading-bot/pkg/chat"
 	"github.com/yubing744/trading-bot/pkg/chat/feishu"
@@ -54,6 +56,10 @@ type Strategy struct {
 
 	// StrategyController
 	bbgo.StrategyController
+
+	chatSessions *chat.ChatSessions
+	agent        agent.IAgent
+	world        *env.Environment
 }
 
 // ID should return the identity of this strategy
@@ -117,9 +123,9 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		bbgo.Sync(ctx, s)
 	})
 
-	// setup env
-	env := env.NewEnvironment()
-	env.RegisterEntity(exchange.NewExchangeEntity(
+	// setup world
+	world := env.NewEnvironment()
+	world.RegisterEntity(exchange.NewExchangeEntity(
 		"exchange",
 		s.Symbol,
 		s.Interval,
@@ -129,10 +135,11 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		s.orderExecutor,
 		s.Position,
 	))
-	err := env.Start(ctx)
+	err := world.Start(ctx)
 	if err != nil {
-		log.WithError(err).Error("error in start env")
+		return errors.Wrap(err, "Error in start env")
 	}
+	s.world = world
 
 	// setup agent
 	openaiCfg := &s.Agent.OpenAI
@@ -168,8 +175,9 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 			},
 		},
 	})
+	s.agent = agent
 
-	// set chat provider
+	// set chats
 	feishuCfg := s.Chat.Feishu
 	if feishuCfg != nil && os.Getenv("CHAT_FEISHU_APP_ID") != "" {
 		feishuCfg.AppId = os.Getenv("CHAT_FEISHU_APP_ID")
@@ -179,32 +187,42 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 	}
 
 	chatProvider := feishu.NewFeishuChatProvider(feishuCfg)
+	sessions := chat.NewChatSessions()
 
-	// init chat provider and start session
 	go func() {
 		err = chatProvider.Listen(func(ch ttypes.Channel) {
 			log.WithField("channel", ch).Info("new channel")
 
-			chatSession := chat.NewChatSession(ch, agent, env)
+			chatSession := chat.NewChatSession(ch)
+			sessions.AddChatSession(chatSession)
 
 			ch.OnMessage(func(msg *ttypes.Message) {
 				s.handleChatMessage(context.Background(), chatSession, msg)
-			})
-
-			env.OnEvent(func(evt *ttypes.Event) {
-				s.handleEnvEvent(context.Background(), chatSession, evt)
 			})
 		})
 		if err != nil {
 			log.WithError(err).Error("listen chat error")
 		}
 	}()
+	s.chatSessions = sessions
+
+	// setup world event handle
+	envSession := env.NewEnvironmentSession("env")
+	envSession.On("reply", func(i ...interface{}) {
+		msg, ok := i[0].(*ttypes.Message)
+		if ok {
+			s.notifyMsg(context.Background(), msg.Text)
+		}
+	})
+	world.OnEvent(func(evt *ttypes.Event) {
+		s.handleEnvEvent(context.Background(), envSession, evt)
+	})
 
 	return nil
 }
 
-func (s *Strategy) replyMsg(ctx context.Context, chatSession *chat.ChatSession, msg string) {
-	err := chatSession.Channel.Reply(ctx, &ttypes.Message{
+func (s *Strategy) replyMsg(ctx context.Context, chatSession ttypes.ISession, msg string) {
+	err := chatSession.Reply(ctx, &ttypes.Message{
 		ID:   uuid.NewString(),
 		Text: msg,
 	})
@@ -213,8 +231,18 @@ func (s *Strategy) replyMsg(ctx context.Context, chatSession *chat.ChatSession, 
 	}
 }
 
-func (s *Strategy) agentAction(ctx context.Context, chatSession *chat.ChatSession, msgs []*ttypes.Message) {
-	result, err := chatSession.Agent.GenActions(ctx, chatSession, msgs)
+func (s *Strategy) notifyMsg(ctx context.Context, msg string) {
+	err := s.chatSessions.Notify(ctx, &ttypes.Message{
+		ID:   uuid.NewString(),
+		Text: msg,
+	})
+	if err != nil {
+		log.WithError(err).Error("notify message error")
+	}
+}
+
+func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession, msgs []*ttypes.Message) {
+	result, err := s.agent.GenActions(ctx, chatSession, msgs)
 	if err != nil {
 		log.WithError(err).Error("gen action error")
 		s.replyMsg(ctx, chatSession, fmt.Sprintf("gen action error: %s", err.Error()))
@@ -229,7 +257,7 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession *chat.ChatSessio
 
 	if len(result.Actions) > 0 {
 		for _, action := range result.Actions {
-			err := chatSession.Env.SendCommand(ctx, action.Target, action.Name, action.Args)
+			err := s.world.SendCommand(ctx, action.Target, action.Name, action.Args)
 			if err != nil {
 				log.WithError(err).Error("env send cmd error")
 				s.replyMsg(ctx, chatSession, fmt.Sprintf("cmd /%s [%s] handle fail: %s", action.Name, strings.Join(action.Args, ","), err.Error()))
@@ -245,32 +273,32 @@ func (s *Strategy) handleChatMessage(ctx context.Context, chatSession *chat.Chat
 	s.agentAction(ctx, chatSession, []*ttypes.Message{msg})
 }
 
-func (s *Strategy) handleEnvEvent(ctx context.Context, chatSession *chat.ChatSession, evt *ttypes.Event) {
+func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, evt *ttypes.Event) {
 	log.WithField("event", evt).Info("handle env event")
 
 	switch evt.Type {
 	case "boll_changed":
 		boll, ok := evt.Data.(*indicator.BOLL)
 		if ok {
-			s.handleBOLLValuesChanged(ctx, chatSession, boll)
+			s.handleBOLLValuesChanged(ctx, session, boll)
 		} else {
 			log.Warn("event data Type not match")
 		}
 	case "vwma_changed":
 		vwma, ok := evt.Data.(*indicator.VWMA)
 		if ok {
-			s.handleVWMAValuesChanged(ctx, chatSession, vwma)
+			s.handleVWMAValuesChanged(ctx, session, vwma)
 		} else {
 			log.Warn("event data Type not match")
 		}
 	case "update_finish":
-		s.handleUpdateFinish(ctx, chatSession)
+		s.handleUpdateFinish(ctx, session)
 	default:
 		log.WithField("eventType", evt.Type).Warn("no match event type")
 	}
 }
 
-func (s *Strategy) handleBOLLValuesChanged(ctx context.Context, chatSession *chat.ChatSession, boll *indicator.BOLL) {
+func (s *Strategy) handleBOLLValuesChanged(ctx context.Context, session ttypes.ISession, boll *indicator.BOLL) {
 	log.WithField("boll", boll).Info("handle boll values changed")
 
 	upVals := boll.UpBand
@@ -294,18 +322,18 @@ func (s *Strategy) handleBOLLValuesChanged(ctx context.Context, chatSession *cha
 		utils.JoinFloatSlice([]float64(downVals), " "),
 	)
 
-	s.replyMsg(ctx, chatSession, msg)
+	s.replyMsg(ctx, session, msg)
 
-	tempMsgs, _ := chatSession.GetState().([]*ttypes.Message)
+	tempMsgs, _ := session.GetState().([]*ttypes.Message)
 	tempMsgs = append(tempMsgs, &ttypes.Message{
 		Text: msg,
 	})
 
 	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
-	chatSession.SetState(tempMsgs)
+	session.SetState(tempMsgs)
 }
 
-func (s *Strategy) handleVWMAValuesChanged(ctx context.Context, chatSession *chat.ChatSession, vwma *indicator.VWMA) {
+func (s *Strategy) handleVWMAValuesChanged(ctx context.Context, session ttypes.ISession, vwma *indicator.VWMA) {
 	log.WithField("vwma", vwma).Info("handle vwma values changed")
 
 	midVals := vwma.Values
@@ -317,24 +345,24 @@ func (s *Strategy) handleVWMAValuesChanged(ctx context.Context, chatSession *cha
 		utils.JoinFloatSlice([]float64(midVals), " "),
 	)
 
-	s.replyMsg(ctx, chatSession, msg)
+	s.replyMsg(ctx, session, msg)
 
-	tempMsgs, _ := chatSession.GetState().([]*ttypes.Message)
+	tempMsgs, _ := session.GetState().([]*ttypes.Message)
 	tempMsgs = append(tempMsgs, &ttypes.Message{
 		Text: msg,
 	})
 
 	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
-	chatSession.SetState(tempMsgs)
+	session.SetState(tempMsgs)
 }
 
-func (s *Strategy) handleUpdateFinish(ctx context.Context, chatSession *chat.ChatSession) {
-	tempMsgs, ok := chatSession.GetState().([]*ttypes.Message)
+func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISession) {
+	tempMsgs, ok := session.GetState().([]*ttypes.Message)
 	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
 
 	if ok {
-		s.agentAction(ctx, chatSession, tempMsgs)
+		s.agentAction(ctx, session, tempMsgs)
 	}
 
-	chatSession.SetState(nil)
+	session.SetState(nil)
 }

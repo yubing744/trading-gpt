@@ -1,5 +1,7 @@
 package types
 
+import "context"
+
 type MockSession struct {
 	id    string
 	chats []string
@@ -31,4 +33,8 @@ func (s *MockSession) SetState(state interface{}) {
 
 func (s *MockSession) GetState() interface{} {
 	return s.state
+}
+
+func (s *MockSession) Reply(ctx context.Context, msg *Message) error {
+	return nil
 }
