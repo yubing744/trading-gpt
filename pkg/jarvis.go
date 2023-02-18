@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/indicator"
@@ -57,9 +58,10 @@ type Strategy struct {
 	// StrategyController
 	bbgo.StrategyController
 
-	chatSessions *chat.ChatSessions
-	agent        agent.IAgent
+	// jarvis model
 	world        *env.Environment
+	agent        agent.IAgent
+	chatSessions *chat.ChatSessions
 }
 
 // ID should return the identity of this strategy
@@ -154,6 +156,8 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 			Name:        "buy",
 			Description: "买入命令",
 			Samples: []string{
+				"There are currently no open position",
+				"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
 				"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
 				"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
 			},
@@ -162,6 +166,8 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 			Name:        "sell",
 			Description: "卖出命令",
 			Samples: []string{
+				"The current position is short",
+				"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
 				"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.90 2.92 2.94 2.94 2.94 2.95 2.95 2.96], SMA:[2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.86 2.86 2.86 2.87 2.87 2.87 2.88 2.88], DownBand:[2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.81 2.80 2.79 2.79 2.79 2.80 2.80 2.80]}",
 				"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
 			},
@@ -170,6 +176,8 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 			Name:        "hold",
 			Description: "持仓命令",
 			Samples: []string{
+				"The current position is long",
+				"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
 				"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90], SMA:[2.86 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85], DownBand:[2.80 2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81]",
 				"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
 			},
@@ -188,9 +196,10 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 
 	chatProvider := feishu.NewFeishuChatProvider(feishuCfg)
 	sessions := chat.NewChatSessions()
+	adminInit := &sync.Once{}
 
 	go func() {
-		err = chatProvider.Listen(func(ch ttypes.Channel) {
+		err = chatProvider.Listen(func(ch ttypes.IChannel) {
 			log.WithField("channel", ch).Info("new channel")
 
 			chatSession := chat.NewChatSession(ch)
@@ -199,6 +208,10 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 			ch.OnMessage(func(msg *ttypes.Message) {
 				s.handleChatMessage(context.Background(), chatSession, msg)
 			})
+
+			adminInit.Do(func() {
+				s.setupAdminSession(ctx, chatSession)
+			})
 		})
 		if err != nil {
 			log.WithError(err).Error("listen chat error")
@@ -206,19 +219,15 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 	}()
 	s.chatSessions = sessions
 
-	// setup world event handle
-	envSession := env.NewEnvironmentSession("env")
-	envSession.On("reply", func(i ...interface{}) {
-		msg, ok := i[0].(*ttypes.Message)
-		if ok {
-			s.notifyMsg(context.Background(), msg.Text)
-		}
-	})
-	world.OnEvent(func(evt *ttypes.Event) {
-		s.handleEnvEvent(context.Background(), envSession, evt)
-	})
-
 	return nil
+}
+
+func (s *Strategy) setupAdminSession(ctx context.Context, chatSession ttypes.ISession) {
+	chatSession.SetRoles([]string{ttypes.RoleAdmin})
+
+	s.world.OnEvent(func(evt *ttypes.Event) {
+		s.handleEnvEvent(context.Background(), chatSession, evt)
+	})
 }
 
 func (s *Strategy) replyMsg(ctx context.Context, chatSession ttypes.ISession, msg string) {
@@ -256,14 +265,18 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 	}
 
 	if len(result.Actions) > 0 {
-		for _, action := range result.Actions {
-			err := s.world.SendCommand(ctx, action.Target, action.Name, action.Args)
-			if err != nil {
-				log.WithError(err).Error("env send cmd error")
-				s.replyMsg(ctx, chatSession, fmt.Sprintf("cmd /%s [%s] handle fail: %s", action.Name, strings.Join(action.Args, ","), err.Error()))
-			} else {
-				s.replyMsg(ctx, chatSession, fmt.Sprintf("cmd /%s [%s] handle succes", action.Name, strings.Join(action.Args, ",")))
+		if chatSession.HasRole(ttypes.RoleAdmin) {
+			for _, action := range result.Actions {
+				err := s.world.SendCommand(ctx, action.Target, action.Name, action.Args)
+				if err != nil {
+					log.WithError(err).Error("env send cmd error")
+					s.replyMsg(ctx, chatSession, fmt.Sprintf("cmd /%s [%s] handle fail: %s", action.Name, strings.Join(action.Args, ","), err.Error()))
+				} else {
+					s.replyMsg(ctx, chatSession, fmt.Sprintf("cmd /%s [%s] handle succes", action.Name, strings.Join(action.Args, ",")))
+				}
 			}
+		} else {
+			log.Info("skip handle actions for not have RoleAdmin")
 		}
 	}
 }
@@ -277,6 +290,20 @@ func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, 
 	log.WithField("event", evt).Info("handle env event")
 
 	switch evt.Type {
+	case "position_changed":
+		position, ok := evt.Data.(*types.Position)
+		if ok {
+			s.handlePositionChanged(ctx, session, position)
+		} else {
+			log.Warn("event data Type not match")
+		}
+	case "kline_changed":
+		klineWindow, ok := evt.Data.(*types.KLineWindow)
+		if ok {
+			s.handleKlineChanged(ctx, session, klineWindow)
+		} else {
+			log.Warn("event data Type not match")
+		}
 	case "boll_changed":
 		boll, ok := evt.Data.(*indicator.BOLL)
 		if ok {
@@ -296,6 +323,38 @@ func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, 
 	default:
 		log.WithField("eventType", evt.Type).Warn("no match event type")
 	}
+}
+
+func (s *Strategy) handlePositionChanged(ctx context.Context, session ttypes.ISession, position *types.Position) {
+	log.WithField("position", position).Info("handle boll values changed")
+
+	msg := "There are currently no open positions"
+
+	if position.IsClosed() {
+		if position.IsLong() {
+			msg = "The current position is long"
+		} else {
+			msg = "The current position is short"
+		}
+	}
+
+	s.replyMsg(ctx, session, msg)
+	s.stashMsg(ctx, session, msg)
+}
+
+func (s *Strategy) handleKlineChanged(ctx context.Context, session ttypes.ISession, klineWindow *types.KLineWindow) {
+	log.WithField("kline", klineWindow).Info("handle klineWindow values changed")
+
+	msg := fmt.Sprintf("KLine data changed: Open:[%s], Close:[%s], High:[%s], Low:[%s], Volume:[%s]",
+		utils.JoinFloatSeries(klineWindow.Open(), " "),
+		utils.JoinFloatSeries(klineWindow.Close(), " "),
+		utils.JoinFloatSeries(klineWindow.High(), " "),
+		utils.JoinFloatSeries(klineWindow.Low(), " "),
+		utils.JoinFloatSeries(klineWindow.Volume(), " "),
+	)
+
+	s.replyMsg(ctx, session, msg)
+	s.stashMsg(ctx, session, msg)
 }
 
 func (s *Strategy) handleBOLLValuesChanged(ctx context.Context, session ttypes.ISession, boll *indicator.BOLL) {
@@ -323,14 +382,7 @@ func (s *Strategy) handleBOLLValuesChanged(ctx context.Context, session ttypes.I
 	)
 
 	s.replyMsg(ctx, session, msg)
-
-	tempMsgs, _ := session.GetState().([]*ttypes.Message)
-	tempMsgs = append(tempMsgs, &ttypes.Message{
-		Text: msg,
-	})
-
-	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
-	session.SetState(tempMsgs)
+	s.stashMsg(ctx, session, msg)
 }
 
 func (s *Strategy) handleVWMAValuesChanged(ctx context.Context, session ttypes.ISession, vwma *indicator.VWMA) {
@@ -346,7 +398,21 @@ func (s *Strategy) handleVWMAValuesChanged(ctx context.Context, session ttypes.I
 	)
 
 	s.replyMsg(ctx, session, msg)
+	s.stashMsg(ctx, session, msg)
+}
 
+func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISession) {
+	tempMsgs, ok := s.popMsgs(ctx, session)
+	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
+
+	if ok {
+		s.agentAction(ctx, session, tempMsgs)
+	}
+
+	session.SetState(nil)
+}
+
+func (s *Strategy) stashMsg(ctx context.Context, session ttypes.ISession, msg string) {
 	tempMsgs, _ := session.GetState().([]*ttypes.Message)
 	tempMsgs = append(tempMsgs, &ttypes.Message{
 		Text: msg,
@@ -356,13 +422,11 @@ func (s *Strategy) handleVWMAValuesChanged(ctx context.Context, session ttypes.I
 	session.SetState(tempMsgs)
 }
 
-func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISession) {
+func (s *Strategy) popMsgs(ctx context.Context, session ttypes.ISession) ([]*ttypes.Message, bool) {
 	tempMsgs, ok := session.GetState().([]*ttypes.Message)
-	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
-
 	if ok {
-		s.agentAction(ctx, session, tempMsgs)
+		return tempMsgs, ok
 	}
 
-	session.SetState(nil)
+	return []*ttypes.Message{}, false
 }

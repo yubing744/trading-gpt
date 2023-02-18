@@ -132,6 +132,7 @@ func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, ms
 
 	log.
 		WithField("prompt_length", len(prompt)).
+		WithField("max_length", a.maxContextLength).
 		Info("gen prompt")
 
 	log.

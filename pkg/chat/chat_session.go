@@ -9,11 +9,12 @@ import (
 type ChatSession struct {
 	id      string
 	chats   []string
+	roles   []string
 	state   interface{}
-	channel types.Channel
+	channel types.IChannel
 }
 
-func NewChatSession(channel types.Channel) *ChatSession {
+func NewChatSession(channel types.IChannel) *ChatSession {
 	return &ChatSession{
 		id:      channel.GetID(),
 		chats:   make([]string, 0),
@@ -43,4 +44,18 @@ func (s *ChatSession) GetState() interface{} {
 
 func (s *ChatSession) Reply(ctx context.Context, msg *types.Message) error {
 	return s.channel.Reply(ctx, msg)
+}
+
+func (s *ChatSession) SetRoles(roles []string) {
+	s.roles = roles
+}
+
+func (s *ChatSession) HasRole(role string) bool {
+	for _, r := range s.roles {
+		if r == role {
+			return true
+		}
+	}
+
+	return false
 }

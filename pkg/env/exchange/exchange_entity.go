@@ -16,6 +16,10 @@ import (
 	ttypes "github.com/yubing744/trading-bot/pkg/types"
 )
 
+const (
+	DefaultWindowSize = 21
+)
+
 var log = logrus.WithField("entity", "exchange")
 
 type ExchangeEntity struct {
@@ -30,10 +34,10 @@ type ExchangeEntity struct {
 	orderExecutor *bbgo.GeneralOrderExecutor
 	position      *types.Position
 
-	Status       types.StrategyStatus
-	BOLL         *indicator.BOLL
-	VWMA         *indicator.VWMA
-	CurrentKline *types.KLine
+	Status      types.StrategyStatus
+	BOLL        *indicator.BOLL
+	VWMA        *indicator.VWMA
+	KLineWindow *types.KLineWindow
 }
 
 func NewExchangeEntity(
@@ -79,13 +83,13 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args [
 		WithField("args", args).
 		Infof("entity exchange handle command")
 
-	if ent.CurrentKline == nil {
+	if ent.KLineWindow == nil {
 		log.Warn("skip for current kline nil")
 		return errors.New("current kline nil")
 	}
 
 	side := ent.cmdToSide(cmd)
-	closePrice := ent.CurrentKline.GetClose()
+	closePrice := ent.KLineWindow.GetClose()
 
 	// close position if need
 	// TP/SL if there's non-dust position and meets the criteria
@@ -143,8 +147,27 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 			return
 		}
 
-		ent.CurrentKline = &kline
+		if ent.KLineWindow == nil {
+			ent.KLineWindow = &types.KLineWindow{}
+		}
+
+		// Update Kline
+		ent.KLineWindow.Add(kline)
+		if ent.KLineWindow.Len() > DefaultWindowSize {
+			ent.KLineWindow.Truncate(DefaultWindowSize)
+		}
+
 		log.WithField("kline", kline).Info("kline closed")
+
+		ent.emitEvent(ch, &ttypes.Event{
+			Type: "position_changed",
+			Data: ent.position,
+		})
+
+		ent.emitEvent(ch, &ttypes.Event{
+			Type: "kline_changed",
+			Data: ent.KLineWindow,
+		})
 
 		ent.emitEvent(ch, &ttypes.Event{
 			Type: "boll_changed",
@@ -179,8 +202,6 @@ func (ent *ExchangeEntity) setupIndicators() {
 }
 
 func (ent *ExchangeEntity) emitEvent(ch chan *ttypes.Event, evt *ttypes.Event) {
-	log.WithField("event", evt).Info("emit event")
-
 	ch <- evt
 }
 

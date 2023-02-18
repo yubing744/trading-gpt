@@ -9,4 +9,6 @@ type ISession interface {
 	Reply(ctx context.Context, msg *Message) error
 	SetState(state interface{})
 	GetState() interface{}
+	SetRoles(role []string)
+	HasRole(role string) bool
 }

@@ -27,7 +27,7 @@ exchangeStrategies:
       exchange:
 
     symbol: OPUSDT
-    interval: 1m
+    interval: 5m
     leverage: 3
     max_window_size: 21
 

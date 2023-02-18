@@ -74,7 +74,7 @@ func (env *Environment) run(ctx context.Context, ch chan *types.Event) error {
 }
 
 func (env *Environment) emitEvent(evt *types.Event) {
-	log.WithField("evnet", evt).Info("env emit event")
+	log.WithField("event", evt).Info("env emit event")
 
 	for _, cb := range env.callbacks {
 		cb(evt)

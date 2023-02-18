@@ -5,6 +5,7 @@ import "context"
 type MockSession struct {
 	id    string
 	chats []string
+	roles []string
 	state interface{}
 }
 
@@ -37,4 +38,18 @@ func (s *MockSession) GetState() interface{} {
 
 func (s *MockSession) Reply(ctx context.Context, msg *Message) error {
 	return nil
+}
+
+func (s *MockSession) SetRoles(roles []string) {
+	s.roles = roles
+}
+
+func (s *MockSession) HasRole(role string) bool {
+	for _, r := range s.roles {
+		if r == role {
+			return true
+		}
+	}
+
+	return false
 }
