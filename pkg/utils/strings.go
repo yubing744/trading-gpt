@@ -12,7 +12,7 @@ func JoinFloatSlice[T float64 | float32](data []T, sep string) string {
 
 	total := len(data)
 	for i, item := range data {
-		builder.WriteString(fmt.Sprintf("%.4f", item))
+		builder.WriteString(fmt.Sprintf("%.3f", item))
 
 		if i < total-1 {
 			builder.WriteString(sep)
@@ -27,7 +27,7 @@ func JoinFloatSeries(data types.Series, sep string) string {
 
 	total := data.Length()
 	for i := 0; i < total; i++ {
-		builder.WriteString(fmt.Sprintf("%.4f", data.Index(i)))
+		builder.WriteString(fmt.Sprintf("%.3f", data.Index(i)))
 
 		if i < total-1 {
 			builder.WriteString(sep)

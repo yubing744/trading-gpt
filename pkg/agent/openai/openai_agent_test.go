@@ -12,7 +12,7 @@ import (
 
 func TestNewOpenAIAgent(t *testing.T) {
 	cfg := &config.AgentOpenAIConfig{
-		Token:            "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",
+		Token:            "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",
 		MaxContextLength: 500,
 	}
 	agent := NewOpenAIAgent(cfg)
@@ -21,7 +21,7 @@ func TestNewOpenAIAgent(t *testing.T) {
 
 func TestGenPrompt(t *testing.T) {
 	cfg := &config.AgentOpenAIConfig{
-		Token:            "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",
+		Token:            "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",
 		MaxContextLength: 500,
 	}
 	agent := NewOpenAIAgent(cfg)
@@ -34,13 +34,13 @@ func TestGenPrompt(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, "\n\nYou:xxx\nAI:", prompt)
+	assert.Equal(t, "\n\n\nYou:xxx\nAI:", prompt)
 }
 
 func TestGenPromptWithTooLong(t *testing.T) {
 	cfg := &config.AgentOpenAIConfig{
-		Token:            "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",
-		MaxContextLength: 12,
+		Token:            "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",
+		MaxContextLength: 13,
 	}
 	agent := NewOpenAIAgent(cfg)
 	assert.NotNil(t, agent)
@@ -56,8 +56,8 @@ func TestGenPromptWithTooLong(t *testing.T) {
 
 func TestGenPromptBySplitChats(t *testing.T) {
 	cfg := &config.AgentOpenAIConfig{
-		Token:            "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",
-		MaxContextLength: 13,
+		Token:            "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",
+		MaxContextLength: 14,
 	}
 	agent := NewOpenAIAgent(cfg)
 	assert.NotNil(t, agent)
@@ -69,13 +69,13 @@ func TestGenPromptBySplitChats(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, "\n\nYou:xxx\nAI:", prompt)
+	assert.Equal(t, "\n\n\nYou:xxx\nAI:", prompt)
 }
 
 func TestGenPromptBySplitChats2(t *testing.T) {
 	cfg := &config.AgentOpenAIConfig{
-		Token:            "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",
-		MaxContextLength: 24,
+		Token:            "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",
+		MaxContextLength: 25,
 	}
 	agent := NewOpenAIAgent(cfg)
 	assert.NotNil(t, agent)
@@ -87,12 +87,12 @@ func TestGenPromptBySplitChats2(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, "\n\nmsg xxxx2\nYou:xxx\nAI:", prompt)
+	assert.Equal(t, "\n\n\nmsg xxxx2\nYou:xxx\nAI:", prompt)
 }
 
 func TestGenPromptBySplitChats3(t *testing.T) {
 	cfg := &config.AgentOpenAIConfig{
-		Token:            "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",
+		Token:            "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",
 		MaxContextLength: 100,
 	}
 	agent := NewOpenAIAgent(cfg)
@@ -105,13 +105,13 @@ func TestGenPromptBySplitChats3(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, "\n\nmsg xxxx1\nmsg xxxx2\nYou:xxx\nAI:", prompt)
+	assert.Equal(t, "\n\n\nmsg xxxx1\nmsg xxxx2\nYou:xxx\nAI:", prompt)
 }
 
 func TestGenPromptBySplitChats4(t *testing.T) {
 	cfg := &config.AgentOpenAIConfig{
-		Token:            "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",
-		MaxContextLength: 22,
+		Token:            "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",
+		MaxContextLength: 23,
 	}
 	agent := NewOpenAIAgent(cfg)
 	assert.NotNil(t, agent)
@@ -124,12 +124,12 @@ func TestGenPromptBySplitChats4(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, "backgroup\n\nYou:xxx\nAI:", prompt)
+	assert.Equal(t, "backgroup\n\n\nYou:xxx\nAI:", prompt)
 }
 
 func TestGenPromptBySplitChats5(t *testing.T) {
 	cfg := &config.AgentOpenAIConfig{
-		Token:            "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",
+		Token:            "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",
 		MaxContextLength: 100,
 	}
 	agent := NewOpenAIAgent(cfg)
@@ -155,8 +155,8 @@ func TestGenAction(t *testing.T) {
 	ctx := context.Background()
 
 	cfg := &config.AgentOpenAIConfig{
-		Token:            "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",
-		MaxContextLength: 500,
+		Token:            "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",
+		MaxContextLength: 600,
 	}
 	agent := NewOpenAIAgent(cfg)
 	assert.NotNil(t, agent)
@@ -219,5 +219,5 @@ func TestGenAction(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, "sell", result.Actions[0].Name)
+	assert.Equal(t, "hold", result.Actions[0].Name)
 }

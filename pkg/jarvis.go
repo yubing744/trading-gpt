@@ -150,7 +150,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 	}
 
 	agent := openai.NewOpenAIAgent(&s.Agent.OpenAI)
-	agent.SetBackgroup("以下是和交易助手的对话，交易助手支持注册实体，支持输出命令控制实体、支持分析实体产生的行情数据并生成交易信号来操作实体，实体会反馈操作结果。交易助手的目标是：最大化投资者收益。")
+	agent.SetBackgroup("以下是和交易助手的对话，交易助手支持注册实体、输出命令控制实体、分析实体产生的行情数据和生成实体控制命令，实体会反馈命令执行结果。交易助手的目标是：通过生成实体控制命令来最大化投资者收益。")
 	agent.RegisterActions(ctx, "exchange", []*ttypes.ActionDesc{
 		{
 			Name:        "open_long_position",
@@ -158,14 +158,13 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 			Samples: []ttypes.Sample{
 				{
 					Input: []string{
-						"There are currently no open position",
 						"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
 						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
-						"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
-						"Analyze data, generate trading signals and explain why.",
+						"There are currently no open position",
+						"Analyze data, generate trading cmd and explain why.",
 					},
 					Output: []string{
-						"/open_long_position [] #原因：BOLL上轨和中轨开始上升",
+						"执行命令: /open_long_position [] #原因：BOLL上轨和中轨开始上升",
 					},
 				},
 			},
@@ -176,50 +175,30 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 			Samples: []ttypes.Sample{
 				{
 					Input: []string{
-						"The current position is short, and average cost: 2.84",
 						"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
-						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.90 2.92 2.94 2.94 2.94 2.95 2.95 2.96], SMA:[2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.86 2.86 2.86 2.87 2.87 2.87 2.88 2.88], DownBand:[2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.81 2.80 2.79 2.79 2.79 2.80 2.80 2.80]}",
-						"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
-						"Analyze data, generate trading signals and explain why.",
+						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
+						"The current position is short, and average cost: 2.84",
+						"Analyze data, generate trading cmd and explain why.",
 					},
 					Output: []string{
-						"/open_short_position [] #原因：BOLL上轨和中轨开始下降",
+						"执行命令: /open_short_position [] #原因：BOLL上轨和中轨开始下降",
 					},
 				},
 			},
 		},
 		{
 			Name:        "close_position",
-			Description: "关闭多空仓位",
+			Description: "关闭仓位",
 			Samples: []ttypes.Sample{
 				{
 					Input: []string{
-						"The current position is long, and average cost: 2.80",
 						"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
-						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90], SMA:[2.86 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85], DownBand:[2.80 2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81]",
-						"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
-						"Analyze data, generate trading signals and explain why.",
+						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
+						"The current position is long, and average cost: 2.80",
+						"Analyze data, generate trading cmd and explain why.",
 					},
 					Output: []string{
-						"/close_position [] #原因：趋势反转",
-					},
-				},
-			},
-		},
-		{
-			Name:        "hold",
-			Description: "不操作",
-			Samples: []ttypes.Sample{
-				{
-					Input: []string{
-						"The current position is long, and average cost: 2.80",
-						"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
-						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90], SMA:[2.86 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85], DownBand:[2.80 2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81]",
-						"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
-						"Analyze data, generate trading signals and explain why.",
-					},
-					Output: []string{
-						"/hold [] #原因：当前趋势和当前仓位一致",
+						"执行命令: /close_position [] #原因：趋势反转",
 					},
 				},
 			},
@@ -292,6 +271,27 @@ func (s *Strategy) notifyMsg(ctx context.Context, msg string) {
 	}
 }
 
+func (s *Strategy) feedbackCmdExecuteResult(ctx context.Context, chatSession ttypes.ISession, msg string) {
+	s.replyMsg(ctx, chatSession, msg)
+
+	result, err := s.agent.GenActions(ctx, chatSession, []*ttypes.Message{
+		{
+			Text: msg,
+		},
+	})
+	if err != nil {
+		log.WithError(err).Error("gen action error")
+		s.replyMsg(ctx, chatSession, fmt.Sprintf("gen action error: %s", err.Error()))
+		return
+	}
+
+	log.WithField("result", result).Info("feedback result")
+
+	if len(result.Texts) > 0 {
+		s.replyMsg(ctx, chatSession, strings.Join(result.Texts, ""))
+	}
+}
+
 func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession, msgs []*ttypes.Message) {
 	result, err := s.agent.GenActions(ctx, chatSession, msgs)
 	if err != nil {
@@ -312,9 +312,9 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 				err := s.world.SendCommand(ctx, action.Target, action.Name, action.Args)
 				if err != nil {
 					log.WithError(err).Error("env send cmd error")
-					s.replyMsg(ctx, chatSession, fmt.Sprintf("cmd /%s [%s] handle fail: %s", action.Name, strings.Join(action.Args, ","), err.Error()))
+					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("命令: /%s [%s] 执行失败了，原因: %s", action.Name, strings.Join(action.Args, ","), err.Error()))
 				} else {
-					s.replyMsg(ctx, chatSession, fmt.Sprintf("cmd /%s [%s] handle succes", action.Name, strings.Join(action.Args, ",")))
+					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("命令: /%s [%s] 执行成功了。", action.Name, strings.Join(action.Args, ",")))
 				}
 			}
 		} else {
@@ -448,7 +448,7 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
 
 	if ok {
-		msg := "Analyze the data and generate a trading signal."
+		msg := "Analyze data, generate trading cmd and explain why."
 		s.replyMsg(ctx, session, msg)
 
 		tempMsgs = append(tempMsgs, &ttypes.Message{

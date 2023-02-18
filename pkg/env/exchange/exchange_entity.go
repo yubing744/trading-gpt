@@ -164,11 +164,6 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 		log.WithField("kline", kline).Info("kline closed")
 
 		ent.emitEvent(ch, &ttypes.Event{
-			Type: "position_changed",
-			Data: ent.position,
-		})
-
-		ent.emitEvent(ch, &ttypes.Event{
 			Type: "kline_changed",
 			Data: ent.KLineWindow,
 		})
@@ -181,6 +176,11 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 		ent.emitEvent(ch, &ttypes.Event{
 			Type: "rsi_changed",
 			Data: ent.RSI,
+		})
+
+		ent.emitEvent(ch, &ttypes.Event{
+			Type: "position_changed",
+			Data: ent.position,
 		})
 
 		ent.emitEvent(ch, &ttypes.Event{

@@ -72,9 +72,18 @@ func (agent *OpenAIAgent) splitChatsByLength(sessionChats []string, maxLength in
 func (agent *OpenAIAgent) GenPrompt(sessionChats []string, msgs []*types.Message) (string, error) {
 	var builder strings.Builder
 
+	// Backgougroup
 	builder.WriteString(agent.backgroup)
+	builder.WriteString("\n")
+
+	// cmd help
+	for _, def := range agent.actions {
+		builder.WriteString(fmt.Sprintf("命令 /%s 表示：%s\n", def.Name, def.Description))
+	}
+
 	builder.WriteString("\n\n")
 
+	// sample
 	for _, chat := range agent.chats {
 		builder.WriteString(chat)
 		builder.WriteString("\n")
@@ -137,16 +146,13 @@ func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, ms
 	log.
 		WithField("prompt_length", len(prompt)).
 		WithField("max_length", a.maxContextLength).
-		Info("gen prompt")
+		Infof("gen prompt")
 
-	log.
-		WithField("prompt", prompt).
-		WithField("prompt_length", len(prompt)).
-		Debug("gen prompt detail")
+	log.Info(prompt)
 
 	req := gogpt.CompletionRequest{
 		Model:            gogpt.GPT3TextDavinci003,
-		Temperature:      0.5,
+		Temperature:      1,
 		MaxTokens:        256,
 		TopP:             0.3,
 		FrequencyPenalty: 0.5,
