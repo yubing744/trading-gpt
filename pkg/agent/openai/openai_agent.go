@@ -152,7 +152,7 @@ func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, ms
 
 	req := gogpt.CompletionRequest{
 		Model:            gogpt.GPT3TextDavinci003,
-		Temperature:      1,
+		Temperature:      0.1,
 		MaxTokens:        256,
 		TopP:             0.3,
 		FrequencyPenalty: 0.5,

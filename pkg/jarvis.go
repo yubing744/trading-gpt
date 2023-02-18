@@ -150,7 +150,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 	}
 
 	agent := openai.NewOpenAIAgent(&s.Agent.OpenAI)
-	agent.SetBackgroup("以下是和交易助手的对话，交易助手支持注册实体、输出命令控制实体、分析实体产生的行情数据和生成实体控制命令，实体会反馈命令执行结果。交易助手的目标是：通过生成实体控制命令来最大化投资者收益。")
+	agent.SetBackgroup("以下是和交易助手的对话，交易助手支持注册实体、输出命令控制实体、分析实体产生的行情数据和生成实体控制命令，实体会反馈命令执行结果，支持自动止损和止盈，止损点5%，止盈点30%。交易助手的目标是：通过生成实体控制命令来最大化投资者收益。")
 	agent.RegisterActions(ctx, "exchange", []*ttypes.ActionDesc{
 		{
 			Name:        "open_long_position",
@@ -158,13 +158,13 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 			Samples: []ttypes.Sample{
 				{
 					Input: []string{
-						"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
 						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
+						"RSI data changed: [73.454 41.980 25.516 17.727 32.413 18.679 8.576 42.228 29.611 36.948 57.658 46.181 61.506 77.894 76.378 44.059 35.556 50.472 56.603 60.012]",
 						"There are currently no open position",
 						"Analyze data, generate trading cmd and explain why.",
 					},
 					Output: []string{
-						"执行命令: /open_long_position [] #原因：BOLL上轨和中轨开始上升",
+						"执行命令: /open_long_position [] #推导过程：由于BOLL上轨和中轨开始上升并且当前RSI值60.012已经超过50，所以可以开多仓赚取收益",
 					},
 				},
 			},
@@ -175,13 +175,13 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 			Samples: []ttypes.Sample{
 				{
 					Input: []string{
-						"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
+						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
 						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
 						"The current position is short, and average cost: 2.84",
 						"Analyze data, generate trading cmd and explain why.",
 					},
 					Output: []string{
-						"执行命令: /open_short_position [] #原因：BOLL上轨和中轨开始下降",
+						"执行命令: /open_short_position [] #推导过程：由于BOLL上轨和中轨开始下降，所以可以开空仓赚取收益",
 					},
 				},
 			},
@@ -192,13 +192,29 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 			Samples: []ttypes.Sample{
 				{
 					Input: []string{
-						"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
+						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
+						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
+						"The current position is long, average cost: 2.736, and accumulated profit: 15.324",
+						"Analyze data, generate trading cmd and explain why.",
+					},
+					Output: []string{
+						"执行命令: /close_position [] #推导过程：由于当前仓位收益率已经超过15%并且BOLL的上轨出现下降趋势，所以需要关闭仓位止盈",
+					},
+				},
+			},
+		},
+		{
+			Name:        "no_action",
+			Description: "不操作，如果当前有持仓表示继续持有，如果当前空仓表示继续空仓",
+			Samples: []ttypes.Sample{
+				{
+					Input: []string{
 						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
 						"The current position is long, and average cost: 2.80",
 						"Analyze data, generate trading cmd and explain why.",
 					},
 					Output: []string{
-						"执行命令: /close_position [] #原因：趋势反转",
+						"执行命令: /no_action [] #推导过程：由于没有到开仓点位，所以不用操作",
 					},
 				},
 			},
@@ -373,9 +389,9 @@ func (s *Strategy) handlePositionChanged(ctx context.Context, session ttypes.ISe
 	msg := ""
 
 	if position.IsLong() {
-		msg = fmt.Sprintf("The current position is long, and average cost: %.4f", position.AverageCost.Float64())
+		msg = fmt.Sprintf("The current position is long, average cost: %.3f, and accumulated profit: %.3f", position.AverageCost.Float64(), position.AccumulatedProfit.Float64())
 	} else if position.IsShort() {
-		msg = fmt.Sprintf("The current position is short, and average cost: %.4f", position.AverageCost.Float64())
+		msg = fmt.Sprintf("The current position is short, average cost: %.3f, and accumulated profit: %.3f", position.AverageCost.Float64(), position.AccumulatedProfit.Float64())
 	} else {
 		msg = "There are currently no open positions"
 	}

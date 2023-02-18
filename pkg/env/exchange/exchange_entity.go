@@ -17,10 +17,6 @@ import (
 	ttypes "github.com/yubing744/trading-bot/pkg/types"
 )
 
-const (
-	DefaultWindowSize = 20
-)
-
 var log = logrus.WithField("entity", "exchange")
 
 type ExchangeEntity struct {
@@ -157,8 +153,8 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 		if ent.KLineWindow != nil {
 			ent.KLineWindow.Add(kline)
 
-			if ent.KLineWindow.Len() > DefaultWindowSize {
-				ent.KLineWindow.Truncate(DefaultWindowSize)
+			if ent.KLineWindow.Len() > ent.cfg.WindowSize {
+				ent.KLineWindow.Truncate(ent.cfg.WindowSize)
 			}
 		}
 
@@ -192,7 +188,7 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 
 // setupIndicators initializes indicators
 func (ent *ExchangeEntity) setupIndicators() {
-	log.Infof("setup indicators")
+	log.WithField("WindowSize", ent.cfg.WindowSize).Infof("setup indicators")
 
 	// set kline window
 	inc := &types.KLineWindow{}
@@ -210,13 +206,13 @@ func (ent *ExchangeEntity) setupIndicators() {
 	indicators := ent.session.StandardIndicatorSet(ent.symbol)
 	ent.BOLL = indicators.BOLL(types.IntervalWindow{
 		Interval: ent.interval,
-		Window:   DefaultWindowSize,
+		Window:   ent.cfg.WindowSize,
 	}, 2)
 
 	// setup RSI
 	ent.RSI = indicators.RSI(types.IntervalWindow{
 		Interval: ent.interval,
-		Window:   DefaultWindowSize,
+		Window:   ent.cfg.WindowSize,
 	})
 }
 

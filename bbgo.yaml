@@ -25,15 +25,17 @@ exchangeStrategies:
         max_context_length: 4097
     env:
       exchange:
-        include_events
+        window_size: 20
+        include_events:
           - boll_changed
           - rsi_changed
           - position_changed
           - update_finish
     symbol: OPUSDT
-    interval: 15m
+    interval: 5m
     leverage: 3
-    max_window_size: 21
+    max_window_size: 20
+    
 
 sync:
   # since is the date you want to start sync
