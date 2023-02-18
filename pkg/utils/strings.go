@@ -36,3 +36,13 @@ func JoinFloatSeries(data types.Series, sep string) string {
 
 	return builder.String()
 }
+
+func Contains(arr []string, item string) bool {
+	for _, ele := range arr {
+		if ele == item {
+			return true
+		}
+	}
+
+	return false
+}

@@ -25,7 +25,11 @@ exchangeStrategies:
         max_context_length: 4097
     env:
       exchange:
-
+        include_events
+          - boll_changed
+          - rsi_changed
+          - position_changed
+          - update_finish
     symbol: OPUSDT
     interval: 15m
     leverage: 3

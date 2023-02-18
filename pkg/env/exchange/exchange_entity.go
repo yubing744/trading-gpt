@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/yubing744/trading-bot/pkg/config"
+	"github.com/yubing744/trading-bot/pkg/utils"
 
 	ttypes "github.com/yubing744/trading-bot/pkg/types"
 )
@@ -220,6 +221,14 @@ func (ent *ExchangeEntity) setupIndicators() {
 }
 
 func (ent *ExchangeEntity) emitEvent(ch chan *ttypes.Event, evt *ttypes.Event) {
+	if !utils.Contains(ent.cfg.IncludeEvents, evt.Type) {
+		log.
+			WithField("eventType", evt.Type).
+			WithField("includeEvents", ent.cfg.IncludeEvents).
+			Info("skip event for include blacklist")
+		return
+	}
+
 	ch <- evt
 }
 
