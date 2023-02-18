@@ -6,13 +6,15 @@ type ArgmentDesc struct {
 }
 
 type Sample struct {
+	Input  []string
+	Output []string
 }
 
 type ActionDesc struct {
 	Name        string
 	Description string
 	Args        []ArgmentDesc
-	Samples     []string
+	Samples     []Sample
 }
 
 type Action struct {

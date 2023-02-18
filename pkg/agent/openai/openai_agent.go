@@ -117,10 +117,14 @@ func (a *OpenAIAgent) RegisterActions(ctx context.Context, name string, actions 
 		a.actions[def.Name] = def
 
 		for _, sample := range def.Samples {
-			a.chats = append(a.chats, fmt.Sprintf("%s:%s", HumanLable, sample))
-		}
+			for _, input := range sample.Input {
+				a.chats = append(a.chats, fmt.Sprintf("%s:%s", HumanLable, input))
+			}
 
-		a.chats = append(a.chats, fmt.Sprintf("%s:/%s", a.name, def.Name))
+			for _, output := range sample.Output {
+				a.chats = append(a.chats, fmt.Sprintf("%s:%s", a.name, output))
+			}
+		}
 	}
 }
 

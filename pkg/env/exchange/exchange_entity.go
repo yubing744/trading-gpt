@@ -68,9 +68,9 @@ func (ent *ExchangeEntity) GetID() string {
 
 func (ent *ExchangeEntity) cmdToSide(cmd string) types.SideType {
 	switch cmd {
-	case "buy":
+	case "open_long_position":
 		return types.SideTypeBuy
-	case "sell":
+	case "open_short_position":
 		return types.SideTypeSell
 	default:
 		return types.SideTypeSelf
@@ -88,36 +88,41 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args [
 		return errors.New("current kline nil")
 	}
 
-	side := ent.cmdToSide(cmd)
 	closePrice := ent.KLineWindow.GetClose()
 
 	// close position if need
 	// TP/SL if there's non-dust position and meets the criteria
 	if !ent.position.IsDust(closePrice) {
-		if (side == types.SideTypeSell && ent.position.IsLong()) || (side == types.SideTypeBuy && ent.position.IsShort()) {
-			log.Infof("close existing %s position before open a new position", ent.symbol)
+		if cmd == "close_position" {
+			if ent.position.IsShort() || ent.position.IsLong() {
+				log.Infof("close existing %s position", ent.symbol)
 
-			err := ent.ClosePosition(ctx, fixedpoint.One, closePrice)
-			if err != nil {
-				return errors.Wrap(err, "close position error")
+				err := ent.ClosePosition(ctx, fixedpoint.One, closePrice)
+				if err != nil {
+					return errors.Wrap(err, "close position error")
+				}
+			} else {
+				return errors.New("no existing open position")
 			}
-		} else {
-			log.Infof("existing %s position has the same direction with the signal(%s)", ent.symbol, side)
+
 			return nil
 		}
 	}
 
 	// open position
-	if side == types.SideTypeSell || side == types.SideTypeBuy {
+	if cmd == "open_long_position" || cmd == "open_short_position" {
+		side := ent.cmdToSide(cmd)
 		log.Infof("open %s position for signal %v, reason: %s", ent.symbol, side, "")
 
 		err := ent.OpenPosition(ctx, side, closePrice)
 		if err != nil {
 			return errors.Wrap(err, "open position error")
 		}
-	} else {
-		log.Info("no signal")
+
+		return nil
 	}
+
+	log.Info("no signal")
 
 	return nil
 }

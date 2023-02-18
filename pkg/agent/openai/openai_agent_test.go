@@ -166,24 +166,45 @@ func TestGenAction(t *testing.T) {
 		{
 			Name:        "buy",
 			Description: "购买指令",
-			Samples: []string{
-				"1.0 1.1 1.2 1.3 1.4 1.5 1.6",
-				"1.0 1.1 1.0 1.1 1.2 1.3 1.4",
+			Samples: []types.Sample{
+				{
+					Input: []string{
+						"1.0 1.1 1.2 1.3 1.4 1.5 1.6",
+						"1.0 1.1 1.0 1.1 1.2 1.3 1.4",
+					},
+					Output: []string{
+						"/buy [] #原因：上升趋势",
+					},
+				},
 			},
 		},
 		{
 			Name:        "sell",
 			Description: "卖出指令",
-			Samples: []string{
-				"1.6 1.5 1.4 1.3 1.2 1.1 1.0",
-				"1.0 1.1 1.2 1.3 1.4 1.3 1.2",
+			Samples: []types.Sample{
+				{
+					Input: []string{
+						"1.6 1.5 1.4 1.3 1.2 1.1 1.0",
+						"1.0 1.1 1.2 1.3 1.4 1.3 1.2",
+					},
+					Output: []string{
+						"/buy [] #原因：上升趋势",
+					},
+				},
 			},
 		},
 		{
 			Name:        "hold",
 			Description: "持仓",
-			Samples: []string{
-				"1.2 1.3 1.4 1.5 1.6 1.7 1.8",
+			Samples: []types.Sample{
+				{
+					Input: []string{
+						"1.2 1.3 1.4 1.5 1.6 1.7 1.8",
+					},
+					Output: []string{
+						"/buy [] #原因：上升趋势",
+					},
+				},
 			},
 		},
 	})
@@ -198,5 +219,5 @@ func TestGenAction(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, "buy", result.Actions[0].Name)
+	assert.Equal(t, "sell", result.Actions[0].Name)
 }

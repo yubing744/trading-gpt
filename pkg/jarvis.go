@@ -150,39 +150,78 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 	}
 
 	agent := openai.NewOpenAIAgent(&s.Agent.OpenAI)
-	agent.SetBackgroup("以下是和股票交易助手的对话，股票交易助手支持注册实体，支持输出命令控制实体、分析股票指标数据并生成交易信号。")
+	agent.SetBackgroup("以下是和交易助手的对话，交易助手支持注册实体，支持输出命令控制实体、支持分析实体产生的行情数据并生成交易信号来操作实体，实体会反馈操作结果。交易助手的目标是：最大化投资者收益。")
 	agent.RegisterActions(ctx, "exchange", []*ttypes.ActionDesc{
 		{
-			Name:        "buy",
-			Description: "买入命令",
-			Samples: []string{
-				"There are currently no open position",
-				"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
-				"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
-				"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
-				"Analyze the data and generate a trading signal.",
+			Name:        "open_long_position",
+			Description: "开启做多仓位",
+			Samples: []ttypes.Sample{
+				{
+					Input: []string{
+						"There are currently no open position",
+						"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
+						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
+						"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
+						"Analyze data, generate trading signals and explain why.",
+					},
+					Output: []string{
+						"/open_long_position [] #原因：BOLL上轨和中轨开始上升",
+					},
+				},
 			},
 		},
 		{
-			Name:        "sell",
-			Description: "卖出命令",
-			Samples: []string{
-				"The current position is short, and average cost: 2.84",
-				"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
-				"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.90 2.92 2.94 2.94 2.94 2.95 2.95 2.96], SMA:[2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.86 2.86 2.86 2.87 2.87 2.87 2.88 2.88], DownBand:[2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.81 2.80 2.79 2.79 2.79 2.80 2.80 2.80]}",
-				"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
-				"Analyze the data and generate a trading signal.",
+			Name:        "open_short_position",
+			Description: "开启做空仓位",
+			Samples: []ttypes.Sample{
+				{
+					Input: []string{
+						"The current position is short, and average cost: 2.84",
+						"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
+						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.90 2.92 2.94 2.94 2.94 2.95 2.95 2.96], SMA:[2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.86 2.86 2.86 2.87 2.87 2.87 2.88 2.88], DownBand:[2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.81 2.80 2.79 2.79 2.79 2.80 2.80 2.80]}",
+						"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
+						"Analyze data, generate trading signals and explain why.",
+					},
+					Output: []string{
+						"/open_short_position [] #原因：BOLL上轨和中轨开始下降",
+					},
+				},
+			},
+		},
+		{
+			Name:        "close_position",
+			Description: "关闭多空仓位",
+			Samples: []ttypes.Sample{
+				{
+					Input: []string{
+						"The current position is long, and average cost: 2.80",
+						"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
+						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90], SMA:[2.86 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85], DownBand:[2.80 2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81]",
+						"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
+						"Analyze data, generate trading signals and explain why.",
+					},
+					Output: []string{
+						"/close_position [] #原因：趋势反转",
+					},
+				},
 			},
 		},
 		{
 			Name:        "hold",
-			Description: "持仓命令",
-			Samples: []string{
-				"The current position is long, and average cost: 2.80",
-				"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
-				"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90], SMA:[2.86 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85], DownBand:[2.80 2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81]",
-				"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
-				"Analyze the data and generate a trading signal.",
+			Description: "不操作",
+			Samples: []ttypes.Sample{
+				{
+					Input: []string{
+						"The current position is long, and average cost: 2.80",
+						"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
+						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90], SMA:[2.86 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85], DownBand:[2.80 2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81]",
+						"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
+						"Analyze data, generate trading signals and explain why.",
+					},
+					Output: []string{
+						"/hold [] #原因：当前趋势和当前仓位一致",
+					},
+				},
 			},
 		},
 	})
