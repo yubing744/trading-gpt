@@ -307,14 +307,14 @@ func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, 
 	case "boll_changed":
 		boll, ok := evt.Data.(*indicator.BOLL)
 		if ok {
-			s.handleBOLLValuesChanged(ctx, session, boll)
+			s.handleBOLLChanged(ctx, session, boll)
 		} else {
 			log.Warn("event data Type not match")
 		}
-	case "vwma_changed":
-		vwma, ok := evt.Data.(*indicator.VWMA)
+	case "rsi_changed":
+		rsi, ok := evt.Data.(*indicator.RSI)
 		if ok {
-			s.handleVWMAValuesChanged(ctx, session, vwma)
+			s.handleRSIChanged(ctx, session, rsi)
 		} else {
 			log.Warn("event data Type not match")
 		}
@@ -357,7 +357,7 @@ func (s *Strategy) handleKlineChanged(ctx context.Context, session ttypes.ISessi
 	s.stashMsg(ctx, session, msg)
 }
 
-func (s *Strategy) handleBOLLValuesChanged(ctx context.Context, session ttypes.ISession, boll *indicator.BOLL) {
+func (s *Strategy) handleBOLLChanged(ctx context.Context, session ttypes.ISession, boll *indicator.BOLL) {
 	log.WithField("boll", boll).Info("handle boll values changed")
 
 	upVals := boll.UpBand
@@ -385,16 +385,16 @@ func (s *Strategy) handleBOLLValuesChanged(ctx context.Context, session ttypes.I
 	s.stashMsg(ctx, session, msg)
 }
 
-func (s *Strategy) handleVWMAValuesChanged(ctx context.Context, session ttypes.ISession, vwma *indicator.VWMA) {
-	log.WithField("vwma", vwma).Info("handle vwma values changed")
+func (s *Strategy) handleRSIChanged(ctx context.Context, session ttypes.ISession, rsi *indicator.RSI) {
+	log.WithField("rsi", rsi).Info("handle vwma values changed")
 
-	midVals := vwma.Values
-	if len(midVals) > s.MaxWindowSize {
-		midVals = midVals[len(midVals)-s.MaxWindowSize:]
+	vals := rsi.Values
+	if len(vals) > s.MaxWindowSize {
+		vals = vals[len(vals)-s.MaxWindowSize:]
 	}
 
-	msg := fmt.Sprintf("VWMA data changed: [%s]",
-		utils.JoinFloatSlice([]float64(midVals), " "),
+	msg := fmt.Sprintf("RSI data changed: [%s]",
+		utils.JoinFloatSlice([]float64(vals), " "),
 	)
 
 	s.replyMsg(ctx, session, msg)

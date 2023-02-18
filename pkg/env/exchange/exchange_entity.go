@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	DefaultWindowSize = 21
+	DefaultWindowSize = 20
 )
 
 var log = logrus.WithField("entity", "exchange")
@@ -36,7 +36,7 @@ type ExchangeEntity struct {
 
 	Status      types.StrategyStatus
 	BOLL        *indicator.BOLL
-	VWMA        *indicator.VWMA
+	RSI         *indicator.RSI
 	KLineWindow *types.KLineWindow
 }
 
@@ -174,8 +174,8 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 		})
 
 		ent.emitEvent(ch, &ttypes.Event{
-			Type: "vwma_changed",
-			Data: ent.VWMA,
+			Type: "rsi_changed",
+			Data: ent.RSI,
 		})
 
 		ent.emitEvent(ch, &ttypes.Event{
@@ -204,13 +204,13 @@ func (ent *ExchangeEntity) setupIndicators() {
 	indicators := ent.session.StandardIndicatorSet(ent.symbol)
 	ent.BOLL = indicators.BOLL(types.IntervalWindow{
 		Interval: ent.interval,
-		Window:   20,
+		Window:   DefaultWindowSize,
 	}, 2)
 
-	// setup VWMA
-	ent.VWMA = indicators.VWMA(types.IntervalWindow{
+	// setup RSI
+	ent.RSI = indicators.RSI(types.IntervalWindow{
 		Interval: ent.interval,
-		Window:   20,
+		Window:   DefaultWindowSize,
 	})
 }
 
