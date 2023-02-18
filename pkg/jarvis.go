@@ -160,26 +160,29 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 				"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
 				"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
 				"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
+				"Analyze the data and generate a trading signal.",
 			},
 		},
 		{
 			Name:        "sell",
 			Description: "卖出命令",
 			Samples: []string{
-				"The current position is short",
+				"The current position is short, and average cost: 2.84",
 				"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
 				"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.90 2.92 2.94 2.94 2.94 2.95 2.95 2.96], SMA:[2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.86 2.86 2.86 2.87 2.87 2.87 2.88 2.88], DownBand:[2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.81 2.80 2.79 2.79 2.79 2.80 2.80 2.80]}",
 				"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
+				"Analyze the data and generate a trading signal.",
 			},
 		},
 		{
 			Name:        "hold",
 			Description: "持仓命令",
 			Samples: []string{
-				"The current position is long",
+				"The current position is long, and average cost: 2.80",
 				"KLine data changed: Open:[2.83 2.83], Close:[2.81 2.83], High:[2.83 2.83], Low:[2.81 2.83], Volume:[27097.45 19859.13]",
 				"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90], SMA:[2.86 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85], DownBand:[2.80 2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81]",
 				"VWMA data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
+				"Analyze the data and generate a trading signal.",
 			},
 		},
 	})
@@ -328,14 +331,14 @@ func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, 
 func (s *Strategy) handlePositionChanged(ctx context.Context, session ttypes.ISession, position *types.Position) {
 	log.WithField("position", position).Info("handle boll values changed")
 
-	msg := "There are currently no open positions"
+	msg := ""
 
-	if position.IsClosed() {
-		if position.IsLong() {
-			msg = "The current position is long"
-		} else {
-			msg = "The current position is short"
-		}
+	if position.IsLong() {
+		msg = fmt.Sprintf("The current position is long, and average cost: %.4f", position.AverageCost.Float64())
+	} else if position.IsShort() {
+		msg = fmt.Sprintf("The current position is short, and average cost: %.4f", position.AverageCost.Float64())
+	} else {
+		msg = "There are currently no open positions"
 	}
 
 	s.replyMsg(ctx, session, msg)
@@ -406,6 +409,13 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
 
 	if ok {
+		msg := "Analyze the data and generate a trading signal."
+		s.replyMsg(ctx, session, msg)
+
+		tempMsgs = append(tempMsgs, &ttypes.Message{
+			Text: msg,
+		})
+
 		s.agentAction(ctx, session, tempMsgs)
 	}
 
