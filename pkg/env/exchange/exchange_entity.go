@@ -147,14 +147,13 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 			return
 		}
 
-		if ent.KLineWindow == nil {
-			ent.KLineWindow = &types.KLineWindow{}
-		}
-
 		// Update Kline
-		ent.KLineWindow.Add(kline)
-		if ent.KLineWindow.Len() > DefaultWindowSize {
-			ent.KLineWindow.Truncate(DefaultWindowSize)
+		if ent.KLineWindow != nil {
+			ent.KLineWindow.Add(kline)
+
+			if ent.KLineWindow.Len() > DefaultWindowSize {
+				ent.KLineWindow.Truncate(DefaultWindowSize)
+			}
 		}
 
 		log.WithField("kline", kline).Info("kline closed")
@@ -189,12 +188,26 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 func (ent *ExchangeEntity) setupIndicators() {
 	log.Infof("setup indicators")
 
+	// set kline window
+	inc := &types.KLineWindow{}
+	dataStore, ok := ent.session.MarketDataStore(ent.symbol)
+	if ok {
+		if klines, ok := dataStore.KLinesOfInterval(ent.interval); ok {
+			for _, k := range *klines {
+				inc.Add(k)
+			}
+		}
+	}
+	ent.KLineWindow = inc
+
+	// setup BOLL
 	indicators := ent.session.StandardIndicatorSet(ent.symbol)
 	ent.BOLL = indicators.BOLL(types.IntervalWindow{
 		Interval: ent.interval,
 		Window:   20,
 	}, 2)
 
+	// setup VWMA
 	ent.VWMA = indicators.VWMA(types.IntervalWindow{
 		Interval: ent.interval,
 		Window:   20,

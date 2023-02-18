@@ -150,7 +150,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 	}
 
 	agent := openai.NewOpenAIAgent(&s.Agent.OpenAI)
-	agent.SetBackgroup("以下是和股票交易助手的对话，股票交易助手支持注册实体，支持输出命令控制实体，支持分析股票指标数据并生成交易信号。")
+	agent.SetBackgroup("以下是和股票交易助手的对话，股票交易助手支持注册实体，支持输出命令控制实体、分析股票指标数据并生成交易信号。")
 	agent.RegisterActions(ctx, "exchange", []*ttypes.ActionDesc{
 		{
 			Name:        "buy",

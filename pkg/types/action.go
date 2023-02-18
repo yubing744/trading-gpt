@@ -5,6 +5,9 @@ type ArgmentDesc struct {
 	Description string
 }
 
+type Sample struct {
+}
+
 type ActionDesc struct {
 	Name        string
 	Description string
