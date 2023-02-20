@@ -185,7 +185,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 						"Analyze data, generate trading cmd and explain why.",
 					},
 					Output: []string{
-						"执行命令: /open_long_position [] #推导过程：由于BOLL上轨和中轨开始上升并且当前RSI值60.012已经超过50，所以可以开多仓赚取收益",
+						"Execute cmd: /open_long_position [] #推导过程：由于BOLL上轨和中轨开始上升并且当前RSI值60.012已经超过50，所以可以开多仓赚取收益",
 					},
 				},
 			},
@@ -202,7 +202,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 						"Analyze data, generate trading cmd and explain why.",
 					},
 					Output: []string{
-						"执行命令: /open_short_position [] #推导过程：由于BOLL上轨和中轨开始下降，所以可以开空仓赚取收益",
+						"Execute cmd: /open_short_position [] #推导过程：由于BOLL上轨和中轨开始下降，所以可以开空仓赚取收益",
 					},
 				},
 			},
@@ -219,7 +219,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 						"Analyze data, generate trading cmd and explain why.",
 					},
 					Output: []string{
-						"执行命令: /close_position [] #推导过程：由于当前仓位收益率已经超过15%并且BOLL的上轨出现下降趋势，所以需要关闭仓位止盈",
+						"Execute cmd: /close_position [] #推导过程：由于当前仓位收益率已经超过15%并且BOLL的上轨出现下降趋势，所以需要关闭仓位止盈",
 					},
 				},
 			},
@@ -235,7 +235,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 						"Analyze data, generate trading cmd and explain why.",
 					},
 					Output: []string{
-						"执行命令: /no_action [] #推导过程：由于没有到开仓点位，所以不用操作",
+						"Execute cmd: /no_action [] #推导过程：由于没有到开仓点位，所以不用操作",
 					},
 				},
 			},
