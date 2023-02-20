@@ -130,7 +130,7 @@ func (agent *ChatGPTAgent) genInitPrompt(conv *ChatGPTConversation, msgs []*type
 
 func (a *ChatGPTAgent) Init() error {
 	log.Info("Login ...")
-	err := a.client.Login()
+	err := a.client.Login(context.Background())
 	if err != nil {
 		return err
 	}
