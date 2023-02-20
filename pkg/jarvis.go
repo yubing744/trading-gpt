@@ -182,10 +182,10 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
 						"RSI data changed: [73.454 41.980 25.516 17.727 32.413 18.679 8.576 42.228 29.611 36.948 57.658 46.181 61.506 77.894 76.378 44.059 35.556 50.472 56.603 60.012]",
 						"There are currently no open position",
-						"Analyze data, generate trading cmd and explain why.",
+						"Analyze data, generate trading cmd",
 					},
 					Output: []string{
-						"Execute cmd: /open_long_position [] #推导过程：由于BOLL上轨和中轨开始上升并且当前RSI值60.012已经超过50，所以可以开多仓赚取收益",
+						"Execute cmd: /open_long_position",
 					},
 				},
 			},
@@ -199,10 +199,10 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
 						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
 						"The current position is short, and average cost: 2.84",
-						"Analyze data, generate trading cmd and explain why.",
+						"Analyze data, generate trading cmd",
 					},
 					Output: []string{
-						"Execute cmd: /open_short_position [] #推导过程：由于BOLL上轨和中轨开始下降，所以可以开空仓赚取收益",
+						"Execute cmd: /open_short_position",
 					},
 				},
 			},
@@ -216,10 +216,10 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
 						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
 						"The current position is long, average cost: 2.736, and accumulated profit: 15.324",
-						"Analyze data, generate trading cmd and explain why.",
+						"Analyze data, generate trading cmd",
 					},
 					Output: []string{
-						"Execute cmd: /close_position [] #推导过程：由于当前仓位收益率已经超过15%并且BOLL的上轨出现下降趋势，所以需要关闭仓位止盈",
+						"Execute cmd: /close_position",
 					},
 				},
 			},
@@ -232,10 +232,10 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 					Input: []string{
 						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
 						"The current position is long, and average cost: 2.80",
-						"Analyze data, generate trading cmd and explain why.",
+						"Analyze data, generate trading cmd",
 					},
 					Output: []string{
-						"Execute cmd: /no_action [] #推导过程：由于没有到开仓点位，所以不用操作",
+						"Execute cmd: /no_action",
 					},
 				},
 			},
@@ -350,6 +350,11 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 
 	if len(result.Actions) > 0 {
 		if chatSession.HasRole(ttypes.RoleAdmin) {
+			if len(result.Actions) > 1 {
+				log.Info("skip handle actions for too many actions")
+				return
+			}
+
 			for _, action := range result.Actions {
 				err := s.world.SendCommand(ctx, action.Target, action.Name, action.Args)
 				if err != nil {
@@ -490,7 +495,7 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
 
 	if ok {
-		msg := "Analyze data, generate trading cmd and explain why."
+		msg := "Analyze data, generate one trading cmd: /open_long_position、/open_short_position、/close_position or /no_action"
 		s.replyMsg(ctx, session, msg)
 
 		tempMsgs = append(tempMsgs, &ttypes.Message{
