@@ -1,8 +1,9 @@
 package config
 
-type AgentOpenAIConfig struct {
+type AgentChatGPTConfig struct {
 	Enabled          bool   `json:"enabled"`
 	Name             string `json:"name"`
-	Token            string `json:"token"`
+	Email            string `json:"email"`
+	Password         string `json:"password"`
 	MaxContextLength int    `json:"max_context_length"`
 }

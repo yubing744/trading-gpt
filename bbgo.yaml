@@ -21,6 +21,11 @@ exchangeStrategies:
         server_port: 3000
     agent:
       openai:
+        enabled: false
+        name: "小派"
+        max_context_length: 4097
+      chatgpt:
+        enabled: true
         name: "小派"
         max_context_length: 4097
     env:

@@ -137,6 +137,10 @@ func (a *OpenAIAgent) RegisterActions(ctx context.Context, name string, actions 
 	}
 }
 
+func (a *OpenAIAgent) Init() error {
+	return nil
+}
+
 func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, msgs []*types.Message) (*agent.GenResult, error) {
 	prompt, err := a.GenPrompt(session.GetChats(), msgs)
 	if err != nil {

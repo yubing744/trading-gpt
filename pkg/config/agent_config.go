@@ -1,5 +1,6 @@
 package config
 
 type AgentConfig struct {
-	OpenAI AgentOpenAIConfig `json:"openai"`
+	OpenAI  AgentOpenAIConfig  `json:"openai"`
+	ChatGPT AgentChatGPTConfig `json:"chatgpt"`
 }

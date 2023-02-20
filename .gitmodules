@@ -1,3 +1,6 @@
 [submodule "libs/bbgo"]
 	path = libs/bbgo
 	url = git@github.com:yubing744/bbgo.git
+[submodule "libs/chatgpt"]
+	path = libs/chatgpt
+	url = git@github.com:yubing744/chatgpt-go.git

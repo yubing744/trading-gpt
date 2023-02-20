@@ -4,17 +4,24 @@ go 1.19
 
 require (
 	github.com/c9s/bbgo v1.43.1
+	github.com/google/uuid v1.3.0
+	github.com/kataras/go-events v0.0.3
+	github.com/larksuite/oapi-sdk-go/v3 v3.0.17
+	github.com/pkg/errors v0.9.1
+	github.com/sashabaranov/go-gpt3 v1.0.1
 	github.com/sirupsen/logrus v1.9.0
+	github.com/stretchr/testify v1.8.1
+	github.com/yubing744/chatgpt-go v0.0.0-00010101000000-000000000000
 )
 
 replace github.com/c9s/bbgo => ./libs/bbgo
 
+replace github.com/yubing744/chatgpt-go => ./libs/chatgpt
+
 require (
 	github.com/Masterminds/squirrel v1.5.3 // indirect
-	github.com/PuerkitoBio/goquery v1.8.0 // indirect
 	github.com/VividCortex/ewma v1.1.1 // indirect
 	github.com/adshao/go-binance/v2 v2.3.10 // indirect
-	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bitly/go-simplejson v0.5.0 // indirect
 	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
@@ -40,18 +47,12 @@ require (
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/go-playground/validator/v10 v10.4.1 // indirect
 	github.com/go-redis/redis/v8 v8.8.0 // indirect
-	github.com/go-resty/resty/v2 v2.7.0 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
-	github.com/golang-infrastructure/go-ChatGPT v0.0.1 // indirect
-	github.com/golang-infrastructure/go-if-expression v0.0.2 // indirect
-	github.com/golang-infrastructure/go-pointer v0.0.1 // indirect
-	github.com/golang-infrastructure/go-reflect-utils v0.0.0-20221130143747-965ef2eb09c3 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/heroku/rollrus v0.2.0 // indirect
@@ -60,10 +61,8 @@ require (
 	github.com/jmoiron/sqlx v1.3.4 // indirect
 	github.com/joho/godotenv v1.3.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kataras/go-events v0.0.3 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
-	github.com/larksuite/oapi-sdk-go/v3 v3.0.17 // indirect
 	github.com/leekchan/accounting v0.0.0-20191218023648-17a4ce5f94d4 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/lestrrat-go/file-rotatelogs v2.2.0+incompatible // indirect
@@ -83,7 +82,6 @@ require (
 	github.com/muesli/clusters v0.0.0-20180605185049-a07a36e67d36 // indirect
 	github.com/muesli/kmeans v0.3.0 // indirect
 	github.com/pelletier/go-toml v1.8.1 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/pquerna/otp v1.3.0 // indirect
 	github.com/prometheus/client_golang v1.11.0 // indirect
@@ -95,7 +93,6 @@ require (
 	github.com/robfig/cron/v3 v3.0.0 // indirect
 	github.com/rollbar/rollbar-go v1.4.5 // indirect
 	github.com/sajari/regression v1.0.1 // indirect
-	github.com/sashabaranov/go-gpt3 v1.0.1 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/slack-go/slack v0.10.1 // indirect
 	github.com/spf13/afero v1.5.1 // indirect
@@ -104,7 +101,6 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.7.1 // indirect
-	github.com/stretchr/testify v1.8.1 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/ugorji/go/codec v1.2.3 // indirect
 	github.com/valyala/fastjson v1.5.1 // indirect

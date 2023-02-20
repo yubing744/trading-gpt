@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/yubing744/trading-bot/pkg/agent"
+	"github.com/yubing744/trading-bot/pkg/agent/chatgpt"
 	"github.com/yubing744/trading-bot/pkg/agent/openai"
 	"github.com/yubing744/trading-bot/pkg/chat"
 	"github.com/yubing744/trading-bot/pkg/chat/feishu"
@@ -144,12 +145,32 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 	s.world = world
 
 	// setup agent
+	var agent agent.IAgent
+
 	openaiCfg := &s.Agent.OpenAI
-	if openaiCfg != nil {
+	if openaiCfg != nil && openaiCfg.Enabled {
 		openaiCfg.Token = os.Getenv("AGENT_OPENAI_TOKEN")
+		agent = openai.NewOpenAIAgent(openaiCfg)
 	}
 
-	agent := openai.NewOpenAIAgent(&s.Agent.OpenAI)
+	chatgptCfg := &s.Agent.ChatGPT
+	if openaiCfg != nil && chatgptCfg.Enabled {
+		email := os.Getenv("AGENT_CHATGPT_EMAIL")
+		password := os.Getenv("AGENT_CHATGPT_PASSWORD")
+		if email == "" || password == "" {
+			return errors.New("AGENT_CHATGPT_EMAIL or AGENT_CHATGPT_PASSWORD not set in .env.local")
+		}
+
+		chatgptCfg.Email = email
+		chatgptCfg.Password = password
+
+		agent = chatgpt.NewChatGPTAgent(chatgptCfg)
+	}
+
+	if agent == nil {
+		return errors.New("No agent enabled")
+	}
+
 	agent.SetBackgroup("以下是和交易助手的对话，交易助手支持注册实体、输出命令控制实体、分析实体产生的行情数据和生成实体控制命令，实体会反馈命令执行结果，支持自动止损和止盈，止损点5%，止盈点30%。交易助手的目标是：通过生成实体控制命令来最大化投资者收益。")
 	agent.RegisterActions(ctx, "exchange", []*ttypes.ActionDesc{
 		{
@@ -220,6 +241,11 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 			},
 		},
 	})
+	err = agent.Init()
+	if err != nil {
+		return errors.Wrap(err, "Error in init agent")
+	}
+
 	s.agent = agent
 
 	// set chats

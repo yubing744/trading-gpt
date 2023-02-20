@@ -15,5 +15,6 @@ type IAgent interface {
 	SetName(name string)
 	SetBackgroup(backgroup string)
 	RegisterActions(ctx context.Context, name string, actions []*types.ActionDesc)
+	Init() error
 	GenActions(ctx context.Context, session types.ISession, msgs []*types.Message) (*GenResult, error)
 }
