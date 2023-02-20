@@ -495,7 +495,7 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
 
 	if ok {
-		msg := "Analyze data, generate one trading cmd: /open_long_position、/open_short_position、/close_position or /no_action"
+		msg := "Analyze the data, generate one trading cmd: /open_long_position、/open_short_position、/close_position or /no_action, the entity will execute the command and give you feedback."
 		s.replyMsg(ctx, session, msg)
 
 		tempMsgs = append(tempMsgs, &ttypes.Message{
