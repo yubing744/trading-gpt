@@ -303,16 +303,6 @@ func (s *Strategy) replyMsg(ctx context.Context, chatSession ttypes.ISession, ms
 	}
 }
 
-func (s *Strategy) notifyMsg(ctx context.Context, msg string) {
-	err := s.chatSessions.Notify(ctx, &ttypes.Message{
-		ID:   uuid.NewString(),
-		Text: msg,
-	})
-	if err != nil {
-		log.WithError(err).Error("notify message error")
-	}
-}
-
 func (s *Strategy) feedbackCmdExecuteResult(ctx context.Context, chatSession ttypes.ISession, msg string) {
 	s.replyMsg(ctx, chatSession, msg)
 
@@ -359,9 +349,9 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 				err := s.world.SendCommand(ctx, action.Target, action.Name, action.Args)
 				if err != nil {
 					log.WithError(err).Error("env send cmd error")
-					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("命令: /%s [%s] 执行失败了，原因: %s", action.Name, strings.Join(action.Args, ","), err.Error()))
+					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: /%s [%s] failed to execute by entity, reason: %s", action.Name, strings.Join(action.Args, ","), err.Error()))
 				} else {
-					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("命令: /%s [%s] 执行成功了。", action.Name, strings.Join(action.Args, ",")))
+					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: /%s [%s] executed successfully by entity.", action.Name, strings.Join(action.Args, ",")))
 				}
 			}
 		} else {
@@ -495,7 +485,7 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
 
 	if ok {
-		msg := "Analyze the data, generate one trading cmd: /open_long_position、/open_short_position、/close_position or /no_action, the entity will execute the command and give you feedback."
+		msg := "Analyze the data and generate only one trading command: /open_long_position, /open_short_position, /close_position or /no_action, the entity will execute the command and give you feedback."
 		s.replyMsg(ctx, session, msg)
 
 		tempMsgs = append(tempMsgs, &ttypes.Message{
