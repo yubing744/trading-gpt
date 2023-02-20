@@ -21,10 +21,14 @@ build: clean
 test:
 	go test ./...
 
+tag:
+	git tag -m "release v${VERSION}" v${VERSION}
+	git push --tags
+
 run: build
 	./build/bbgo run
 
-docker-build: build
+docker-build: build tag
 	docker build --tag yubing744/${NAME}:latest .
 	docker tag yubing744/${NAME}:latest yubing744/${NAME}:${VERSION}
 
