@@ -14,7 +14,6 @@ import (
 	"github.com/yubing744/trading-bot/pkg/types"
 
 	gpt "github.com/yubing744/chatgpt-go/pkg"
-	gptcfg "github.com/yubing744/chatgpt-go/pkg/config"
 )
 
 const (
@@ -37,15 +36,7 @@ type ChatGPTAgent struct {
 }
 
 func NewChatGPTAgent(cfg *config.AgentChatGPTConfig) *ChatGPTAgent {
-	chatgptCfg := &gptcfg.Config{
-		Email:    cfg.Email,
-		Password: cfg.Password,
-		Proxy:    "",
-		Timeout:  time.Second * 600,
-		Debug:    false,
-	}
-
-	client := gpt.NewChatgptClient(chatgptCfg)
+	client := gpt.NewChatgptClient(cfg.Email, cfg.Password, gpt.WithTimeout(time.Second*600))
 
 	return &ChatGPTAgent{
 		client:           client,
