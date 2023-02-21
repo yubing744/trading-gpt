@@ -1,6 +1,6 @@
 module github.com/yubing744/trading-bot
 
-go 1.19
+go 1.18
 
 require (
 	github.com/c9s/bbgo v1.43.1
@@ -59,7 +59,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/jedib0t/go-pretty/v6 v6.3.6 // indirect
 	github.com/jmoiron/sqlx v1.3.4 // indirect
-	github.com/joho/godotenv v1.3.0 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect

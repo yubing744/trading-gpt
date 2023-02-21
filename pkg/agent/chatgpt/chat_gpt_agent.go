@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/yubing744/trading-bot/pkg/agent"
@@ -33,6 +34,8 @@ type ChatGPTAgent struct {
 
 	conversations map[string]*ChatGPTConversation
 	lock          sync.RWMutex
+
+	failCount int
 }
 
 func NewChatGPTAgent(cfg *config.AgentChatGPTConfig) *ChatGPTAgent {
@@ -46,6 +49,7 @@ func NewChatGPTAgent(cfg *config.AgentChatGPTConfig) *ChatGPTAgent {
 		actions:          make(map[string]*types.ActionDesc, 0),
 		maxContextLength: cfg.MaxContextLength,
 		conversations:    make(map[string]*ChatGPTConversation),
+		failCount:        0,
 	}
 }
 
@@ -161,8 +165,15 @@ func (a *ChatGPTAgent) GenActions(ctx context.Context, session types.ISession, m
 
 	log.Info(prompt)
 
-	resp, err := a.client.Ask(context.Background(), prompt, conv.GetIDRef(), conv.GetParentMessageIDRef(), time.Second*20)
+	resp, err := a.client.Ask(context.Background(), prompt, conv.GetIDRef(), conv.GetParentMessageIDRef())
 	if err != nil {
+		a.failCount = a.failCount + 1
+		if a.failCount >= 3 {
+			conv.Update("", uuid.NewString())
+			a.failCount = 0
+			return nil, errors.Wrap(err, "reset conv")
+		}
+
 		return nil, err
 	}
 

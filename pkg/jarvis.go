@@ -324,11 +324,25 @@ func (s *Strategy) feedbackCmdExecuteResult(ctx context.Context, chatSession tty
 	}
 }
 
+func (s *Strategy) emergencyClosePosition(ctx context.Context, chatSession ttypes.ISession, reason string) {
+	log.Warn("emergency close position")
+
+	err := s.world.SendCommand(ctx, "exchange", "close_position", []string{})
+	if err != nil {
+		log.WithError(err).Error("env send cmd error")
+		return
+	}
+
+	log.Warn("emergency close position ok")
+	s.replyMsg(ctx, chatSession, fmt.Sprintf("emergency close position, for %s", reason))
+}
+
 func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession, msgs []*ttypes.Message) {
 	result, err := s.agent.GenActions(ctx, chatSession, msgs)
 	if err != nil {
 		log.WithError(err).Error("gen action error")
 		s.replyMsg(ctx, chatSession, fmt.Sprintf("gen action error: %s", err.Error()))
+		s.emergencyClosePosition(ctx, chatSession, "agent error")
 		return
 	}
 
