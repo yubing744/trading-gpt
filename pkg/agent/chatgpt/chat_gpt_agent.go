@@ -129,13 +129,13 @@ func (agent *ChatGPTAgent) genInitPrompt(conv *ChatGPTConversation, msgs []*type
 }
 
 func (a *ChatGPTAgent) Init() error {
-	log.Info("Login ...")
-	err := a.client.Login(context.Background())
+	log.Info("ChatGPT client start ...")
+	err := a.client.Start(context.Background())
 	if err != nil {
 		return err
 	}
 
-	log.Info("Login success.")
+	log.Info("ChatGPT client start success.")
 
 	return nil
 }
