@@ -32,6 +32,7 @@ exchangeStrategies:
       exchange:
         window_size: 20
         include_events:
+          - kline_changed
           - boll_changed
           - rsi_changed
           - position_changed
