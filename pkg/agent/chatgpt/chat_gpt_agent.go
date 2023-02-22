@@ -104,12 +104,6 @@ func (agent *ChatGPTAgent) genInitPrompt(conv *ChatGPTConversation, msgs []*type
 		}
 
 		builder.WriteString("\n\n")
-
-		// sample
-		for _, chat := range agent.chats {
-			builder.WriteString(chat)
-			builder.WriteString("\n")
-		}
 	}
 
 	builder.WriteString(agent.toPrompt(msgs))

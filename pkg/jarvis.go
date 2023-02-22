@@ -171,7 +171,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		return errors.New("No agent enabled")
 	}
 
-	agent.SetBackgroup("以下是和交易助手的对话，交易助手支持注册实体、输出命令控制实体、分析实体产生的行情数据和生成实体控制命令，实体会反馈命令执行结果，支持自动止损和止盈，止损点5%，止盈点30%。交易助手的目标是：通过生成实体控制命令来最大化投资者收益。")
+	agent.SetBackgroup("以下是和交易助手的对话，交易助手支持注册实体、输出命令控制实体、分析实体产生的行情数据和生成实体控制命令，实体会反馈命令执行结果，支持自动止损和止盈，止损点5%，止盈点30%。交易助手的目标是：通过生成实体控制命令来最大化收益。")
 	agent.RegisterActions(ctx, "exchange", []*ttypes.ActionDesc{
 		{
 			Name:        "open_long_position",
@@ -424,9 +424,9 @@ func (s *Strategy) handlePositionChanged(ctx context.Context, session ttypes.ISe
 	msg := ""
 
 	if position.IsLong() {
-		msg = fmt.Sprintf("The current position is long, average cost: %.3f, and accumulated profit: %.3f", position.AverageCost.Float64(), position.AccumulatedProfit.Float64())
+		msg = fmt.Sprintf("The current position is long, average cost: %.3f, and accumulated profit: %.3f%s", position.AverageCost.Float64(), position.AccumulatedProfit.Float64(), "%")
 	} else if position.IsShort() {
-		msg = fmt.Sprintf("The current position is short, average cost: %.3f, and accumulated profit: %.3f", position.AverageCost.Float64(), position.AccumulatedProfit.Float64())
+		msg = fmt.Sprintf("The current position is short, average cost: %.3f, and accumulated profit: %.3f%s", position.AverageCost.Float64(), position.AccumulatedProfit.Float64(), "%")
 	} else {
 		msg = "There are currently no open positions"
 	}

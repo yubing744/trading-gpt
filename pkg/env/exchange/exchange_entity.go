@@ -160,7 +160,7 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 
 		// Update postion accumulated Profit
 		if ent.position != nil {
-			ent.position.AccumulatedProfit = kline.GetClose().Sub(ent.position.AverageCost).Mul(ent.position.AverageCost)
+			ent.position.AccumulatedProfit = kline.GetClose().Sub(ent.position.AverageCost).Div(ent.position.AverageCost).Mul(fixedpoint.NewFromFloat(100.0))
 		}
 
 		log.WithField("kline", kline).Info("kline closed")
