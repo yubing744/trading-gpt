@@ -6,8 +6,10 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/c9s/bbgo/pkg/bbgo"
+	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/indicator"
 	"github.com/c9s/bbgo/pkg/types"
 	"github.com/google/uuid"
@@ -338,11 +340,20 @@ func (s *Strategy) emergencyClosePosition(ctx context.Context, chatSession ttype
 }
 
 func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession, msgs []*ttypes.Message) {
+	s.replyMsg(ctx, chatSession, fmt.Sprintf("The agent start action at %s, and the msgs:", time.Now().Format(time.RFC3339)))
+	for _, msg := range msgs {
+		s.replyMsg(ctx, chatSession, msg.Text)
+	}
+
 	result, err := s.agent.GenActions(ctx, chatSession, msgs)
 	if err != nil {
 		log.WithError(err).Error("gen action error")
 		s.replyMsg(ctx, chatSession, fmt.Sprintf("gen action error: %s", err.Error()))
-		s.emergencyClosePosition(ctx, chatSession, "agent error")
+
+		if chatSession.HasRole(ttypes.RoleAdmin) {
+			s.emergencyClosePosition(ctx, chatSession, "agent error")
+		}
+
 		return
 	}
 
@@ -426,12 +437,11 @@ func (s *Strategy) handlePositionChanged(ctx context.Context, session ttypes.ISe
 	if position.IsLong() {
 		msg = fmt.Sprintf("The current position is long, average cost: %.3f, and accumulated profit: %.3f%s", position.AverageCost.Float64(), position.AccumulatedProfit.Float64(), "%")
 	} else if position.IsShort() {
-		msg = fmt.Sprintf("The current position is short, average cost: %.3f, and accumulated profit: %.3f%s", position.AverageCost.Float64(), position.AccumulatedProfit.Float64(), "%")
+		msg = fmt.Sprintf("The current position is short, average cost: %.3f, and accumulated profit: %.3f%s", position.AverageCost.Float64(), position.AccumulatedProfit.Mul(fixedpoint.NewFromInt(-1)).Float64(), "%")
 	} else {
 		msg = "There are currently no open positions"
 	}
 
-	s.replyMsg(ctx, session, msg)
 	s.stashMsg(ctx, session, msg)
 }
 
@@ -446,7 +456,6 @@ func (s *Strategy) handleKlineChanged(ctx context.Context, session ttypes.ISessi
 		utils.JoinFloatSeries(klineWindow.Volume(), " "),
 	)
 
-	s.replyMsg(ctx, session, msg)
 	s.stashMsg(ctx, session, msg)
 }
 
@@ -474,7 +483,6 @@ func (s *Strategy) handleBOLLChanged(ctx context.Context, session ttypes.ISessio
 		utils.JoinFloatSlice([]float64(downVals), " "),
 	)
 
-	s.replyMsg(ctx, session, msg)
 	s.stashMsg(ctx, session, msg)
 }
 
@@ -490,7 +498,6 @@ func (s *Strategy) handleRSIChanged(ctx context.Context, session ttypes.ISession
 		utils.JoinFloatSlice([]float64(vals), " "),
 	)
 
-	s.replyMsg(ctx, session, msg)
 	s.stashMsg(ctx, session, msg)
 }
 
@@ -500,7 +507,6 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 
 	if ok {
 		msg := "Analyze the data and generate only one trading command: /open_long_position, /open_short_position, /close_position or /no_action, the entity will execute the command and give you feedback."
-		s.replyMsg(ctx, session, msg)
 
 		tempMsgs = append(tempMsgs, &ttypes.Message{
 			Text: msg,
