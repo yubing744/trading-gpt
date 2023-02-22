@@ -506,10 +506,12 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
 
 	if ok {
-		msg := "Analyze the data and generate only one trading command: /open_long_position, /open_short_position, /close_position or /no_action, the entity will execute the command and give you feedback."
+		tempMsgs = append(tempMsgs, &ttypes.Message{
+			Text: fmt.Sprintf("For the above data, the latest value is the last one, and the interval is %s.", s.Interval.String()),
+		})
 
 		tempMsgs = append(tempMsgs, &ttypes.Message{
-			Text: msg,
+			Text: "Analyze the data and generate only one trading command: /open_long_position, /open_short_position, /close_position or /no_action, the entity will execute the command and give you feedback.",
 		})
 
 		s.agentAction(ctx, session, tempMsgs)

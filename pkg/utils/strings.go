@@ -26,10 +26,10 @@ func JoinFloatSeries(data types.Series, sep string) string {
 	var builder strings.Builder
 
 	total := data.Length()
-	for i := 0; i < total; i++ {
+	for i := total - 1; i >= 0; i-- {
 		builder.WriteString(fmt.Sprintf("%.3f", data.Index(i)))
 
-		if i < total-1 {
+		if i > 0 {
 			builder.WriteString(sep)
 		}
 	}
