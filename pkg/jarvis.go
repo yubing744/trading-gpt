@@ -448,12 +448,13 @@ func (s *Strategy) handlePositionChanged(ctx context.Context, session ttypes.ISe
 func (s *Strategy) handleKlineChanged(ctx context.Context, session ttypes.ISession, klineWindow *types.KLineWindow) {
 	log.WithField("kline", klineWindow).Info("handle klineWindow values changed")
 
-	msg := fmt.Sprintf("KLine data changed: Open:[%s], Close:[%s], High:[%s], Low:[%s], Volume:[%s]",
+	msg := fmt.Sprintf("KLine data changed: Open:[%s], Close:[%s], High:[%s], Low:[%s], Volume:[%s], and the current close price is: %.3f",
 		utils.JoinFloatSeries(klineWindow.Open(), " "),
 		utils.JoinFloatSeries(klineWindow.Close(), " "),
 		utils.JoinFloatSeries(klineWindow.High(), " "),
 		utils.JoinFloatSeries(klineWindow.Low(), " "),
 		utils.JoinFloatSeries(klineWindow.Volume(), " "),
+		klineWindow.GetClose().Float64(),
 	)
 
 	s.stashMsg(ctx, session, msg)
@@ -477,10 +478,11 @@ func (s *Strategy) handleBOLLChanged(ctx context.Context, session ttypes.ISessio
 		downVals = downVals[len(downVals)-s.MaxWindowSize:]
 	}
 
-	msg := fmt.Sprintf("BOLL data changed: UpBand:[%s], SMA:[%s], DownBand:[%s]",
+	msg := fmt.Sprintf("BOLL data changed: UpBand:[%s], SMA:[%s], DownBand:[%s], and the current SMA value is: %.3f",
 		utils.JoinFloatSlice([]float64(upVals), " "),
 		utils.JoinFloatSlice([]float64(midVals), " "),
 		utils.JoinFloatSlice([]float64(downVals), " "),
+		boll.SMA.Last(),
 	)
 
 	s.stashMsg(ctx, session, msg)
@@ -494,8 +496,9 @@ func (s *Strategy) handleRSIChanged(ctx context.Context, session ttypes.ISession
 		vals = vals[len(vals)-s.MaxWindowSize:]
 	}
 
-	msg := fmt.Sprintf("RSI data changed: [%s]",
+	msg := fmt.Sprintf("RSI data changed: [%s], and the current RSI value is: %.3f",
 		utils.JoinFloatSlice([]float64(vals), " "),
+		rsi.Last(),
 	)
 
 	s.stashMsg(ctx, session, msg)
@@ -506,10 +509,6 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
 
 	if ok {
-		tempMsgs = append(tempMsgs, &ttypes.Message{
-			Text: fmt.Sprintf("For the above data, the latest value is the last one, and the interval is %s.", s.Interval.String()),
-		})
-
 		tempMsgs = append(tempMsgs, &ttypes.Message{
 			Text: "Analyze the data and generate only one trading command: /open_long_position, /open_short_position, /close_position or /no_action, the entity will execute the command and give you feedback.",
 		})
