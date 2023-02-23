@@ -34,11 +34,10 @@ exchangeStrategies:
         include_events:
           - kline_changed
           - boll_changed
-          - rsi_changed
           - position_changed
           - update_finish
     symbol: OPUSDT
-    interval: 15m
+    interval: 1h
     leverage: 3
     max_window_size: 20
     

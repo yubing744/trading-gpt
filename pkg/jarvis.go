@@ -173,7 +173,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		return errors.New("No agent enabled")
 	}
 
-	agent.SetBackgroup("以下是和交易助手的对话，交易助手支持注册实体、输出命令控制实体、分析实体产生的行情数据和生成实体控制命令，实体会反馈命令执行结果，支持自动止损和止盈，止损点5%，止盈点30%。交易助手的目标是：通过生成实体控制命令来最大化收益。")
+	agent.SetBackgroup("以下是和交易助手的对话，交易助手支持注册实体、输出命令控制实体、分析实体产生的行情数据和生成实体控制命令，实体会反馈命令执行结果。交易助手的目标是：通过生成实体控制命令来最大化收益。")
 	agent.RegisterActions(ctx, "exchange", []*ttypes.ActionDesc{
 		{
 			Name:        "open_long_position",
@@ -509,6 +509,10 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
 
 	if ok {
+		tempMsgs = append(tempMsgs, &ttypes.Message{
+			Text: "Trading strategy: trade on the right side, stop loss 3%, take profit 10%.",
+		})
+
 		tempMsgs = append(tempMsgs, &ttypes.Message{
 			Text: "Analyze the data and generate only one trading command: /open_long_position, /open_short_position, /close_position or /no_action, the entity will execute the command and give you feedback.",
 		})
