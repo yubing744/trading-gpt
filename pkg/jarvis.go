@@ -517,7 +517,7 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 
 	if ok {
 		tempMsgs = append(tempMsgs, &ttypes.Message{
-			Text: "Trading strategy: trade on the right side, stop loss 3%, take profit 10%.",
+			Text: "Trading strategy: trade on the right side, stop loss 3%.",
 		})
 
 		tempMsgs = append(tempMsgs, &ttypes.Message{
