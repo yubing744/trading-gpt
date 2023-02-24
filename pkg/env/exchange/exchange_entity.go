@@ -88,26 +88,27 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args [
 	closePrice := ent.KLineWindow.GetClose()
 
 	// close position if need
-	// TP/SL if there's non-dust position and meets the criteria
-	if !ent.position.IsDust(closePrice) {
-		if cmd == "close_position" {
-			if ent.position.IsShort() || ent.position.IsLong() {
-				log.Infof("close existing %s position", ent.symbol)
+	if cmd == "close_position" {
+		if ent.position.IsShort() || ent.position.IsLong() {
+			log.Infof("close existing %s position", ent.symbol)
 
-				err := ent.ClosePosition(ctx, fixedpoint.One, closePrice)
-				if err != nil {
-					return errors.Wrap(err, "close position error")
-				}
-			} else {
-				return errors.New("no existing open position")
+			err := ent.ClosePosition(ctx, fixedpoint.One, closePrice)
+			if err != nil {
+				return errors.Wrap(err, "close position error")
 			}
-
-			return nil
+		} else {
+			return errors.New("no existing open position")
 		}
+
+		return nil
 	}
 
 	// open position
 	if cmd == "open_long_position" || cmd == "open_short_position" {
+		if ent.position.IsShort() || ent.position.IsLong() {
+			return errors.Errorf("already existing %s position", strings.ToLower(string(ent.position.Type())))
+		}
+
 		side := ent.cmdToSide(cmd)
 		log.Infof("open %s position for signal %v, reason: %s", ent.symbol, side, "")
 

@@ -478,18 +478,25 @@ func (s *Strategy) handleBOLLChanged(ctx context.Context, session ttypes.ISessio
 		downVals = downVals[len(downVals)-s.MaxWindowSize:]
 	}
 
-	msg := fmt.Sprintf("BOLL data changed: UpBand:[%s], SMA:[%s], DownBand:[%s], and the current SMA value is: %.3f",
+	msg := fmt.Sprintf("BOLL data changed: UpBand:[%s], SMA:[%s], DownBand:[%s]",
 		utils.JoinFloatSlice([]float64(upVals), " "),
 		utils.JoinFloatSlice([]float64(midVals), " "),
 		utils.JoinFloatSlice([]float64(downVals), " "),
+	)
+
+	s.stashMsg(ctx, session, msg)
+
+	msg = fmt.Sprintf("The current UpBand is %.3f, and the current SMA is %.3f, and the current DownBand is %.3f",
+		boll.UpBand.Last(),
 		boll.SMA.Last(),
+		boll.DownBand.Last(),
 	)
 
 	s.stashMsg(ctx, session, msg)
 }
 
 func (s *Strategy) handleRSIChanged(ctx context.Context, session ttypes.ISession, rsi *indicator.RSI) {
-	log.WithField("rsi", rsi).Info("handle vwma values changed")
+	log.WithField("rsi", rsi).Info("handle RSI values changed")
 
 	vals := rsi.Values
 	if len(vals) > s.MaxWindowSize {
