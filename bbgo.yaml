@@ -46,7 +46,7 @@ exchangeStrategies:
           - position_changed
           - update_finish
     symbol: OPUSDT
-    interval: 15m
+    interval: 1h
     leverage: 3
     max_window_size: 20
     
