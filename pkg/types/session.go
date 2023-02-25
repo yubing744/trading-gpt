@@ -7,8 +7,10 @@ type ISession interface {
 	GetChats() []string
 	AddChat(chat string)
 	Reply(ctx context.Context, msg *Message) error
-	SetState(state interface{})
-	GetState() interface{}
+	GetAttributeNames() []string
+	GetAttribute(name string) (interface{}, bool)
+	SetAttribute(name string, value interface{})
+	RemoveAttribute(name string)
 	SetRoles(role []string)
 	HasRole(role string) bool
 }

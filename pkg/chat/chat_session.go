@@ -2,23 +2,25 @@ package chat
 
 import (
 	"context"
+	"sync"
 
 	"github.com/yubing744/trading-bot/pkg/types"
 )
 
 type ChatSession struct {
-	id      string
-	chats   []string
-	roles   []string
-	state   interface{}
-	channel types.INotifyChannel
+	id         string
+	chats      []string
+	roles      []string
+	attributes *sync.Map
+	channel    types.INotifyChannel
 }
 
 func NewChatSession(channel types.INotifyChannel) *ChatSession {
 	return &ChatSession{
-		id:      channel.GetID(),
-		chats:   make([]string, 0),
-		channel: channel,
+		id:         channel.GetID(),
+		chats:      make([]string, 0),
+		attributes: new(sync.Map),
+		channel:    channel,
 	}
 }
 
@@ -34,12 +36,32 @@ func (s *ChatSession) AddChat(chat string) {
 	s.chats = append(s.chats, chat)
 }
 
-func (s *ChatSession) SetState(state interface{}) {
-	s.state = state
+func (s *ChatSession) GetAttributeNames() []string {
+	names := make([]string, 0)
+
+	s.attributes.Range(func(key, value any) bool {
+		names = append(names, key.(string))
+		return true
+	})
+
+	return names
 }
 
-func (s *ChatSession) GetState() interface{} {
-	return s.state
+func (s *ChatSession) GetAttribute(name string) (interface{}, bool) {
+	val, ok := s.attributes.Load(name)
+	if ok {
+		return val, true
+	}
+
+	return nil, false
+}
+
+func (s *ChatSession) SetAttribute(name string, value interface{}) {
+	s.attributes.Store(name, value)
+}
+
+func (s *ChatSession) RemoveAttribute(name string) {
+	s.attributes.Delete(name)
 }
 
 func (s *ChatSession) Reply(ctx context.Context, msg *types.Message) error {

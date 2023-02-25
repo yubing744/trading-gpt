@@ -3,15 +3,20 @@ package alternative
 import (
 	"net/http"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
+var log = logrus.WithField("api", "alternative")
+
 type AlternativeClient struct {
-	client *http.Client
+	baseURL string
+	client  *http.Client
 }
 
 func NewAlternativeClient(opts ...Option) *AlternativeClient {
 	cfg := &Options{
-		baseURL: "https://alternative.me",
+		baseURL: "https://api.alternative.me",
 		timeout: time.Second * 20,
 		debug:   false,
 	}
@@ -21,6 +26,7 @@ func NewAlternativeClient(opts ...Option) *AlternativeClient {
 	}
 
 	return &AlternativeClient{
+		baseURL: cfg.baseURL,
 		client: &http.Client{
 			Timeout:   cfg.timeout,
 			Transport: cfg.transport,

@@ -1,7 +1,7 @@
 .PHONY: clean sync backtest build test run docker-build docker-push docker-run start stop logs deploy
 
 NAME=trading-bot
-VERSION=0.3.2
+VERSION=0.4.3
 TARGET_KEY=-i ~/.ssh/earn-robot_key.pem
 DEPLOY_TARGET=azureuser@20.59.104.24
 DEPLOY_PATH=/home/azureuser/apps/quant/bbgo-strategys/${NAME}
@@ -47,10 +47,13 @@ stop:
 logs:
 	docker logs -f --tail 100 ${NAME}
 
+prune:
+	docker image prune --all --force
+
 deploy: docker-push
 	ssh ${TARGET_KEY} ${DEPLOY_TARGET} "mkdir -p ${DEPLOY_PATH}"
 	scp ${TARGET_KEY} .env.local bbgo.yaml Makefile ${DEPLOY_TARGET}:${DEPLOY_PATH}
-	ssh ${TARGET_KEY} ${DEPLOY_TARGET} "cd ${DEPLOY_PATH} && make stop && make start && make logs"
+	ssh ${TARGET_KEY} ${DEPLOY_TARGET} "cd ${DEPLOY_PATH} && make prune && make stop && make start && make logs"
 
 remote-start:
 	ssh ${TARGET_KEY} ${DEPLOY_TARGET} "cd ${DEPLOY_PATH} && make start"

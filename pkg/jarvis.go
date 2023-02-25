@@ -24,6 +24,7 @@ import (
 	"github.com/yubing744/trading-bot/pkg/config"
 	"github.com/yubing744/trading-bot/pkg/env"
 	"github.com/yubing744/trading-bot/pkg/env/exchange"
+	"github.com/yubing744/trading-bot/pkg/env/fng"
 	"github.com/yubing744/trading-bot/pkg/utils"
 
 	nfeishu "github.com/yubing744/trading-bot/pkg/notify/feishu"
@@ -142,6 +143,9 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		s.orderExecutor,
 		s.Position,
 	))
+
+	world.RegisterEntity(fng.NewFearAndGreedEntity())
+
 	err := world.Start(ctx)
 	if err != nil {
 		return errors.Wrap(err, "Error in start env")
@@ -444,6 +448,13 @@ func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, 
 		} else {
 			log.Warn("event data Type not match")
 		}
+	case "fng_changed":
+		fng, ok := evt.Data.(*string)
+		if ok {
+			s.handleFngChanged(ctx, session, fng)
+		} else {
+			log.Warn("event data Type not match")
+		}
 	case "update_finish":
 		s.handleUpdateFinish(ctx, session)
 	default:
@@ -533,11 +544,25 @@ func (s *Strategy) handleRSIChanged(ctx context.Context, session ttypes.ISession
 	s.stashMsg(ctx, session, msg)
 }
 
+func (s *Strategy) handleFngChanged(ctx context.Context, session ttypes.ISession, fng *string) {
+	log.WithField("fng", fng).Info("handle FNG values changed")
+
+	msg := fmt.Sprintf("The current Fear and Greed Index value is: %s", *fng)
+	session.SetAttribute("fng_msg", &ttypes.Message{
+		Text: msg,
+	})
+}
+
 func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISession) {
 	tempMsgs, ok := s.popMsgs(ctx, session)
 	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
 
 	if ok {
+		fngMsg, ok := session.GetAttribute("fng_msg")
+		if ok {
+			tempMsgs = append(tempMsgs, fngMsg.(*ttypes.Message))
+		}
+
 		tempMsgs = append(tempMsgs, &ttypes.Message{
 			Text: "Trading strategy: trade on the right side, stop loss 3%, take profit 10%.",
 		})
@@ -549,23 +574,24 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 		s.agentAction(ctx, session, tempMsgs)
 	}
 
-	session.SetState(nil)
+	session.RemoveAttribute("tempMsgs")
 }
 
 func (s *Strategy) stashMsg(ctx context.Context, session ttypes.ISession, msg string) {
-	tempMsgs, _ := session.GetState().([]*ttypes.Message)
+	tempMsgsRef, _ := session.GetAttribute("tempMsgs")
+	tempMsgs, _ := tempMsgsRef.([]*ttypes.Message)
 	tempMsgs = append(tempMsgs, &ttypes.Message{
 		Text: msg,
 	})
 
 	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
-	session.SetState(tempMsgs)
+	session.SetAttribute("tempMsgs", tempMsgs)
 }
 
 func (s *Strategy) popMsgs(ctx context.Context, session ttypes.ISession) ([]*ttypes.Message, bool) {
-	tempMsgs, ok := session.GetState().([]*ttypes.Message)
+	tempMsgsRef, ok := session.GetAttribute("tempMsgs")
 	if ok {
-		return tempMsgs, ok
+		return tempMsgsRef.([]*ttypes.Message), ok
 	}
 
 	return []*ttypes.Message{}, false
