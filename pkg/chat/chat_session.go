@@ -11,10 +11,10 @@ type ChatSession struct {
 	chats   []string
 	roles   []string
 	state   interface{}
-	channel types.IChannel
+	channel types.INotifyChannel
 }
 
-func NewChatSession(channel types.IChannel) *ChatSession {
+func NewChatSession(channel types.INotifyChannel) *ChatSession {
 	return &ChatSession{
 		id:      channel.GetID(),
 		chats:   make([]string, 0),

@@ -1,9 +1,7 @@
 package types
 
-import "context"
-
 type IChannel interface {
-	GetID() string
+	INotifyChannel
+
 	OnMessage(cb MessageCallback)
-	Reply(ctx context.Context, msg *Message) error
 }

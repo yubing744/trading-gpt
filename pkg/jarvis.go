@@ -20,11 +20,13 @@ import (
 	"github.com/yubing744/trading-bot/pkg/agent/openai"
 	"github.com/yubing744/trading-bot/pkg/chat"
 	"github.com/yubing744/trading-bot/pkg/chat/feishu"
+
 	"github.com/yubing744/trading-bot/pkg/config"
 	"github.com/yubing744/trading-bot/pkg/env"
 	"github.com/yubing744/trading-bot/pkg/env/exchange"
 	"github.com/yubing744/trading-bot/pkg/utils"
 
+	nfeishu "github.com/yubing744/trading-bot/pkg/notify/feishu"
 	ttypes "github.com/yubing744/trading-bot/pkg/types"
 )
 
@@ -128,7 +130,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		bbgo.Sync(ctx, s)
 	})
 
-	// setup world
+	// Environment
 	world := env.NewEnvironment()
 	world.RegisterEntity(exchange.NewExchangeEntity(
 		"exchange",
@@ -146,7 +148,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 	}
 	s.world = world
 
-	// setup agent
+	// Agent
 	var agent agent.IAgent
 
 	openaiCfg := &s.Agent.OpenAI
@@ -250,39 +252,59 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 
 	s.agent = agent
 
-	// set chats
+	// Chats
 	feishuCfg := s.Chat.Feishu
-	if feishuCfg != nil && os.Getenv("CHAT_FEISHU_APP_ID") != "" {
-		feishuCfg.AppId = os.Getenv("CHAT_FEISHU_APP_ID")
-		feishuCfg.AppSecret = os.Getenv("CHAT_FEISHU_APP_SECRET")
-		feishuCfg.EventEncryptKey = os.Getenv("CHAT_FEISHU_EVENT_ENCRYPT_KEY")
-		feishuCfg.VerificationToken = os.Getenv("CHAT_FEISHU_VERIFICATION_TOKEN")
+	if feishuCfg.Enabled {
+		if feishuCfg != nil && os.Getenv("CHAT_FEISHU_APP_ID") != "" {
+			feishuCfg.AppId = os.Getenv("CHAT_FEISHU_APP_ID")
+			feishuCfg.AppSecret = os.Getenv("CHAT_FEISHU_APP_SECRET")
+			feishuCfg.EventEncryptKey = os.Getenv("CHAT_FEISHU_EVENT_ENCRYPT_KEY")
+			feishuCfg.VerificationToken = os.Getenv("CHAT_FEISHU_VERIFICATION_TOKEN")
+		}
+
+		chatProvider := feishu.NewFeishuChatProvider(feishuCfg)
+		sessions := chat.NewChatSessions()
+		adminInit := &sync.Once{}
+
+		go func() {
+			err = chatProvider.Listen(func(ch ttypes.IChannel) {
+				log.WithField("channel", ch).Info("new channel")
+
+				chatSession := chat.NewChatSession(ch)
+				sessions.AddChatSession(chatSession)
+
+				ch.OnMessage(func(msg *ttypes.Message) {
+					s.handleChatMessage(context.Background(), chatSession, msg)
+				})
+
+				adminInit.Do(func() {
+					s.setupAdminSession(ctx, chatSession)
+				})
+			})
+			if err != nil {
+				log.WithError(err).Error("listen chat error")
+			}
+		}()
+		s.chatSessions = sessions
 	}
 
-	chatProvider := feishu.NewFeishuChatProvider(feishuCfg)
-	sessions := chat.NewChatSessions()
-	adminInit := &sync.Once{}
-
-	go func() {
-		err = chatProvider.Listen(func(ch ttypes.IChannel) {
-			log.WithField("channel", ch).Info("new channel")
-
-			chatSession := chat.NewChatSession(ch)
-			sessions.AddChatSession(chatSession)
-
-			ch.OnMessage(func(msg *ttypes.Message) {
-				s.handleChatMessage(context.Background(), chatSession, msg)
-			})
-
-			adminInit.Do(func() {
-				s.setupAdminSession(ctx, chatSession)
-			})
-		})
-		if err != nil {
-			log.WithError(err).Error("listen chat error")
+	// Notify
+	feishuNotifyCfg := s.Notify.Feishu
+	if feishuNotifyCfg != nil && feishuNotifyCfg.Enabled {
+		if os.Getenv("NOTIFY_FEISHU_APP_ID") != "" {
+			feishuNotifyCfg.AppId = os.Getenv("NOTIFY_FEISHU_APP_ID")
+			feishuNotifyCfg.AppSecret = os.Getenv("NOTIFY_FEISHU_APP_SECRET")
 		}
-	}()
-	s.chatSessions = sessions
+
+		feishuNotifyChannel := nfeishu.NewFeishuNotifyChannel(feishuNotifyCfg)
+		chatSession := chat.NewChatSession(feishuNotifyChannel)
+		s.setupAdminSession(ctx, chatSession)
+		s.agentAction(ctx, chatSession, []*ttypes.Message{{
+			Text: "wait",
+		}})
+
+		log.Info("init feishu notify channel ok!")
+	}
 
 	return nil
 }
@@ -517,7 +539,7 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 
 	if ok {
 		tempMsgs = append(tempMsgs, &ttypes.Message{
-			Text: "Trading strategy: trade on the right side, stop loss 3%.",
+			Text: "Trading strategy: trade on the right side, stop loss 3%, take profit 10%.",
 		})
 
 		tempMsgs = append(tempMsgs, &ttypes.Message{

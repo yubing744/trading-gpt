@@ -18,7 +18,14 @@ exchangeStrategies:
   jarvis:
     chat:
       feishu:
+        enabled: false
         server_port: 3000
+    notify:
+      feishu:
+        enabled: true
+        tenant_key: "2cc4e3dc7f8e175d"
+        receive_id_type: "chat_id"
+        receive_id: "oc_30913e3222c7beca3efd4d9cc2d832af"
     agent:
       openai:
         enabled: false
@@ -37,7 +44,7 @@ exchangeStrategies:
           - position_changed
           - update_finish
     symbol: OPUSDT
-    interval: 1h
+    interval: 5m
     leverage: 3
     max_window_size: 20
     

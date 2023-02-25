@@ -11,7 +11,8 @@ type Config struct {
 	Leverage      fixedpoint.Value `json:"leverage"`
 	MaxWindowSize int              `json:"max_window_size"`
 
-	Chat  ChatConfig  `json:"chat"`
-	Agent AgentConfig `json:"agent"`
-	Env   EnvConfig   `json:"env"`
+	Notify NotifyConfig `json:"notify"`
+	Chat   ChatConfig   `json:"chat"`
+	Agent  AgentConfig  `json:"agent"`
+	Env    EnvConfig    `json:"env"`
 }
