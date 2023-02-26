@@ -1,19 +1,10 @@
-.PHONY: clean sync backtest build test run docker-build docker-push docker-run start stop logs deploy
+.PHONY: clean build test run docker-*
 
 NAME=trading-bot
 VERSION=0.4.3
-TARGET_KEY=-i ~/.ssh/earn-robot_key.pem
-DEPLOY_TARGET=azureuser@20.59.104.24
-DEPLOY_PATH=/home/azureuser/apps/quant/bbgo-strategys/${NAME}
 
 clean:
 	rm -rf build/*
-
-sync:
-	go run ./cmd/bbgo.go sync
-
-backtest:
-	go run ./cmd/bbgo.go backtest -v --sync --config ./bbgo.yaml
 
 build: clean
 	CGO_ENABLED=0 go build -o ./build/bbgo ./cmd/bbgo.go
@@ -21,12 +12,8 @@ build: clean
 test:
 	go test ./...
 
-tag:
-	git tag -m "release v${VERSION}" v${VERSION}
-	git push --tags
-
 run: build
-	./build/bbgo run
+	./build/bbgo run --dotenv .env.local --config bbgo.yaml
 
 docker-build: build
 	docker build --tag yubing744/${NAME}:latest .
@@ -35,34 +22,11 @@ docker-build: build
 docker-push: docker-build
 	docker push yubing744/${NAME}:${VERSION}
 
-docker-run:
-	docker run --net host -v ${PWD}:/strategy yubing744/${NAME}:${VERSION} run
+docker-start:
+	docker run --name ${NAME} --net host -d -v ${PWD}:/strategy yubing744/${NAME}:${VERSION} run --dotenv .env.local --config bbgo.yaml
 
-start:
-	docker run --name ${NAME} --net host -d -v ${PWD}:/strategy yubing744/${NAME}:${VERSION} run
-
-stop:
+docker-stop:
 	docker rm -f ${NAME}
 
-logs:
+docker-logs:
 	docker logs -f --tail 100 ${NAME}
-
-prune:
-	docker image prune --all --force
-
-deploy: docker-push
-	ssh ${TARGET_KEY} ${DEPLOY_TARGET} "mkdir -p ${DEPLOY_PATH}"
-	scp ${TARGET_KEY} .env.local bbgo.yaml Makefile ${DEPLOY_TARGET}:${DEPLOY_PATH}
-	ssh ${TARGET_KEY} ${DEPLOY_TARGET} "cd ${DEPLOY_PATH} && make prune && make stop && make start && make logs"
-
-remote-start:
-	ssh ${TARGET_KEY} ${DEPLOY_TARGET} "cd ${DEPLOY_PATH} && make start"
-
-remote-stop:
-	ssh ${TARGET_KEY} ${DEPLOY_TARGET} "cd ${DEPLOY_PATH} && make stop"
-
-remote-logs:
-	ssh ${TARGET_KEY} ${DEPLOY_TARGET} "cd ${DEPLOY_PATH} && make logs"
-
-remote-shell:
-	ssh ${TARGET_KEY} ${DEPLOY_TARGET}

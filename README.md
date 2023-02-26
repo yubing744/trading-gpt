@@ -1,9 +1,7 @@
 # trading-bot
 ChatGPT-based trading robot
 
-
 ## Usage
-
 Prepare your dotenv file .env.local and BBGO yaml config file bbgo.yaml
 
 Config .env.local file
@@ -24,7 +22,7 @@ CHAT_FEISHU_EVENT_ENCRYPT_KEY="your feishu event encrypt key"
 CHAT_FEISHU_VERIFICATION_TOKEN="your feishu verification token"
 
 # Agent OpenAI
-AGENT_OPENAI_TOKEN="your openai apitoken"
+AGENT_OPENAI_TOKEN="your openai api token"
 
 # Agent chatgpt
 AGENT_CHATGPT_EMAIL="your chat gpt account"
@@ -58,17 +56,17 @@ exchangeStrategies:
     notify:
       feishu:
         enabled: false
-        tenant_key: "2cc4e3dc7f8e175d"
-        receive_id_type: "chat_id"
-        receive_id: "oc_30913e3222c7beca3efd4d9cc2d832af"
+        tenant_key: "your feishu tenant key"
+        receive_id_type: "your feishu receive id type, like chat_id"
+        receive_id: "your feishu receive id"
     agent:
       openai:
         enabled: false
-        name: "小派"
+        name: "your bot name"
         max_context_length: 4097
       chatgpt:
         enabled: true
-        name: "小派"
+        name: "your bot name"
         max_context_length: 4097
     env:
       exchange:
@@ -87,5 +85,5 @@ exchangeStrategies:
 ```
 
 ``` bash
-go run ./cmd/bbgo.go run
+go run ./cmd/bbgo.go run --dotenv .env.local --config bbgo.yaml
 ```
