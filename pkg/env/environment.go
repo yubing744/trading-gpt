@@ -5,25 +5,43 @@ import (
 	"errors"
 
 	"github.com/sirupsen/logrus"
+	"github.com/yubing744/trading-bot/pkg/config"
 	"github.com/yubing744/trading-bot/pkg/types"
+	"github.com/yubing744/trading-bot/pkg/utils"
 )
 
 var log = logrus.WithField("env", "environment")
 
 type Environment struct {
-	entites   map[string]Entity
-	callbacks []types.EventCallback
+	entites       map[string]Entity
+	callbacks     []types.EventCallback
+	includeEvents []string
 }
 
-func NewEnvironment() *Environment {
+func NewEnvironment(cfg *config.EnvConfig) *Environment {
 	return &Environment{
-		entites:   make(map[string]Entity, 0),
-		callbacks: make([]types.EventCallback, 0),
+		entites:       make(map[string]Entity, 0),
+		callbacks:     make([]types.EventCallback, 0),
+		includeEvents: cfg.IncludeEvents,
 	}
 }
 
 func (env *Environment) RegisterEntity(entity Entity) {
 	env.entites[entity.GetID()] = entity
+}
+
+func (env *Environment) Actions() []*types.ActionDesc {
+	actions := make([]*types.ActionDesc, 0)
+
+	for _, ent := range env.entites {
+		as := ent.Actions()
+
+		if as != nil {
+			actions = append(actions, as...)
+		}
+	}
+
+	return actions
 }
 
 func (env *Environment) SendCommand(ctx context.Context, name string, cmd string, args []string) error {
@@ -75,6 +93,14 @@ func (env *Environment) run(ctx context.Context, ch chan *types.Event) error {
 
 func (env *Environment) emitEvent(evt *types.Event) {
 	log.WithField("event", evt).Info("env emit event")
+
+	if !utils.Contains(env.includeEvents, evt.Type) {
+		log.
+			WithField("eventType", evt.Type).
+			WithField("includeEvents", env.includeEvents).
+			Info("skip event for include blacklist")
+		return
+	}
 
 	for _, cb := range env.callbacks {
 		cb(evt)

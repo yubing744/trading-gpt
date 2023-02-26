@@ -29,6 +29,10 @@ func (entity *FearAndGreedEntity) GetID() string {
 	return "fng"
 }
 
+func (entity *FearAndGreedEntity) Actions() []*types.ActionDesc {
+	return nil
+}
+
 func (entity *FearAndGreedEntity) HandleCommand(ctx context.Context, cmd string, args []string) error {
 	return nil
 }

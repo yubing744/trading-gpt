@@ -17,6 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/yubing744/trading-bot/pkg/agent"
 	"github.com/yubing744/trading-bot/pkg/agent/chatgpt"
+	"github.com/yubing744/trading-bot/pkg/agent/keeper"
 	"github.com/yubing744/trading-bot/pkg/agent/openai"
 	"github.com/yubing744/trading-bot/pkg/chat"
 	"github.com/yubing744/trading-bot/pkg/chat/feishu"
@@ -131,10 +132,36 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		bbgo.Sync(ctx, s)
 	})
 
-	// Environment
-	world := env.NewEnvironment()
+	// Setup Environment
+	err := s.setupWorld(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Setup Agent
+	err = s.setupAgent(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Setup Chat
+	err = s.setupChat(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Setup Notify
+	err = s.setupNotify(ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Strategy) setupWorld(ctx context.Context) error {
+	world := env.NewEnvironment(&s.Env)
 	world.RegisterEntity(exchange.NewExchangeEntity(
-		"exchange",
 		s.Symbol,
 		s.Interval,
 		s.Leverage,
@@ -143,26 +170,34 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		s.orderExecutor,
 		s.Position,
 	))
-
 	world.RegisterEntity(fng.NewFearAndGreedEntity())
 
 	err := world.Start(ctx)
 	if err != nil {
 		return errors.Wrap(err, "Error in start env")
 	}
+
 	s.world = world
+	return nil
+}
 
-	// Agent
-	var agent agent.IAgent
-
+func (s *Strategy) setupAgent(ctx context.Context) error {
+	var openaiAgent *openai.OpenAIAgent
 	openaiCfg := &s.Agent.OpenAI
 	if openaiCfg != nil && openaiCfg.Enabled {
-		openaiCfg.Token = os.Getenv("AGENT_OPENAI_TOKEN")
-		agent = openai.NewOpenAIAgent(openaiCfg)
+		token := os.Getenv("AGENT_OPENAI_TOKEN")
+		if token == "" {
+			return errors.New("AGENT_OPENAI_TOKEN not set in .env.local")
+		}
+
+		openaiCfg.Token = token
+		openaiAgent = openai.NewOpenAIAgent(openaiCfg)
+		s.agent = openaiAgent
 	}
 
+	var chatgptAgent *chatgpt.ChatGPTAgent
 	chatgptCfg := &s.Agent.ChatGPT
-	if openaiCfg != nil && chatgptCfg.Enabled {
+	if chatgptCfg != nil && chatgptCfg.Enabled {
 		email := os.Getenv("AGENT_CHATGPT_EMAIL")
 		password := os.Getenv("AGENT_CHATGPT_PASSWORD")
 		if email == "" || password == "" {
@@ -172,91 +207,39 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		chatgptCfg.Email = email
 		chatgptCfg.Password = password
 
-		agent = chatgpt.NewChatGPTAgent(chatgptCfg)
+		chatgptAgent = chatgpt.NewChatGPTAgent(chatgptCfg)
+		s.agent = chatgptAgent
 	}
 
-	if agent == nil {
+	keeperCfg := &s.Agent.Keeper
+	if keeperCfg != nil && keeperCfg.Enabled {
+		agents := make(map[string]agent.IAgent, 0)
+
+		if openaiCfg != nil && openaiCfg.Enabled {
+			agents["openai"] = openaiAgent
+		}
+
+		if chatgptCfg != nil && chatgptCfg.Enabled {
+			agents["chatgpt"] = chatgptAgent
+		}
+
+		agentKeeper := keeper.NewAgentKeeper(keeperCfg, agents)
+		s.agent = agentKeeper
+	}
+
+	if s.agent == nil {
 		return errors.New("No agent enabled")
 	}
 
-	agent.SetBackgroup("以下是和交易助手的对话，交易助手支持注册实体、输出命令控制实体、分析实体产生的行情数据和生成实体控制命令，实体会反馈命令执行结果。交易助手的目标是：通过生成实体控制命令来最大化收益。")
-	agent.RegisterActions(ctx, "exchange", []*ttypes.ActionDesc{
-		{
-			Name:        "open_long_position",
-			Description: "开启做多仓位",
-			Samples: []ttypes.Sample{
-				{
-					Input: []string{
-						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
-						"RSI data changed: [73.454 41.980 25.516 17.727 32.413 18.679 8.576 42.228 29.611 36.948 57.658 46.181 61.506 77.894 76.378 44.059 35.556 50.472 56.603 60.012]",
-						"There are currently no open position",
-						"Analyze data, generate trading cmd",
-					},
-					Output: []string{
-						"Execute cmd: /open_long_position",
-					},
-				},
-			},
-		},
-		{
-			Name:        "open_short_position",
-			Description: "开启做空仓位",
-			Samples: []ttypes.Sample{
-				{
-					Input: []string{
-						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
-						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
-						"The current position is short, and average cost: 2.84",
-						"Analyze data, generate trading cmd",
-					},
-					Output: []string{
-						"Execute cmd: /open_short_position",
-					},
-				},
-			},
-		},
-		{
-			Name:        "close_position",
-			Description: "关闭仓位",
-			Samples: []ttypes.Sample{
-				{
-					Input: []string{
-						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
-						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
-						"The current position is long, average cost: 2.736, and accumulated profit: 15.324",
-						"Analyze data, generate trading cmd",
-					},
-					Output: []string{
-						"Execute cmd: /close_position",
-					},
-				},
-			},
-		},
-		{
-			Name:        "no_action",
-			Description: "不操作，如果当前有持仓表示继续持有，如果当前空仓表示继续空仓",
-			Samples: []ttypes.Sample{
-				{
-					Input: []string{
-						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
-						"The current position is long, and average cost: 2.80",
-						"Analyze data, generate trading cmd",
-					},
-					Output: []string{
-						"Execute cmd: /no_action",
-					},
-				},
-			},
-		},
-	})
-	err = agent.Init()
+	err := s.agent.Start()
 	if err != nil {
 		return errors.Wrap(err, "Error in init agent")
 	}
 
-	s.agent = agent
+	return nil
+}
 
-	// Chats
+func (s *Strategy) setupChat(ctx context.Context) error {
 	feishuCfg := s.Chat.Feishu
 	if feishuCfg.Enabled {
 		if feishuCfg != nil && os.Getenv("CHAT_FEISHU_APP_ID") != "" {
@@ -271,7 +254,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		adminInit := &sync.Once{}
 
 		go func() {
-			err = chatProvider.Listen(func(ch ttypes.IChannel) {
+			err := chatProvider.Listen(func(ch ttypes.IChannel) {
 				log.WithField("channel", ch).Info("new channel")
 
 				chatSession := chat.NewChatSession(ch)
@@ -292,7 +275,10 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		s.chatSessions = sessions
 	}
 
-	// Notify
+	return nil
+}
+
+func (s *Strategy) setupNotify(ctx context.Context) error {
 	feishuNotifyCfg := s.Notify.Feishu
 	if feishuNotifyCfg != nil && feishuNotifyCfg.Enabled {
 		if os.Getenv("NOTIFY_FEISHU_APP_ID") != "" {
@@ -385,18 +371,33 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 
 	log.WithField("result", result).Info("gen actions result")
 
+	actions := make([]*ttypes.Action, 0)
+
 	if len(result.Texts) > 0 {
-		s.replyMsg(ctx, chatSession, strings.Join(result.Texts, ""))
+		text := strings.Join(result.Texts, "")
+		s.replyMsg(ctx, chatSession, text)
+
+		for _, actionDef := range s.world.Actions() {
+			if strings.Contains(strings.ToLower(text), fmt.Sprintf("/%s", actionDef.Name)) {
+				log.WithField("action", actionDef.Name).Info("match action")
+
+				result.Actions = append(result.Actions, &ttypes.Action{
+					Target: "exchange",
+					Name:   actionDef.Name,
+					Args:   []string{},
+				})
+			}
+		}
 	}
 
-	if len(result.Actions) > 0 {
+	if len(actions) > 0 {
 		if chatSession.HasRole(ttypes.RoleAdmin) {
-			if len(result.Actions) > 1 {
+			if len(actions) > 1 {
 				log.Info("skip handle actions for too many actions")
 				return
 			}
 
-			for _, action := range result.Actions {
+			for _, action := range actions {
 				err := s.world.SendCommand(ctx, action.Target, action.Name, action.Args)
 				if err != nil {
 					log.WithError(err).Error("env send cmd error")
@@ -564,7 +565,7 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 		}
 
 		tempMsgs = append(tempMsgs, &ttypes.Message{
-			Text: "Trading strategy: trade on the right side, stop loss 3%, take profit 10%.",
+			Text: "Trading strategy: Trading on the right side, trailing stop loss 3%, trailing stop profit 10%.",
 		})
 
 		tempMsgs = append(tempMsgs, &ttypes.Message{

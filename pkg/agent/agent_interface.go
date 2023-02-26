@@ -12,9 +12,8 @@ type GenResult struct {
 }
 
 type IAgent interface {
-	SetName(name string)
-	SetBackgroup(backgroup string)
-	RegisterActions(ctx context.Context, name string, actions []*types.ActionDesc)
-	Init() error
+	types.ICompoment
+
+	GetName() string
 	GenActions(ctx context.Context, session types.ISession, msgs []*types.Message) (*GenResult, error)
 }

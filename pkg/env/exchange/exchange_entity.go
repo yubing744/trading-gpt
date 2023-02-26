@@ -12,7 +12,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/yubing744/trading-bot/pkg/config"
-	"github.com/yubing744/trading-bot/pkg/utils"
 
 	ttypes "github.com/yubing744/trading-bot/pkg/types"
 )
@@ -20,7 +19,6 @@ import (
 var log = logrus.WithField("entity", "exchange")
 
 type ExchangeEntity struct {
-	id       string
 	symbol   string
 	interval types.Interval
 	leverage fixedpoint.Value
@@ -38,7 +36,6 @@ type ExchangeEntity struct {
 }
 
 func NewExchangeEntity(
-	id string,
 	symbol string,
 	interval types.Interval,
 	leverage fixedpoint.Value,
@@ -48,7 +45,6 @@ func NewExchangeEntity(
 	position *types.Position,
 ) *ExchangeEntity {
 	return &ExchangeEntity{
-		id:            id,
 		symbol:        symbol,
 		interval:      interval,
 		leverage:      leverage,
@@ -60,7 +56,79 @@ func NewExchangeEntity(
 }
 
 func (ent *ExchangeEntity) GetID() string {
-	return ent.id
+	return "exchange"
+}
+
+func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
+	return []*ttypes.ActionDesc{
+		{
+			Name:        "open_long_position",
+			Description: "开启做多仓位",
+			Samples: []ttypes.Sample{
+				{
+					Input: []string{
+						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
+						"RSI data changed: [73.454 41.980 25.516 17.727 32.413 18.679 8.576 42.228 29.611 36.948 57.658 46.181 61.506 77.894 76.378 44.059 35.556 50.472 56.603 60.012]",
+						"There are currently no open position",
+						"Analyze data, generate trading cmd",
+					},
+					Output: []string{
+						"Execute cmd: /open_long_position",
+					},
+				},
+			},
+		},
+		{
+			Name:        "open_short_position",
+			Description: "开启做空仓位",
+			Samples: []ttypes.Sample{
+				{
+					Input: []string{
+						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
+						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
+						"The current position is short, and average cost: 2.84",
+						"Analyze data, generate trading cmd",
+					},
+					Output: []string{
+						"Execute cmd: /open_short_position",
+					},
+				},
+			},
+		},
+		{
+			Name:        "close_position",
+			Description: "关闭仓位",
+			Samples: []ttypes.Sample{
+				{
+					Input: []string{
+						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
+						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
+						"The current position is long, average cost: 2.736, and accumulated profit: 15.324",
+						"Analyze data, generate trading cmd",
+					},
+					Output: []string{
+						"Execute cmd: /close_position",
+					},
+				},
+			},
+		},
+		{
+			Name:        "no_action",
+			Description: "不操作，如果当前有持仓表示继续持有，如果当前空仓表示继续空仓",
+			Samples: []ttypes.Sample{
+				{
+					Input: []string{
+						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
+						"The current position is long, and average cost: 2.80",
+						"Analyze data, generate trading cmd",
+					},
+					Output: []string{
+						"Execute cmd: /no_action",
+					},
+				},
+			},
+		},
+	}
 }
 
 func (ent *ExchangeEntity) cmdToSide(cmd string) types.SideType {
@@ -223,14 +291,6 @@ func (ent *ExchangeEntity) setupIndicators() {
 }
 
 func (ent *ExchangeEntity) emitEvent(ch chan *ttypes.Event, evt *ttypes.Event) {
-	if !utils.Contains(ent.cfg.IncludeEvents, evt.Type) {
-		log.
-			WithField("eventType", evt.Type).
-			WithField("includeEvents", ent.cfg.IncludeEvents).
-			Info("skip event for include blacklist")
-		return
-	}
-
 	ch <- evt
 }
 

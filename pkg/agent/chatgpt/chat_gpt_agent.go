@@ -43,8 +43,8 @@ func NewChatGPTAgent(cfg *config.AgentChatGPTConfig) *ChatGPTAgent {
 
 	return &ChatGPTAgent{
 		client:           client,
-		name:             "AI",
-		backgroup:        "",
+		name:             cfg.Name,
+		backgroup:        cfg.Backgroup,
 		chats:            make([]string, 0),
 		actions:          make(map[string]*types.ActionDesc, 0),
 		maxContextLength: cfg.MaxContextLength,
@@ -53,8 +53,8 @@ func NewChatGPTAgent(cfg *config.AgentChatGPTConfig) *ChatGPTAgent {
 	}
 }
 
-func (a *ChatGPTAgent) SetName(name string) {
-	a.name = name
+func (a *ChatGPTAgent) GetName() string {
+	return "chatgpt"
 }
 
 func (a *ChatGPTAgent) SetBackgroup(backgroup string) {
@@ -117,7 +117,7 @@ func (agent *ChatGPTAgent) genInitPrompt(conv *ChatGPTConversation, msgs []*type
 	return prompt, nil
 }
 
-func (a *ChatGPTAgent) Init() error {
+func (a *ChatGPTAgent) Start() error {
 	log.Info("ChatGPT client start ...")
 	err := a.client.Start(context.Background())
 	if err != nil {
@@ -127,6 +127,10 @@ func (a *ChatGPTAgent) Init() error {
 	log.Info("ChatGPT client start success.")
 
 	return nil
+}
+
+func (a *ChatGPTAgent) Stop() {
+
 }
 
 func (agent *ChatGPTAgent) getOrCreate(sessionId string) *ChatGPTConversation {

@@ -23,6 +23,7 @@ var log = logrus.WithField("agent", "openai")
 type OpenAIAgent struct {
 	client           *gogpt.Client
 	name             string
+	model            string
 	backgroup        string
 	chats            []string
 	actions          map[string]*types.ActionDesc
@@ -34,8 +35,9 @@ func NewOpenAIAgent(cfg *config.AgentOpenAIConfig) *OpenAIAgent {
 
 	return &OpenAIAgent{
 		client:           client,
-		name:             "AI",
-		backgroup:        "",
+		name:             cfg.Name,
+		model:            cfg.Model,
+		backgroup:        cfg.Backgroup,
 		chats:            make([]string, 0),
 		actions:          make(map[string]*types.ActionDesc, 0),
 		maxContextLength: cfg.MaxContextLength,
@@ -113,8 +115,8 @@ func (agent *OpenAIAgent) GenPrompt(sessionChats []string, msgs []*types.Message
 	return prompt, nil
 }
 
-func (a *OpenAIAgent) SetName(name string) {
-	a.name = name
+func (a *OpenAIAgent) GetName() string {
+	return fmt.Sprintf("openai-%s", a.model)
 }
 
 func (a *OpenAIAgent) SetBackgroup(backgroup string) {
@@ -137,8 +139,12 @@ func (a *OpenAIAgent) RegisterActions(ctx context.Context, name string, actions 
 	}
 }
 
-func (a *OpenAIAgent) Init() error {
+func (a *OpenAIAgent) Start() error {
 	return nil
+}
+
+func (a *OpenAIAgent) Stop() {
+
 }
 
 func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, msgs []*types.Message) (*agent.GenResult, error) {
@@ -155,7 +161,7 @@ func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, ms
 	log.Info(prompt)
 
 	req := gogpt.CompletionRequest{
-		Model:            gogpt.GPT3TextDavinci003,
+		Model:            a.model,
 		Temperature:      0.1,
 		MaxTokens:        256,
 		TopP:             0.3,
