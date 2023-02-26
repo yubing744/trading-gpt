@@ -1,5 +1,5 @@
 # trading-bot
-ChatGPT-based trading robot
+Trading bot based on bbgo and ChatGPT.
 
 ## Usage
 Prepare your dotenv file .env.local and BBGO yaml config file bbgo.yaml
