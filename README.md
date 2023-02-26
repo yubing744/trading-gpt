@@ -84,6 +84,7 @@ exchangeStrategies:
     max_window_size: 20
 ```
 
+Run
 ``` bash
 go run ./cmd/bbgo.go run --dotenv .env.local --config bbgo.yaml
 ```
