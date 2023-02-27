@@ -176,8 +176,7 @@ func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, ms
 	}
 
 	result := &agent.GenResult{
-		Actions: make([]*types.Action, 0),
-		Texts:   make([]string, 0),
+		Texts: make([]string, 0),
 	}
 
 	if len(resp.Choices) > 0 {
@@ -185,18 +184,6 @@ func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, ms
 		log.WithField("text", text).Info("resp.Choices[0].Text")
 
 		result.Texts = append(result.Texts, text)
-
-		for _, actionDef := range a.actions {
-			if strings.Contains(strings.ToLower(text), fmt.Sprintf("%s", actionDef.Name)) {
-				log.WithField("action", actionDef.Name).Info("match action")
-
-				result.Actions = append(result.Actions, &types.Action{
-					Target: "exchange",
-					Name:   actionDef.Name,
-					Args:   []string{},
-				})
-			}
-		}
 	}
 
 	if len(result.Texts) > 0 {

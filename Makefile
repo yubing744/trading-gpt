@@ -1,7 +1,7 @@
 .PHONY: clean build test run docker-*
 
 NAME=trading-bot
-VERSION=0.5.3
+VERSION=0.5.4
 
 clean:
 	rm -rf build/*

@@ -64,7 +64,7 @@ func (env *Environment) OnEvent(cb types.EventCallback) {
 }
 
 func (env *Environment) Start(ctx context.Context) error {
-	ch := make(chan *types.Event, 0)
+	ch := make(chan *types.Event)
 
 	for _, entity := range env.entites {
 		go func(ent Entity) {
@@ -77,6 +77,10 @@ func (env *Environment) Start(ctx context.Context) error {
 	}()
 
 	return nil
+}
+
+func (env *Environment) Stop(ctx context.Context) {
+
 }
 
 func (env *Environment) run(ctx context.Context, ch chan *types.Event) error {

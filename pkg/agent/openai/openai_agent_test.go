@@ -229,5 +229,5 @@ func TestGenAction(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.GreaterOrEqual(t, len(result.Actions), 0)
+	assert.GreaterOrEqual(t, len(result.Texts), 0)
 }

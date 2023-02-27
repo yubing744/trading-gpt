@@ -7,8 +7,7 @@ import (
 )
 
 type GenResult struct {
-	Actions []*types.Action
-	Texts   []string
+	Texts []string
 }
 
 type IAgent interface {

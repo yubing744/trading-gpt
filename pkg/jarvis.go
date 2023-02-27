@@ -144,14 +144,14 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		return err
 	}
 
-	// Setup Chat
-	err = s.setupChat(ctx)
+	// Setup Notify
+	err = s.setupNotify(ctx)
 	if err != nil {
 		return err
 	}
 
-	// Setup Notify
-	err = s.setupNotify(ctx)
+	// Setup Chat
+	err = s.setupChat(ctx)
 	if err != nil {
 		return err
 	}
@@ -239,6 +239,27 @@ func (s *Strategy) setupAgent(ctx context.Context) error {
 	return nil
 }
 
+func (s *Strategy) setupNotify(ctx context.Context) error {
+	feishuNotifyCfg := s.Notify.Feishu
+	if feishuNotifyCfg != nil && feishuNotifyCfg.Enabled {
+		if os.Getenv("NOTIFY_FEISHU_APP_ID") != "" {
+			feishuNotifyCfg.AppId = os.Getenv("NOTIFY_FEISHU_APP_ID")
+			feishuNotifyCfg.AppSecret = os.Getenv("NOTIFY_FEISHU_APP_SECRET")
+		}
+
+		feishuNotifyChannel := nfeishu.NewFeishuNotifyChannel(feishuNotifyCfg)
+		chatSession := chat.NewChatSession(feishuNotifyChannel)
+		s.setupAdminSession(ctx, chatSession)
+		s.agentAction(ctx, chatSession, []*ttypes.Message{{
+			Text: "wait",
+		}})
+
+		log.Info("init feishu notify channel ok!")
+	}
+
+	return nil
+}
+
 func (s *Strategy) setupChat(ctx context.Context) error {
 	feishuCfg := s.Chat.Feishu
 	if feishuCfg.Enabled {
@@ -273,27 +294,6 @@ func (s *Strategy) setupChat(ctx context.Context) error {
 			}
 		}()
 		s.chatSessions = sessions
-	}
-
-	return nil
-}
-
-func (s *Strategy) setupNotify(ctx context.Context) error {
-	feishuNotifyCfg := s.Notify.Feishu
-	if feishuNotifyCfg != nil && feishuNotifyCfg.Enabled {
-		if os.Getenv("NOTIFY_FEISHU_APP_ID") != "" {
-			feishuNotifyCfg.AppId = os.Getenv("NOTIFY_FEISHU_APP_ID")
-			feishuNotifyCfg.AppSecret = os.Getenv("NOTIFY_FEISHU_APP_SECRET")
-		}
-
-		feishuNotifyChannel := nfeishu.NewFeishuNotifyChannel(feishuNotifyCfg)
-		chatSession := chat.NewChatSession(feishuNotifyChannel)
-		s.setupAdminSession(ctx, chatSession)
-		s.agentAction(ctx, chatSession, []*ttypes.Message{{
-			Text: "wait",
-		}})
-
-		log.Info("init feishu notify channel ok!")
 	}
 
 	return nil
@@ -568,8 +568,13 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 			Text: "Trading strategy: Trading on the right side, trailing stop loss 3%, trailing stop profit 10%.",
 		})
 
+		actionTips := make([]string, 0)
+		for _, ac := range s.world.Actions() {
+			actionTips = append(actionTips, fmt.Sprintf("/%s", ac.Name))
+		}
+
 		tempMsgs = append(tempMsgs, &ttypes.Message{
-			Text: "Analyze the data and generate only one trading command: /open_long_position, /open_short_position, /close_position or /no_action, the entity will execute the command and give you feedback.",
+			Text: fmt.Sprintf("Analyze the data and generate only one trading command: %s, the entity will execute the command and give you feedback.", strings.Join(actionTips, ",")),
 		})
 
 		s.agentAction(ctx, session, tempMsgs)

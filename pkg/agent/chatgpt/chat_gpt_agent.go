@@ -176,8 +176,7 @@ func (a *ChatGPTAgent) GenActions(ctx context.Context, session types.ISession, m
 	}
 
 	result := &agent.GenResult{
-		Actions: make([]*types.Action, 0),
-		Texts:   make([]string, 0),
+		Texts: make([]string, 0),
 	}
 
 	if resp.Code == 0 {
@@ -187,18 +186,6 @@ func (a *ChatGPTAgent) GenActions(ctx context.Context, session types.ISession, m
 		log.WithField("text", text).Info("resp.Data.Text")
 
 		result.Texts = append(result.Texts, text)
-
-		for _, actionDef := range a.actions {
-			if strings.Contains(strings.ToLower(text), actionDef.Name) {
-				log.WithField("action", actionDef.Name).Info("match action")
-
-				result.Actions = append(result.Actions, &types.Action{
-					Target: "exchange",
-					Name:   actionDef.Name,
-					Args:   []string{},
-				})
-			}
-		}
 	}
 
 	return result, nil
