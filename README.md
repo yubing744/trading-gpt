@@ -1,5 +1,5 @@
 # Trading-GPT
-Trading-GPT is a trading bot based on bbgo and ChatGPT.
+Trading-GPT is a trading bot based on [bbgo](https://github.com/c9s/bbgo) and [ChatGPT](https://github.com/yubing744/chatgpt-go).
 
 ## Usage
 Prepare your dotenv file .env.local and BBGO yaml config file bbgo.yaml
