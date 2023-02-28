@@ -15,4 +15,8 @@
 # vendor/
 build/
 
+#env
 .env.local
+
+#bbgo
+otp.png
