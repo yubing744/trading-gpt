@@ -1,6 +1,6 @@
 package types
 
 type Message struct {
-	ID   string
-	Text string
+	ID   string `json:"id"`
+	Text string `json:"text"`
 }

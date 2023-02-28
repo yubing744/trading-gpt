@@ -1,11 +1,11 @@
 package feishu_hook
 
 import (
+	"bytes"
 	"context"
-	"fmt"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -15,6 +15,11 @@ import (
 )
 
 var log = logrus.WithField("notify", "feishu_hook")
+
+type FeishuHook struct {
+	MsgType string         `json:"msg_type"`
+	Content *types.Message `json:"content"`
+}
 
 type FeishuHookNotifyChannel struct {
 	url    string
@@ -42,15 +47,19 @@ func (ch *FeishuHookNotifyChannel) GetID() string {
 }
 
 func (ch *FeishuHookNotifyChannel) Reply(ctx context.Context, msg *types.Message) error {
-	body := fmt.Sprintf("{\"msg_type\":\"text\",\"content\":{\"text\":\"%s\"}}", msg.Text)
+	hook := &FeishuHook{
+		MsgType: "text",
+		Content: msg,
+	}
 
-	req, err := http.NewRequest("POST", ch.url, strings.NewReader(body))
+	body, _ := json.Marshal(hook)
+	req, err := http.NewRequest("POST", ch.url, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
 
 	log.WithField("url", ch.url).
-		WithField("body", body).
+		WithField("body", string(body)).
 		Debug("reply")
 
 	resp, err := ch.client.Do(req)
