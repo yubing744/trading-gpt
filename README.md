@@ -70,5 +70,5 @@ systemctl status redis.service
 
 Run
 ``` bash
-go run ./cmd/bbgo.go run --dotenv .env.local --config bbgo.yaml
+docker run --name trading-bot --net host -d -v ${PWD}:/strategy yubing744/trading-bot:latest run
 ```
