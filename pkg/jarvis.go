@@ -275,7 +275,7 @@ func (s *Strategy) setupNotify(ctx context.Context) error {
 
 func (s *Strategy) setupChat(ctx context.Context) error {
 	feishuCfg := s.Chat.Feishu
-	if feishuCfg.Enabled {
+	if feishuCfg != nil && feishuCfg.Enabled {
 		if feishuCfg != nil && os.Getenv("CHAT_FEISHU_APP_ID") != "" {
 			feishuCfg.AppId = os.Getenv("CHAT_FEISHU_APP_ID")
 			feishuCfg.AppSecret = os.Getenv("CHAT_FEISHU_APP_SECRET")
