@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/yubing744/trading-bot/pkg/types"
+	"github.com/yubing744/trading-gpt/pkg/types"
 )
 
 type ChatSession struct {

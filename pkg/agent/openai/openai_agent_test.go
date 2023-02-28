@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yubing744/trading-bot/pkg/config"
-	"github.com/yubing744/trading-bot/pkg/types"
+	"github.com/yubing744/trading-gpt/pkg/config"
+	"github.com/yubing744/trading-gpt/pkg/types"
 )
 
 func TestNewOpenAIAgent(t *testing.T) {

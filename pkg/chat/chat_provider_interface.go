@@ -1,6 +1,6 @@
 package chat
 
-import "github.com/yubing744/trading-bot/pkg/types"
+import "github.com/yubing744/trading-gpt/pkg/types"
 
 type ListenCallback func(ch types.IChannel)
 

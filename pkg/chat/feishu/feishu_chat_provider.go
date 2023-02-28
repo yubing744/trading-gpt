@@ -9,8 +9,8 @@ import (
 
 	"github.com/kataras/go-events"
 	"github.com/sirupsen/logrus"
-	"github.com/yubing744/trading-bot/pkg/chat"
-	"github.com/yubing744/trading-bot/pkg/config"
+	"github.com/yubing744/trading-gpt/pkg/chat"
+	"github.com/yubing744/trading-gpt/pkg/config"
 
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"

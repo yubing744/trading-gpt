@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/yubing744/trading-bot/pkg/apis/alternative"
-	"github.com/yubing744/trading-bot/pkg/types"
+	"github.com/yubing744/trading-gpt/pkg/apis/alternative"
+	"github.com/yubing744/trading-gpt/pkg/types"
 )
 
 var log = logrus.WithField("entity", "fng")

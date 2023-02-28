@@ -3,7 +3,7 @@ package agent
 import (
 	"context"
 
-	"github.com/yubing744/trading-bot/pkg/types"
+	"github.com/yubing744/trading-gpt/pkg/types"
 )
 
 type GenResult struct {

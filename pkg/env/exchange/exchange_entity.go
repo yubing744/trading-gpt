@@ -11,9 +11,9 @@ import (
 	"github.com/c9s/bbgo/pkg/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/yubing744/trading-bot/pkg/config"
+	"github.com/yubing744/trading-gpt/pkg/config"
 
-	ttypes "github.com/yubing744/trading-bot/pkg/types"
+	ttypes "github.com/yubing744/trading-gpt/pkg/types"
 )
 
 var log = logrus.WithField("entity", "exchange")

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/kataras/go-events"
-	"github.com/yubing744/trading-bot/pkg/types"
+	"github.com/yubing744/trading-gpt/pkg/types"
 )
 
 type EnvironmentSession struct {

@@ -5,9 +5,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/yubing744/trading-bot/pkg/agent"
-	"github.com/yubing744/trading-bot/pkg/config"
-	"github.com/yubing744/trading-bot/pkg/types"
+	"github.com/yubing744/trading-gpt/pkg/agent"
+	"github.com/yubing744/trading-gpt/pkg/config"
+	"github.com/yubing744/trading-gpt/pkg/types"
 )
 
 var log = logrus.WithField("agent", "keeper")

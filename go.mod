@@ -1,4 +1,4 @@
-module github.com/yubing744/trading-bot
+module github.com/yubing744/trading-gpt
 
 go 1.18
 

@@ -5,9 +5,9 @@ import (
 	"errors"
 
 	"github.com/sirupsen/logrus"
-	"github.com/yubing744/trading-bot/pkg/config"
-	"github.com/yubing744/trading-bot/pkg/types"
-	"github.com/yubing744/trading-bot/pkg/utils"
+	"github.com/yubing744/trading-gpt/pkg/config"
+	"github.com/yubing744/trading-gpt/pkg/types"
+	"github.com/yubing744/trading-gpt/pkg/utils"
 )
 
 var log = logrus.WithField("env", "environment")

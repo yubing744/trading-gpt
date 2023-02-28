@@ -1,5 +1,5 @@
-# trading-bot
-Trading bot based on bbgo and ChatGPT.
+# Trading-GPT
+Trading-GPT is a trading bot based on bbgo and ChatGPT.
 
 ## Usage
 Prepare your dotenv file .env.local and BBGO yaml config file bbgo.yaml
@@ -70,5 +70,5 @@ systemctl status redis.service
 
 Run
 ``` bash
-docker run --name trading-bot --net host -d -v ${PWD}:/strategy yubing744/trading-bot:latest run
+docker run --name trading-gpt --net host -d -v ${PWD}:/strategy yubing744/trading-gpt:latest run
 ```

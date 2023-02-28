@@ -7,10 +7,10 @@ import (
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 	"github.com/sirupsen/logrus"
-	"github.com/yubing744/trading-bot/pkg/config"
-	"github.com/yubing744/trading-bot/pkg/types"
+	"github.com/yubing744/trading-gpt/pkg/config"
+	"github.com/yubing744/trading-gpt/pkg/types"
 
-	chatfeishu "github.com/yubing744/trading-bot/pkg/chat/feishu"
+	chatfeishu "github.com/yubing744/trading-gpt/pkg/chat/feishu"
 )
 
 var log = logrus.WithField("notify", "feishu")
