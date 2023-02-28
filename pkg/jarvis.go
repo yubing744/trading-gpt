@@ -29,6 +29,7 @@ import (
 	"github.com/yubing744/trading-bot/pkg/utils"
 
 	nfeishu "github.com/yubing744/trading-bot/pkg/notify/feishu"
+	feishu_hook "github.com/yubing744/trading-bot/pkg/notify/feishu-hook"
 	ttypes "github.com/yubing744/trading-bot/pkg/types"
 )
 
@@ -255,6 +256,18 @@ func (s *Strategy) setupNotify(ctx context.Context) error {
 		}})
 
 		log.Info("init feishu notify channel ok!")
+	}
+
+	hookNotifyCfg := s.Notify.FeishuHook
+	if hookNotifyCfg != nil && hookNotifyCfg.Enabled {
+		feishuHookNotifyChannel := feishu_hook.NewFeishuHookNotifyChannel(hookNotifyCfg)
+		chatSession := chat.NewChatSession(feishuHookNotifyChannel)
+		s.setupAdminSession(ctx, chatSession)
+		s.agentAction(ctx, chatSession, []*ttypes.Message{{
+			Text: "wait",
+		}})
+
+		log.Info("init feishu hook notify channel ok!")
 	}
 
 	return nil

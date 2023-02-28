@@ -36,15 +36,35 @@ func (ch *FeishuChatChannel) GetID() string {
 	return ch.id
 }
 
-func (ch *FeishuChatChannel) toMessage(event *larkim.P2MessageReceiveV1) *types.Message {
-	return &types.Message{
-		ID:   event.EventReq.RequestId(),
-		Text: *event.Event.Message.Content,
+func (ch *FeishuChatChannel) toMessage(event *larkim.P2MessageReceiveV1) (*types.Message, error) {
+	switch *event.Event.Message.MessageType {
+	case "text":
+		var data struct {
+			Text string `json:"text"`
+		}
+		if err := json.Unmarshal([]byte(*event.Event.Message.Content), &data); err != nil {
+			return nil, err
+		}
+
+		return &types.Message{
+			ID:   event.EventReq.RequestId(),
+			Text: data.Text,
+		}, nil
+	default:
+		return &types.Message{
+			ID:   event.EventReq.RequestId(),
+			Text: *event.Event.Message.Content,
+		}, nil
 	}
 }
 
 func (ch *FeishuChatChannel) handleEvent(event *larkim.P2MessageReceiveV1) {
-	msg := ch.toMessage(event)
+	msg, err := ch.toMessage(event)
+	if err != nil {
+		log.WithError(err).Error("to message error")
+		return
+	}
+
 	for _, cb := range ch.callbacks {
 		cb(msg)
 	}
@@ -60,7 +80,6 @@ func (ch *FeishuChatChannel) Reply(ctx context.Context, msg *types.Message) erro
 	}
 	contentBody, _ := json.Marshal(content)
 
-	// ISV 给指定租户发送消息
 	resp, err := ch.client.Im.Message.Create(ctx, larkim.NewCreateMessageReqBuilder().
 		ReceiveIdType(ch.receiveIdType).
 		Body(larkim.NewCreateMessageReqBodyBuilder().
