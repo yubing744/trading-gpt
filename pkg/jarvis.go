@@ -577,9 +577,11 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 			tempMsgs = append(tempMsgs, fngMsg.(*ttypes.Message))
 		}
 
-		tempMsgs = append(tempMsgs, &ttypes.Message{
-			Text: "Trading strategy: Trading on the right side, trailing stop loss 3%, trailing stop profit 10%.",
-		})
+		if s.Prompt != "" {
+			tempMsgs = append(tempMsgs, &ttypes.Message{
+				Text: s.Prompt,
+			})
+		}
 
 		actionTips := make([]string, 0)
 		for _, ac := range s.world.Actions() {

@@ -15,4 +15,6 @@ type Config struct {
 	Chat   ChatConfig   `json:"chat"`
 	Agent  AgentConfig  `json:"agent"`
 	Env    EnvConfig    `json:"env"`
+
+	Prompt string `json:"prompt"`
 }
