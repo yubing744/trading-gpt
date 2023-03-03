@@ -115,6 +115,25 @@ func (agent *OpenAIAgent) GenPrompt(sessionChats []string, msgs []*types.Message
 	return prompt, nil
 }
 
+func (agent *OpenAIAgent) GenChatgptMessages(sessionChats []string, msgs []*types.Message) ([]gogpt.ChatCompletionMessage, error) {
+	chatgptMsgs := make([]gogpt.ChatCompletionMessage, 0)
+
+	// Backgougroup
+	chatgptMsgs = append(chatgptMsgs, gogpt.ChatCompletionMessage{
+		Role:    "system",
+		Content: agent.backgroup,
+	})
+
+	for _, msg := range msgs {
+		chatgptMsgs = append(chatgptMsgs, gogpt.ChatCompletionMessage{
+			Role:    "user",
+			Content: msg.Text,
+		})
+	}
+
+	return chatgptMsgs, nil
+}
+
 func (a *OpenAIAgent) GetName() string {
 	return fmt.Sprintf("openai-%s", a.model)
 }
@@ -148,29 +167,21 @@ func (a *OpenAIAgent) Stop() {
 }
 
 func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, msgs []*types.Message) (*agent.GenResult, error) {
-	prompt, err := a.GenPrompt(session.GetChats(), msgs)
+	gptMsgs, err := a.GenChatgptMessages(session.GetChats(), msgs)
 	if err != nil {
 		return nil, err
 	}
 
 	log.
-		WithField("prompt_length", len(prompt)).
-		WithField("max_length", a.maxContextLength).
-		Infof("gen prompt")
+		WithField("chatgpt msgs", gptMsgs).
+		Infof("gen chatgpt messages")
 
-	log.Info(prompt)
-
-	req := gogpt.CompletionRequest{
-		Model:            a.model,
-		Temperature:      0.1,
-		MaxTokens:        256,
-		TopP:             0.3,
-		FrequencyPenalty: 0.5,
-		PresencePenalty:  0,
-		Prompt:           prompt,
+	req := gogpt.ChatCompletionRequest{
+		Model:    a.model,
+		Messages: gptMsgs,
 	}
 
-	resp, err := a.client.CreateCompletion(ctx, req)
+	resp, err := a.client.CreateChatCompletion(ctx, req)
 	if err != nil {
 		return nil, errors.Wrap(err, "create CreateCompletionStream error")
 	}
@@ -180,7 +191,7 @@ func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, ms
 	}
 
 	if len(resp.Choices) > 0 {
-		text := resp.Choices[0].Text
+		text := resp.Choices[0].Message.Content
 		log.WithField("text", text).Info("resp.Choices[0].Text")
 
 		result.Texts = append(result.Texts, text)
