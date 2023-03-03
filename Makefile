@@ -20,6 +20,7 @@ docker-build: build
 	docker tag yubing744/${NAME}:latest yubing744/${NAME}:${VERSION}
 
 docker-push: docker-build
+  docker push yubing744/${NAME}:latest
 	docker push yubing744/${NAME}:${VERSION}
 
 docker-start:
