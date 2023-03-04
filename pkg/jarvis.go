@@ -476,22 +476,6 @@ func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, 
 	}
 }
 
-func (s *Strategy) handlePositionChanged(ctx context.Context, session ttypes.ISession, position *types.Position) {
-	log.WithField("position", position).Info("handle boll values changed")
-
-	msg := ""
-
-	if position.IsLong() {
-		msg = fmt.Sprintf("The current position is long, average cost: %.3f, and accumulated profit: %.3f%s", position.AverageCost.Float64(), position.AccumulatedProfit.Float64(), "%")
-	} else if position.IsShort() {
-		msg = fmt.Sprintf("The current position is short, average cost: %.3f, and accumulated profit: %.3f%s", position.AverageCost.Float64(), position.AccumulatedProfit.Mul(fixedpoint.NewFromInt(-1)).Float64(), "%")
-	} else {
-		msg = "There are currently no open positions"
-	}
-
-	s.stashMsg(ctx, session, msg)
-}
-
 func (s *Strategy) handleKlineChanged(ctx context.Context, session ttypes.ISession, klineWindow *types.KLineWindow) {
 	log.WithField("kline", klineWindow).Info("handle klineWindow values changed")
 
@@ -504,6 +488,7 @@ func (s *Strategy) handleKlineChanged(ctx context.Context, session ttypes.ISessi
 		klineWindow.GetClose().Float64(),
 	)
 
+	session.SetAttribute("kline", klineWindow)
 	s.stashMsg(ctx, session, msg)
 }
 
@@ -567,6 +552,25 @@ func (s *Strategy) handleFngChanged(ctx context.Context, session ttypes.ISession
 	})
 }
 
+func (s *Strategy) handlePositionChanged(ctx context.Context, session ttypes.ISession, position *types.Position) {
+	log.WithField("position", position).Info("handle position changed")
+
+	msg := "There are currently no open positions"
+
+	kline, ok := s.getKline(session)
+	if ok {
+		if !position.IsDust(kline.GetClose()) {
+			if position.IsLong() {
+				msg = fmt.Sprintf("The current position is long, average cost: %.3f, and accumulated profit: %.3f%s", position.AverageCost.Float64(), position.AccumulatedProfit.Float64(), "%")
+			} else if position.IsShort() {
+				msg = fmt.Sprintf("The current position is short, average cost: %.3f, and accumulated profit: %.3f%s", position.AverageCost.Float64(), position.AccumulatedProfit.Mul(fixedpoint.NewFromInt(-1)).Float64(), "%")
+			}
+		}
+
+		s.stashMsg(ctx, session, msg)
+	}
+}
+
 func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISession) {
 	tempMsgs, ok := s.popMsgs(ctx, session)
 	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
@@ -616,4 +620,13 @@ func (s *Strategy) popMsgs(ctx context.Context, session ttypes.ISession) ([]*tty
 	}
 
 	return []*ttypes.Message{}, false
+}
+
+func (s *Strategy) getKline(session ttypes.ISession) (*types.KLineWindow, bool) {
+	kline, ok := session.GetAttribute("kline")
+	if ok {
+		return kline.(*types.KLineWindow), ok
+	}
+
+	return nil, false
 }
