@@ -157,15 +157,20 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args [
 
 	// close position if need
 	if cmd == "close_position" {
-		if ent.position.IsShort() || ent.position.IsLong() {
-			log.Infof("close existing %s position", ent.symbol)
+		// TP/SL if there's non-dust position and meets the criteria
+		if !ent.position.IsDust(closePrice) {
+			if ent.position.IsShort() || ent.position.IsLong() {
+				log.Infof("close existing %s position", ent.symbol)
 
-			err := ent.ClosePosition(ctx, fixedpoint.One, closePrice)
-			if err != nil {
-				return errors.Wrap(err, "close position error")
+				err := ent.ClosePosition(ctx, fixedpoint.One, closePrice)
+				if err != nil {
+					return errors.Wrap(err, "close position error")
+				}
+			} else {
+				return errors.New("no existing open position")
 			}
 		} else {
-			return errors.New("no existing open position")
+			log.Debug("market dust quantity")
 		}
 
 		return nil
@@ -173,11 +178,21 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args [
 
 	// open position
 	if cmd == "open_long_position" || cmd == "open_short_position" {
-		if ent.position.IsShort() || ent.position.IsLong() {
-			return errors.Errorf("already existing %s position", strings.ToLower(string(ent.position.Type())))
+		side := ent.cmdToSide(cmd)
+
+		// Close opposite position if any
+		if !ent.position.IsDust(closePrice) {
+			if (side == types.SideTypeSell && ent.position.IsLong()) || (side == types.SideTypeBuy && ent.position.IsShort()) {
+				log.Infof("close existing %s position before open a new position", ent.symbol)
+				err := ent.ClosePosition(ctx, fixedpoint.One, closePrice)
+				if err != nil {
+					return errors.Wrap(err, "close existing position error")
+				}
+			} else {
+				return errors.Errorf("existing %s position has the same direction with the signal", ent.symbol)
+			}
 		}
 
-		side := ent.cmdToSide(cmd)
 		log.Infof("open %s position for signal %v, reason: %s", ent.symbol, side, "")
 
 		err := ent.OpenPosition(ctx, side, closePrice)
