@@ -567,7 +567,9 @@ func (s *Strategy) handlePositionChanged(ctx context.Context, session ttypes.ISe
 			}
 		}
 
-		s.stashMsg(ctx, session, msg)
+		session.SetAttribute("position_msg", &ttypes.Message{
+			Text: msg,
+		})
 	}
 }
 
@@ -576,15 +578,23 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
 
 	if ok {
+		// fng
 		fngMsg, ok := session.GetAttribute("fng_msg")
 		if ok {
 			tempMsgs = append(tempMsgs, fngMsg.(*ttypes.Message))
 		}
 
+		// prompt
 		if s.Prompt != "" {
 			tempMsgs = append(tempMsgs, &ttypes.Message{
 				Text: s.Prompt,
 			})
+		}
+
+		// position
+		posMsg, ok := s.getPositionMsg(session)
+		if ok {
+			tempMsgs = append(tempMsgs, posMsg)
 		}
 
 		actionTips := make([]string, 0)
@@ -626,6 +636,15 @@ func (s *Strategy) getKline(session ttypes.ISession) (*types.KLineWindow, bool) 
 	kline, ok := session.GetAttribute("kline")
 	if ok {
 		return kline.(*types.KLineWindow), ok
+	}
+
+	return nil, false
+}
+
+func (s *Strategy) getPositionMsg(session ttypes.ISession) (*ttypes.Message, bool) {
+	positionMsg, ok := session.GetAttribute("position_msg")
+	if ok {
+		return positionMsg.(*ttypes.Message), ok
 	}
 
 	return nil, false
