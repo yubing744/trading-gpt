@@ -11,7 +11,7 @@ import (
 	"github.com/yubing744/trading-gpt/pkg/config"
 	"github.com/yubing744/trading-gpt/pkg/types"
 
-	gogpt "github.com/sashabaranov/go-gpt3"
+	gogpt "github.com/sashabaranov/go-openai"
 )
 
 const (
@@ -24,6 +24,7 @@ type OpenAIAgent struct {
 	client           *gogpt.Client
 	name             string
 	model            string
+	temperature      float32
 	backgroup        string
 	chats            []string
 	actions          map[string]*types.ActionDesc
@@ -37,6 +38,7 @@ func NewOpenAIAgent(cfg *config.AgentOpenAIConfig) *OpenAIAgent {
 		client:           client,
 		name:             cfg.Name,
 		model:            cfg.Model,
+		temperature:      cfg.Temperature,
 		backgroup:        cfg.Backgroup,
 		chats:            make([]string, 0),
 		actions:          make(map[string]*types.ActionDesc, 0),
@@ -177,8 +179,9 @@ func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, ms
 		Infof("gen chatgpt messages")
 
 	req := gogpt.ChatCompletionRequest{
-		Model:    a.model,
-		Messages: gptMsgs,
+		Model:       a.model,
+		Temperature: a.temperature,
+		Messages:    gptMsgs,
 	}
 
 	resp, err := a.client.CreateChatCompletion(ctx, req)
