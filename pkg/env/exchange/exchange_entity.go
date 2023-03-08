@@ -64,6 +64,16 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 		{
 			Name:        "open_long_position",
 			Description: "开启做多仓位",
+			Args: []ttypes.ArgmentDesc{
+				{
+					Name:        "stop_loss",
+					Description: "Stop-loss trigger price",
+				},
+				{
+					Name:        "take_profit",
+					Description: "Take-profit trigger price",
+				},
+			},
 			Samples: []ttypes.Sample{
 				{
 					Input: []string{
@@ -195,7 +205,33 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args [
 
 		log.Infof("open %s position for signal %v, reason: %s", ent.symbol, side, "")
 
-		err := ent.OpenPosition(ctx, side, closePrice)
+		opts := make([]interface{}, 0)
+
+		// config stop losss
+		if len(args) >= 1 {
+			stopLoss, err := fixedpoint.NewFromString(args[0])
+			if err != nil {
+				return errors.Wrapf(err, "the stop loss invalid: %s", args[0])
+			}
+
+			opts = append(opts, &StopLossPrice{
+				Value: stopLoss,
+			})
+		}
+
+		// config take profix
+		if len(args) >= 2 {
+			takeProfix, err := fixedpoint.NewFromString(args[1])
+			if err != nil {
+				return errors.Wrapf(err, "the take profit invalid: %s", args[1])
+			}
+
+			opts = append(opts, &TakeProfitPrice{
+				Value: takeProfix,
+			})
+		}
+
+		err := ent.OpenPosition(ctx, side, closePrice, opts...)
 		if err != nil {
 			return errors.Wrap(err, "open position error")
 		}
@@ -309,7 +345,15 @@ func (ent *ExchangeEntity) emitEvent(ch chan *ttypes.Event, evt *ttypes.Event) {
 	ch <- evt
 }
 
-func (s *ExchangeEntity) OpenPosition(ctx context.Context, side types.SideType, closePrice fixedpoint.Value) error {
+type StopLossPrice struct {
+	Value fixedpoint.Value
+}
+
+type TakeProfitPrice struct {
+	Value fixedpoint.Value
+}
+
+func (s *ExchangeEntity) OpenPosition(ctx context.Context, side types.SideType, closePrice fixedpoint.Value, args ...interface{}) error {
 	quantity := s.calculateQuantity(ctx, closePrice, side)
 
 	for {
@@ -318,6 +362,15 @@ func (s *ExchangeEntity) OpenPosition(ctx context.Context, side types.SideType, 
 		}
 
 		orderForm := s.generateOrderForm(side, quantity, types.SideEffectTypeMarginBuy)
+		for _, arg := range args {
+			switch val := arg.(type) {
+			case *StopLossPrice:
+				orderForm.StopPrice = val.Value
+			case *TakeProfitPrice:
+				orderForm.TakePrice = val.Value
+			}
+		}
+
 		log.Infof("submit open position order %v", orderForm)
 		_, err := s.orderExecutor.SubmitOrders(ctx, orderForm)
 		if err != nil {

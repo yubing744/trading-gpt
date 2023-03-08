@@ -22,3 +22,13 @@ type Action struct {
 	Name   string
 	Args   []string
 }
+
+func (ac ActionDesc) ArgNames() []string {
+	rets := make([]string, 0)
+
+	for _, arg := range ac.Args {
+		rets = append(rets, arg.Name)
+	}
+
+	return rets
+}

@@ -599,7 +599,7 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 
 		actionTips := make([]string, 0)
 		for _, ac := range s.world.Actions() {
-			actionTips = append(actionTips, fmt.Sprintf("/%s", ac.Name))
+			actionTips = append(actionTips, fmt.Sprintf("/%s [%s]", ac.Name, strings.Join(ac.ArgNames(), ",")))
 		}
 
 		tempMsgs = append(tempMsgs, &ttypes.Message{
