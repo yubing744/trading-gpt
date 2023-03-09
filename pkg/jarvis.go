@@ -394,10 +394,11 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 			if strings.Contains(strings.ToLower(text), fmt.Sprintf("/%s", actionDef.Name)) {
 				log.WithField("action", actionDef.Name).Info("match action")
 
+				args := utils.ExtractArgs(text, fmt.Sprintf("/%s", actionDef.Name))
 				actions = append(actions, &ttypes.Action{
 					Target: "exchange",
 					Name:   actionDef.Name,
-					Args:   []string{},
+					Args:   args,
 				})
 			}
 		}
