@@ -91,6 +91,16 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 		{
 			Name:        "open_short_position",
 			Description: "开启做空仓位",
+			Args: []ttypes.ArgmentDesc{
+				{
+					Name:        "stop_loss",
+					Description: "Stop-loss trigger price",
+				},
+				{
+					Name:        "take_profit",
+					Description: "Take-profit trigger price",
+				},
+			},
 			Samples: []ttypes.Sample{
 				{
 					Input: []string{
