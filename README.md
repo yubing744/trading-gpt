@@ -62,9 +62,6 @@ exchangeStrategies:
         window_size: 20
       include_events:
         - kline_changed
-        - rsi_changed
-        - boll_changed
-        - fng_changed
         - position_changed
         - update_finish
     agent:
