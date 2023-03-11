@@ -394,10 +394,11 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 			if strings.Contains(strings.ToLower(text), fmt.Sprintf("/%s", actionDef.Name)) {
 				log.WithField("action", actionDef.Name).Info("match action")
 
+				args := utils.ExtractArgs(text, fmt.Sprintf("/%s", actionDef.Name))
 				actions = append(actions, &ttypes.Action{
 					Target: "exchange",
 					Name:   actionDef.Name,
-					Args:   []string{},
+					Args:   args,
 				})
 			}
 		}
@@ -599,7 +600,7 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 
 		actionTips := make([]string, 0)
 		for _, ac := range s.world.Actions() {
-			actionTips = append(actionTips, fmt.Sprintf("/%s", ac.Name))
+			actionTips = append(actionTips, fmt.Sprintf("/%s [%s]", ac.Name, strings.Join(ac.ArgNames(), ",")))
 		}
 
 		tempMsgs = append(tempMsgs, &ttypes.Message{
