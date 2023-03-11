@@ -1,6 +1,28 @@
 # Trading-GPT
 Trading-GPT is a trading bot based on [bbgo](https://github.com/c9s/bbgo) and [ChatGPT](https://github.com/yubing744/chatgpt-go).
 
+## Features
+- Writing Trading Strategies Using Natural Language
+- Support for setting take profit and stop loss in the strategy
+- Chat with strategy
+
+## Example
+* Moving average strategy
+```
+Trading strategy: Moving average strategy.
+```
+
+* Trend trading Strategies
+```
+Trading strategy: Trading on the right side, stop loss 3%, stop profit 10%.
+```
+
+* MACD divergence strategy
+```
+Trading strategy: Calculate the MACD indicator based on the K-line. The short period of the MACD indicator is 13, the long period is 34, the moving average period is 9, and the length of the ATR indicator is 13. Open a short order when the MACD indicator is bullish and there is a double top divergence. Open a long order when the MACD indicator is bearish and there is a double bottom divergence. Stop loss 1%, take profit 5%.
+```
+
+
 ## Usage
 Prepare your dotenv file .env.local and BBGO yaml config file bbgo.yaml
 
@@ -61,7 +83,7 @@ exchangeStrategies:
     interval: 5m
     leverage: 3
     max_window_size: 20
-    prompt: "Trading strategy: Trading on the right side, trailing stop loss 3%, trailing stop profit 10%."
+    prompt: "Your natural language strategy"
 ```
 
 Install redis and config port 6379
