@@ -3,6 +3,7 @@ package utils
 import (
 	"testing"
 
+	"github.com/dop251/goja"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -47,4 +48,18 @@ This command opens a new long position with a stop loss at 2.235 and a take prof
 	`
 	args := ExtractArgs(text, "/open_long_position")
 	assert.Len(t, args, 0)
+}
+
+func TestArgToFixedpoint(t *testing.T) {
+	vm := goja.New()
+	val, err := ArgToFixedpoint(vm, "1.22")
+	assert.NoError(t, err)
+	assert.Equal(t, 1.22, val.Float64())
+}
+
+func TestArgToFixedpointWithExpress(t *testing.T) {
+	vm := goja.New()
+	val, err := ArgToFixedpoint(vm, "1.22*2")
+	assert.NoError(t, err)
+	assert.Equal(t, 2.44, val.Float64())
 }
