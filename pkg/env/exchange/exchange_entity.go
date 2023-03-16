@@ -9,9 +9,11 @@ import (
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/indicator"
 	"github.com/c9s/bbgo/pkg/types"
+	"github.com/dop251/goja"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/yubing744/trading-gpt/pkg/config"
+	"github.com/yubing744/trading-gpt/pkg/utils"
 
 	ttypes "github.com/yubing744/trading-gpt/pkg/types"
 )
@@ -33,6 +35,8 @@ type ExchangeEntity struct {
 	BOLL        *indicator.BOLL
 	RSI         *indicator.RSI
 	KLineWindow *types.KLineWindow
+
+	vm *goja.Runtime
 }
 
 func NewExchangeEntity(
@@ -52,6 +56,7 @@ func NewExchangeEntity(
 		session:       session,
 		orderExecutor: orderExecutor,
 		position:      position,
+		vm:            goja.New(),
 	}
 }
 
@@ -219,26 +224,30 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args [
 
 		// config stop losss
 		if len(args) >= 1 {
-			stopLoss, err := fixedpoint.NewFromString(args[0])
+			stopLoss, err := utils.ParseStopLoss(ent.vm, side, closePrice, args[0])
 			if err != nil {
 				return errors.Wrapf(err, "the stop loss invalid: %s", args[0])
 			}
 
-			opts = append(opts, &StopLossPrice{
-				Value: stopLoss,
-			})
+			if stopLoss != nil {
+				opts = append(opts, &StopLossPrice{
+					Value: *stopLoss,
+				})
+			}
 		}
 
 		// config take profix
 		if len(args) >= 2 {
-			takeProfix, err := fixedpoint.NewFromString(args[1])
+			takeProfix, err := utils.ParseTakeProfit(ent.vm, side, closePrice, args[1])
 			if err != nil {
 				return errors.Wrapf(err, "the take profit invalid: %s", args[1])
 			}
 
-			opts = append(opts, &TakeProfitPrice{
-				Value: takeProfix,
-			})
+			if takeProfix != nil {
+				opts = append(opts, &TakeProfitPrice{
+					Value: *takeProfix,
+				})
+			}
 		}
 
 		err := ent.OpenPosition(ctx, side, closePrice, opts...)

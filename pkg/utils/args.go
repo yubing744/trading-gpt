@@ -1,6 +1,11 @@
 package utils
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/c9s/bbgo/pkg/fixedpoint"
+	"github.com/dop251/goja"
+)
 
 func ExtractArgs(text string, cmd string) []string {
 	rets := make([]string, 0)
@@ -23,4 +28,19 @@ func ExtractArgs(text string, cmd string) []string {
 	}
 
 	return rets
+}
+
+func ArgToFixedpoint(vm *goja.Runtime, arg string) (*fixedpoint.Value, error) {
+	v, err := vm.RunString(arg)
+	if err != nil {
+		return nil, err
+	}
+
+	num, ok := v.Export().(float64)
+	if ok {
+		val := fixedpoint.NewFromFloat(num)
+		return &val, nil
+	}
+
+	return nil, nil
 }
