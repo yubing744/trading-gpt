@@ -224,7 +224,7 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args [
 
 		// config stop losss
 		if len(args) >= 1 {
-			stopLoss, err := utils.ArgToFixedpoint(ent.vm, args[0])
+			stopLoss, err := utils.ParseStopLoss(ent.vm, side, closePrice, args[0])
 			if err != nil {
 				return errors.Wrapf(err, "the stop loss invalid: %s", args[0])
 			}
@@ -238,7 +238,7 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args [
 
 		// config take profix
 		if len(args) >= 2 {
-			takeProfix, err := utils.ArgToFixedpoint(ent.vm, args[1])
+			takeProfix, err := utils.ParseTakeProfit(ent.vm, side, closePrice, args[1])
 			if err != nil {
 				return errors.Wrapf(err, "the take profit invalid: %s", args[1])
 			}
