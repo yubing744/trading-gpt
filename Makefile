@@ -1,7 +1,7 @@
 .PHONY: clean build test run docker-*
 
 NAME=trading-gpt
-VERSION=0.8.4
+VERSION=0.9.0
 
 clean:
 	rm -rf build/*
