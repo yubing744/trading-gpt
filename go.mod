@@ -4,11 +4,12 @@ go 1.18
 
 require (
 	github.com/c9s/bbgo v1.43.1
+	github.com/dop251/goja v0.0.0-20230304130813-e2f543bf4b4c
 	github.com/google/uuid v1.3.0
 	github.com/kataras/go-events v0.0.3
 	github.com/larksuite/oapi-sdk-go/v3 v3.0.17
 	github.com/pkg/errors v0.9.1
-	github.com/sashabaranov/go-openai v1.4.1
+	github.com/sashabaranov/go-openai v1.9.1
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.1
 	github.com/yubing744/chatgpt-go v0.0.0-00010101000000-000000000000
@@ -36,7 +37,6 @@ require (
 	github.com/denisenkom/go-mssqldb v0.12.2 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dlclark/regexp2 v1.7.0 // indirect
-	github.com/dop251/goja v0.0.0-20230304130813-e2f543bf4b4c // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/fatih/camelcase v1.0.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect

@@ -1,7 +1,7 @@
 .PHONY: clean build test run docker-*
 
 NAME=trading-gpt
-VERSION=0.9.0
+VERSION=0.9.2
 
 clean:
 	rm -rf build/*
@@ -9,13 +9,16 @@ clean:
 build: clean
 	CGO_ENABLED=0 go build -o ./build/bbgo ./cmd/bbgo.go
 
+build-linux:
+	CGO_ENABLED=0 GOOS=linux go build -o ./build/bbgo ./cmd/bbgo.go
+
 test:
 	go test ./...
 
 run: build
 	./build/bbgo run --dotenv .env.local --config bbgo.yaml
 
-docker-build: build
+docker-build: build-linux
 	docker build --tag yubing744/${NAME}:latest .
 	docker tag yubing744/${NAME}:latest yubing744/${NAME}:${VERSION}
 
