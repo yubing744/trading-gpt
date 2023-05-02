@@ -1,5 +1,7 @@
 package types
 
+import "encoding/json"
+
 type ArgmentDesc struct {
 	Name        string
 	Description string
@@ -18,9 +20,8 @@ type ActionDesc struct {
 }
 
 type Action struct {
-	Target string
-	Name   string
-	Args   []string
+	Command string   `json:"cmd"`
+	Args    []string `json:"args"`
 }
 
 func (ac ActionDesc) ArgNames() []string {
@@ -31,4 +32,13 @@ func (ac ActionDesc) ArgNames() []string {
 	}
 
 	return rets
+}
+
+func (a *Action) JSON() string {
+	data, err := json.Marshal(a)
+	if err != nil {
+		return "{}"
+	}
+
+	return string(data)
 }
