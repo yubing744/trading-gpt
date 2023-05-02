@@ -15,10 +15,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/yubing744/trading-gpt/pkg/agent"
-	"github.com/yubing744/trading-gpt/pkg/agent/chatgpt"
-	"github.com/yubing744/trading-gpt/pkg/agent/keeper"
-	"github.com/yubing744/trading-gpt/pkg/agent/openai"
+	"github.com/tmc/langchaingo/llms"
+	"github.com/tmc/langchaingo/llms/openai"
 	"github.com/yubing744/trading-gpt/pkg/chat"
 	"github.com/yubing744/trading-gpt/pkg/chat/feishu"
 	"github.com/yubing744/trading-gpt/pkg/prompt"
@@ -69,7 +67,7 @@ type Strategy struct {
 
 	// jarvis model
 	world        *env.Environment
-	agent        agent.IAgent
+	llm          llms.LLM
 	chatSessions *chat.ChatSessions
 }
 
@@ -140,8 +138,8 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		return err
 	}
 
-	// Setup Agent
-	err = s.setupAgent(ctx)
+	// Setup LLM
+	err = s.setupLLM(ctx)
 	if err != nil {
 		return err
 	}
@@ -183,60 +181,13 @@ func (s *Strategy) setupWorld(ctx context.Context) error {
 	return nil
 }
 
-func (s *Strategy) setupAgent(ctx context.Context) error {
-	var openaiAgent *openai.OpenAIAgent
-	openaiCfg := &s.Agent.OpenAI
-	if openaiCfg != nil && openaiCfg.Enabled {
-		token := os.Getenv("AGENT_OPENAI_TOKEN")
-		if token == "" {
-			return errors.New("AGENT_OPENAI_TOKEN not set in .env.local")
-		}
-
-		openaiCfg.Token = token
-		openaiAgent = openai.NewOpenAIAgent(openaiCfg)
-		s.agent = openaiAgent
-	}
-
-	var chatgptAgent *chatgpt.ChatGPTAgent
-	chatgptCfg := &s.Agent.ChatGPT
-	if chatgptCfg != nil && chatgptCfg.Enabled {
-		email := os.Getenv("AGENT_CHATGPT_EMAIL")
-		password := os.Getenv("AGENT_CHATGPT_PASSWORD")
-		if email == "" || password == "" {
-			return errors.New("AGENT_CHATGPT_EMAIL or AGENT_CHATGPT_PASSWORD not set in .env.local")
-		}
-
-		chatgptCfg.Email = email
-		chatgptCfg.Password = password
-
-		chatgptAgent = chatgpt.NewChatGPTAgent(chatgptCfg)
-		s.agent = chatgptAgent
-	}
-
-	keeperCfg := &s.Agent.Keeper
-	if keeperCfg != nil && keeperCfg.Enabled {
-		agents := make(map[string]agent.IAgent, 0)
-
-		if openaiCfg != nil && openaiCfg.Enabled {
-			agents["openai"] = openaiAgent
-		}
-
-		if chatgptCfg != nil && chatgptCfg.Enabled {
-			agents["chatgpt"] = chatgptAgent
-		}
-
-		agentKeeper := keeper.NewAgentKeeper(keeperCfg, agents)
-		s.agent = agentKeeper
-	}
-
-	if s.agent == nil {
-		return errors.New("No agent enabled")
-	}
-
-	err := s.agent.Start()
+func (s *Strategy) setupLLM(ctx context.Context) error {
+	llm, err := openai.New()
 	if err != nil {
-		return errors.Wrap(err, "Error in init agent")
+		log.Fatal(err)
 	}
+
+	s.llm = llm
 
 	return nil
 }
@@ -334,11 +285,11 @@ func (s *Strategy) replyMsg(ctx context.Context, chatSession ttypes.ISession, ms
 func (s *Strategy) feedbackCmdExecuteResult(ctx context.Context, chatSession ttypes.ISession, msg string) {
 	s.replyMsg(ctx, chatSession, msg)
 
-	result, err := s.agent.GenActions(ctx, chatSession, []*ttypes.Message{
-		{
-			Text: msg,
-		},
-	})
+	prompts := make([]string, 0)
+	prompts = append(prompts, chatSession.GetChats()...)
+	prompts = append(prompts, msg)
+
+	result, err := s.llm.Generate(ctx, prompts, []string{"\nObservation", "\n\tObservation"})
 	if err != nil {
 		log.WithError(err).Error("gen action error")
 		s.replyMsg(ctx, chatSession, fmt.Sprintf("gen action error: %s", err.Error()))
@@ -347,8 +298,8 @@ func (s *Strategy) feedbackCmdExecuteResult(ctx context.Context, chatSession tty
 
 	log.WithField("result", result).Info("feedback result")
 
-	if len(result.Texts) > 0 {
-		s.replyMsg(ctx, chatSession, strings.Join(result.Texts, ""))
+	if len(result) > 0 {
+		s.replyMsg(ctx, chatSession, result[0].Text)
 	}
 }
 
@@ -371,7 +322,12 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 		s.replyMsg(ctx, chatSession, msg.Text)
 	}
 
-	resp, err := s.agent.GenActions(ctx, chatSession, msgs)
+	prompts := make([]string, 0)
+	for _, msg := range msgs {
+		prompts = append(prompts, msg.Text)
+	}
+
+	resp, err := s.llm.Generate(ctx, prompts, []string{"\nObservation", "\n\tObservation"})
 	if err != nil {
 		log.WithError(err).Error("gen action error")
 		s.replyMsg(ctx, chatSession, fmt.Sprintf("gen action error: %s", err.Error()))
@@ -387,8 +343,8 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 
 	actions := make([]*ttypes.Action, 0)
 
-	if len(resp.Texts) > 0 {
-		resultText := strings.Join(resp.Texts, "")
+	if len(resp) > 0 {
+		resultText := resp[0].Text
 
 		if strings.HasPrefix(resultText, "{") && strings.Contains(resultText, "thoughts") {
 			result, err := utils.ParseResult(resultText)

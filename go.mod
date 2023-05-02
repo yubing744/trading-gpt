@@ -11,13 +11,14 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sashabaranov/go-openai v1.9.1
 	github.com/sirupsen/logrus v1.9.0
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	github.com/yubing744/chatgpt-go v0.0.0-00010101000000-000000000000
+	github.com/tmc/langchaingo v0.0.0-20230429215204-931a1fe7a2a9
 )
 
 replace github.com/c9s/bbgo => ./libs/bbgo
-
 replace github.com/yubing744/chatgpt-go => ./libs/chatgpt
+replace github.com/tmc/langchaingo => ./libs/langchain
 
 require (
 	github.com/Masterminds/squirrel v1.5.3 // indirect
@@ -106,6 +107,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.7.1 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
+	
 	github.com/ugorji/go/codec v1.2.3 // indirect
 	github.com/valyala/fastjson v1.5.1 // indirect
 	github.com/wcharczuk/go-chart/v2 v2.1.0 // indirect

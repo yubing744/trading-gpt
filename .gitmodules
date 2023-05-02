@@ -4,3 +4,6 @@
 [submodule "libs/chatgpt"]
 	path = libs/chatgpt
 	url = git@github.com:yubing744/chatgpt-go.git
+[submodule "libs/langchain"]
+	path = libs/langchain
+	url = git@github.com:yubing744/langchaingo.git
