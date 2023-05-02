@@ -21,6 +21,7 @@ import (
 	"github.com/yubing744/trading-gpt/pkg/agent/openai"
 	"github.com/yubing744/trading-gpt/pkg/chat"
 	"github.com/yubing744/trading-gpt/pkg/chat/feishu"
+	"github.com/yubing744/trading-gpt/pkg/prompt"
 
 	"github.com/yubing744/trading-gpt/pkg/config"
 	"github.com/yubing744/trading-gpt/pkg/env"
@@ -354,7 +355,7 @@ func (s *Strategy) feedbackCmdExecuteResult(ctx context.Context, chatSession tty
 func (s *Strategy) emergencyClosePosition(ctx context.Context, chatSession ttypes.ISession, reason string) {
 	log.Warn("emergency close position")
 
-	err := s.world.SendCommand(ctx, "exchange", "close_position", []string{})
+	err := s.world.SendCommand(ctx, "exchange.close_position", []string{})
 	if err != nil {
 		log.WithError(err).Error("env send cmd error")
 		return
@@ -370,7 +371,7 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 		s.replyMsg(ctx, chatSession, msg.Text)
 	}
 
-	result, err := s.agent.GenActions(ctx, chatSession, msgs)
+	resp, err := s.agent.GenActions(ctx, chatSession, msgs)
 	if err != nil {
 		log.WithError(err).Error("gen action error")
 		s.replyMsg(ctx, chatSession, fmt.Sprintf("gen action error: %s", err.Error()))
@@ -382,25 +383,37 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 		return
 	}
 
-	log.WithField("result", result).Info("gen actions result")
+	log.WithField("resp", resp).Info("gen actions resp")
 
 	actions := make([]*ttypes.Action, 0)
 
-	if len(result.Texts) > 0 {
-		text := strings.Join(result.Texts, "")
-		s.replyMsg(ctx, chatSession, text)
+	if len(resp.Texts) > 0 {
+		resultText := strings.Join(resp.Texts, "")
 
-		for _, actionDef := range s.world.Actions() {
-			if strings.Contains(strings.ToLower(text), fmt.Sprintf("/%s", actionDef.Name)) {
-				log.WithField("action", actionDef.Name).Info("match action")
-
-				args := utils.ExtractArgs(text, fmt.Sprintf("/%s", actionDef.Name))
-				actions = append(actions, &ttypes.Action{
-					Target: "exchange",
-					Name:   actionDef.Name,
-					Args:   args,
-				})
+		if strings.HasPrefix(resultText, "{") && strings.Contains(resultText, "thoughts") {
+			result, err := utils.ParseResult(resultText)
+			if err != nil {
+				log.WithError(err).Error("parse resp error")
+				s.replyMsg(ctx, chatSession, fmt.Sprintf("parse resp error: %s, resultText: %s", err.Error(), resultText))
+				return
 			}
+
+			if result.Thoughts != nil {
+				s.replyMsg(ctx, chatSession, fmt.Sprintf("Text: %s", result.Thoughts.Text))
+				s.replyMsg(ctx, chatSession, fmt.Sprintf("Analyze: %s", result.Thoughts.Analyze))
+				s.replyMsg(ctx, chatSession, fmt.Sprintf("Criticism: %s", result.Thoughts.Criticism))
+				s.replyMsg(ctx, chatSession, fmt.Sprintf("Speak: %s", result.Thoughts.Speak))
+			}
+
+			if result.Action != nil {
+				s.replyMsg(ctx, chatSession, fmt.Sprintf("Action: %s", result.Action.JSON()))
+
+				if result.Action.Command != "" {
+					actions = append(actions, result.Action)
+				}
+			}
+		} else {
+			s.replyMsg(ctx, chatSession, resultText)
 		}
 	}
 
@@ -412,12 +425,13 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 			}
 
 			for _, action := range actions {
-				err := s.world.SendCommand(ctx, action.Target, action.Name, action.Args)
+				err := s.world.SendCommand(ctx, action.Command, action.Args)
+
 				if err != nil {
 					log.WithError(err).Error("env send cmd error")
-					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: /%s [%s] failed to execute by entity, reason: %s", action.Name, strings.Join(action.Args, ","), err.Error()))
+					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: /%s [%s] failed to execute by entity, reason: %s", action.Command, strings.Join(action.Args, ","), err.Error()))
 				} else {
-					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: /%s [%s] executed successfully by entity.", action.Name, strings.Join(action.Args, ",")))
+					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: /%s [%s] executed successfully by entity.", action.Command, strings.Join(action.Args, ",")))
 				}
 			}
 		} else {
@@ -585,13 +599,6 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 			tempMsgs = append(tempMsgs, fngMsg.(*ttypes.Message))
 		}
 
-		// prompt
-		if s.Prompt != "" {
-			tempMsgs = append(tempMsgs, &ttypes.Message{
-				Text: s.Prompt,
-			})
-		}
-
 		// position
 		posMsg, ok := s.getPositionMsg(session)
 		if ok {
@@ -599,12 +606,12 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 		}
 
 		actionTips := make([]string, 0)
-		for _, ac := range s.world.Actions() {
-			actionTips = append(actionTips, fmt.Sprintf("/%s [%s]", ac.Name, strings.Join(ac.ArgNames(), ",")))
+		for i, ac := range s.world.Actions() {
+			actionTips = append(actionTips, fmt.Sprintf("%d. %s, command-name: %s, args: [%s]", i+1, ac.Description, ac.Name, strings.Join(ac.ArgNames(), ",")))
 		}
 
 		tempMsgs = append(tempMsgs, &ttypes.Message{
-			Text: fmt.Sprintf("Analyze the data and generate only one trading command: %s, the entity will execute the command and give you feedback.", strings.Join(actionTips, ",")),
+			Text: fmt.Sprintf(prompt.Thought, strings.Join(actionTips, "\n"), s.Strategy),
 		})
 
 		s.agentAction(ctx, session, tempMsgs)

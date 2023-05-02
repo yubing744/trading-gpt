@@ -3,6 +3,8 @@ package env
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/yubing744/trading-gpt/pkg/config"
@@ -34,21 +36,39 @@ func (env *Environment) Actions() []*types.ActionDesc {
 	actions := make([]*types.ActionDesc, 0)
 
 	for _, ent := range env.entites {
-		as := ent.Actions()
-
-		if as != nil {
-			actions = append(actions, as...)
+		for _, action := range ent.Actions() {
+			actions = append(actions, &types.ActionDesc{
+				Name:        fmt.Sprintf("%s.%s", ent.GetID(), action.Name),
+				Description: action.Description,
+				Args:        action.Args,
+			})
 		}
 	}
 
 	return actions
 }
 
-func (env *Environment) SendCommand(ctx context.Context, name string, cmd string, args []string) error {
-	entity, ok := env.entites[name]
+func (env *Environment) SendCommand(ctx context.Context, fullCmd string, args []string) error {
+	dotIndex := strings.Index(fullCmd, ".")
+	if dotIndex == -1 || strings.Contains(fullCmd[dotIndex+1:], ".") {
+		return errors.New("cmd not correct, can not parse entity_id")
+	}
+
+	entityName := fullCmd[:dotIndex]
+	cmd := fullCmd[dotIndex+1:]
+
+	if entityName == "" || cmd == "" {
+		return errors.New("empty entityName or cmd")
+	}
+
+	if env.entites == nil {
+		return errors.New("entities map is nil")
+	}
+
+	entity, ok := env.entites[entityName]
 	if !ok {
 		log.
-			WithField("entityName", name).
+			WithField("entityName", entityName).
 			WithField("cmd", cmd).
 			WithField("args", args).
 			Debug("not found entity")

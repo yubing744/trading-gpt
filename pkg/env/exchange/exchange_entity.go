@@ -68,7 +68,7 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 	return []*ttypes.ActionDesc{
 		{
 			Name:        "open_long_position",
-			Description: "开启做多仓位",
+			Description: "open long position",
 			Args: []ttypes.ArgmentDesc{
 				{
 					Name:        "stop_loss",
@@ -95,7 +95,7 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 		},
 		{
 			Name:        "open_short_position",
-			Description: "开启做空仓位",
+			Description: "open short position",
 			Args: []ttypes.ArgmentDesc{
 				{
 					Name:        "stop_loss",
@@ -122,7 +122,7 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 		},
 		{
 			Name:        "close_position",
-			Description: "关闭仓位",
+			Description: "close position",
 			Samples: []ttypes.Sample{
 				{
 					Input: []string{
@@ -139,7 +139,7 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 		},
 		{
 			Name:        "no_action",
-			Description: "不操作，如果当前有持仓表示继续持有，如果当前空仓表示继续空仓",
+			Description: "No action to be taken",
 			Samples: []ttypes.Sample{
 				{
 					Input: []string{
