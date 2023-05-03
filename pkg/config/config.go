@@ -13,7 +13,7 @@ type Config struct {
 
 	Notify NotifyConfig `json:"notify"`
 	Chat   ChatConfig   `json:"chat"`
-	Agent  AgentConfig  `json:"agent"`
+	LLM    LLMConfig    `json:"llm"`
 	Env    EnvConfig    `json:"env"`
 
 	Strategy string `json:"strategy"`

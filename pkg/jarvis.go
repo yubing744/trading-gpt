@@ -182,12 +182,26 @@ func (s *Strategy) setupWorld(ctx context.Context) error {
 }
 
 func (s *Strategy) setupLLM(ctx context.Context) error {
-	llm, err := openai.New()
-	if err != nil {
-		log.Fatal(err)
+	openaiLLM := s.LLM.OpenAI
+	if openaiLLM != nil && openaiLLM.Enabled {
+		if os.Getenv("LLM_OPENAI_TOKEN") != "" {
+			openaiLLM.Token = os.Getenv("LLM_OPENAI_TOKEN")
+		}
+
+		llm, err := openai.New(
+			openai.WithToken(openaiLLM.Token),
+			openai.WithModel(openaiLLM.Model),
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		s.llm = llm
 	}
 
-	s.llm = llm
+	if s.llm == nil {
+		log.Fatal("LLM not config")
+	}
 
 	return nil
 }

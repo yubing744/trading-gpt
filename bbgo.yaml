@@ -16,6 +16,10 @@ sessions:
 exchangeStrategies:
 - on: okex
   jarvis:
+    llm:
+      openai:
+        enabled: true
+        model: "gpt-3.5-turbo-0301"
     env:
       exchange:
         window_size: 20
@@ -26,14 +30,6 @@ exchangeStrategies:
         - fng_changed
         - position_changed
         - update_finish
-    agent:
-      openai:
-        enabled: true
-        name: "AI"
-        model: "gpt-3.5-turbo-0301"
-        temperature: 0.1
-        backgroup: "I want you to act as an trading assistant. The trading assistant supports registering entities, analyzes market data provided by entities, and generates entity control commands. After receiving the command, the entity will report the result of the command execution. The goal of the transaction assistant is: to maximize returns by generating entity control commands."
-        max_context_length: 4097
     notify:
       feishu_hook:
         enabled: true

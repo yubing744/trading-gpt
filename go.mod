@@ -1,6 +1,6 @@
 module github.com/yubing744/trading-gpt
 
-go 1.18
+go 1.20
 
 require (
 	github.com/c9s/bbgo v1.43.1
@@ -9,15 +9,12 @@ require (
 	github.com/kataras/go-events v0.0.3
 	github.com/larksuite/oapi-sdk-go/v3 v3.0.17
 	github.com/pkg/errors v0.9.1
-	github.com/sashabaranov/go-openai v1.9.1
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.2
-	github.com/yubing744/chatgpt-go v0.0.0-00010101000000-000000000000
 	github.com/tmc/langchaingo v0.0.0-20230429215204-931a1fe7a2a9
 )
 
 replace github.com/c9s/bbgo => ./libs/bbgo
-replace github.com/yubing744/chatgpt-go => ./libs/chatgpt
 replace github.com/tmc/langchaingo => ./libs/langchain
 
 require (
