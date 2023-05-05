@@ -48,7 +48,7 @@ func (env *Environment) Actions() []*types.ActionDesc {
 	return actions
 }
 
-func (env *Environment) SendCommand(ctx context.Context, fullCmd string, args []string) error {
+func (env *Environment) SendCommand(ctx context.Context, fullCmd string, args map[string]string) error {
 	dotIndex := strings.Index(fullCmd, ".")
 	if dotIndex == -1 || strings.Contains(fullCmd[dotIndex+1:], ".") {
 		return errors.New("cmd not correct, can not parse entity_id")

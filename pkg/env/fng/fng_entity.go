@@ -33,7 +33,7 @@ func (entity *FearAndGreedEntity) Actions() []*types.ActionDesc {
 	return nil
 }
 
-func (entity *FearAndGreedEntity) HandleCommand(ctx context.Context, cmd string, args []string) error {
+func (entity *FearAndGreedEntity) HandleCommand(ctx context.Context, cmd string, args map[string]string) error {
 	return nil
 }
 
