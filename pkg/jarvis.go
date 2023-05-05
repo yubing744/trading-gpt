@@ -355,7 +355,7 @@ func (s *Strategy) feedbackCmdExecuteResult(ctx context.Context, chatSession tty
 func (s *Strategy) emergencyClosePosition(ctx context.Context, chatSession ttypes.ISession, reason string) {
 	log.Warn("emergency close position")
 
-	err := s.world.SendCommand(ctx, "exchange.close_position", []string{})
+	err := s.world.SendCommand(ctx, "exchange.close_position", map[string]string{})
 	if err != nil {
 		log.WithError(err).Error("env send cmd error")
 		return
@@ -408,7 +408,7 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 			if result.Action != nil {
 				s.replyMsg(ctx, chatSession, fmt.Sprintf("Action: %s", result.Action.JSON()))
 
-				if result.Action.Command != "" {
+				if result.Action.Name != "" {
 					actions = append(actions, result.Action)
 				}
 			}
@@ -425,13 +425,13 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 			}
 
 			for _, action := range actions {
-				err := s.world.SendCommand(ctx, action.Command, action.Args)
+				err := s.world.SendCommand(ctx, action.Name, action.Args)
 
 				if err != nil {
 					log.WithError(err).Error("env send cmd error")
-					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: /%s [%s] failed to execute by entity, reason: %s", action.Command, strings.Join(action.Args, ","), err.Error()))
+					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: %s failed to execute by entity, reason: %s", action.JSON(), err.Error()))
 				} else {
-					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: /%s [%s] executed successfully by entity.", action.Command, strings.Join(action.Args, ",")))
+					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: %s executed successfully by entity.", action.JSON()))
 				}
 			}
 		} else {
@@ -607,7 +607,7 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 
 		actionTips := make([]string, 0)
 		for i, ac := range s.world.Actions() {
-			actionTips = append(actionTips, fmt.Sprintf("%d. %s, command-name: %s, args: [%s]", i+1, ac.Description, ac.Name, strings.Join(ac.ArgNames(), ",")))
+			actionTips = append(actionTips, fmt.Sprintf(`%d. %s`, i+1, ac.String()))
 		}
 
 		tempMsgs = append(tempMsgs, &ttypes.Message{

@@ -72,11 +72,11 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 			Args: []ttypes.ArgmentDesc{
 				{
 					Name:        "stop_loss",
-					Description: "Stop-loss trigger price",
+					Description: "stop-loss trigger price",
 				},
 				{
 					Name:        "take_profit",
-					Description: "Take-profit trigger price",
+					Description: "take-profit trigger price",
 				},
 			},
 			Samples: []ttypes.Sample{
@@ -99,11 +99,11 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 			Args: []ttypes.ArgmentDesc{
 				{
 					Name:        "stop_loss",
-					Description: "Stop-loss trigger price",
+					Description: "stop-loss trigger price",
 				},
 				{
 					Name:        "take_profit",
-					Description: "Take-profit trigger price",
+					Description: "take-profit trigger price",
 				},
 			},
 			Samples: []ttypes.Sample{
@@ -167,7 +167,7 @@ func (ent *ExchangeEntity) cmdToSide(cmd string) types.SideType {
 	}
 }
 
-func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args []string) error {
+func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args map[string]string) error {
 	log.
 		WithField("cmd", cmd).
 		WithField("args", args).
@@ -223,10 +223,10 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args [
 		opts := make([]interface{}, 0)
 
 		// config stop losss
-		if len(args) >= 1 {
-			stopLoss, err := utils.ParseStopLoss(ent.vm, side, closePrice, args[0])
+		if stopLoss, ok := args["stop_loss"]; ok {
+			stopLoss, err := utils.ParseStopLoss(ent.vm, side, closePrice, stopLoss)
 			if err != nil {
-				return errors.Wrapf(err, "the stop loss invalid: %s", args[0])
+				return errors.Wrapf(err, "the stop loss invalid: %s", stopLoss)
 			}
 
 			if stopLoss != nil {
@@ -237,10 +237,10 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args [
 		}
 
 		// config take profix
-		if len(args) >= 2 {
-			takeProfix, err := utils.ParseTakeProfit(ent.vm, side, closePrice, args[1])
+		if takeProfix, ok := args["take_profix"]; ok {
+			takeProfix, err := utils.ParseTakeProfit(ent.vm, side, closePrice, takeProfix)
 			if err != nil {
-				return errors.Wrapf(err, "the take profit invalid: %s", args[1])
+				return errors.Wrapf(err, "the take profit invalid: %s", takeProfix)
 			}
 
 			if takeProfix != nil {
