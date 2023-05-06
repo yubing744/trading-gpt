@@ -450,7 +450,7 @@ func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, 
 
 	switch evt.Type {
 	case "position_changed":
-		position, ok := evt.Data.(*types.Position)
+		position, ok := evt.Data.(*exchange.PositionX)
 		if ok {
 			s.handlePositionChanged(ctx, session, position)
 		} else {
@@ -567,19 +567,29 @@ func (s *Strategy) handleFngChanged(ctx context.Context, session ttypes.ISession
 	})
 }
 
-func (s *Strategy) handlePositionChanged(ctx context.Context, session ttypes.ISession, position *types.Position) {
+func (s *Strategy) handlePositionChanged(ctx context.Context, session ttypes.ISession, position *exchange.PositionX) {
 	log.WithField("position", position).Info("handle position changed")
 
 	msg := "There are currently no open positions"
 
 	kline, ok := s.getKline(session)
 	if ok {
-		if !position.IsDust(kline.GetClose()) {
+		if position.IsOpened(kline.GetClose()) {
 			if position.IsLong() {
 				msg = fmt.Sprintf("The current position is long, average cost: %.3f, and accumulated profit: %.3f%s", position.AverageCost.Float64(), position.AccumulatedProfit.Float64(), "%")
 			} else if position.IsShort() {
 				msg = fmt.Sprintf("The current position is short, average cost: %.3f, and accumulated profit: %.3f%s", position.AverageCost.Float64(), position.AccumulatedProfit.Mul(fixedpoint.NewFromInt(-1)).Float64(), "%")
 			}
+
+			profits := position.GetProfitValues()
+			if len(profits) > s.MaxWindowSize {
+				profits = profits[len(profits)-s.MaxWindowSize:]
+			}
+
+			msg = msg + fmt.Sprintf("\nThe profits of the recent %d periods: [%s], and the holding period: %d",
+				s.MaxWindowSize,
+				utils.JoinFloatSlicePercentage([]float64(profits), " "),
+				position.GetHoldingPeriod())
 		}
 
 		session.SetAttribute("position_msg", &ttypes.Message{

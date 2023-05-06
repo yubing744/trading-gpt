@@ -29,14 +29,12 @@ type ExchangeEntity struct {
 
 	session       *bbgo.ExchangeSession
 	orderExecutor *bbgo.GeneralOrderExecutor
-	position      *types.Position
-
-	Status      types.StrategyStatus
-	BOLL        *indicator.BOLL
-	RSI         *indicator.RSI
-	KLineWindow *types.KLineWindow
-
-	vm *goja.Runtime
+	position      *PositionX
+	Status        types.StrategyStatus
+	BOLL          *indicator.BOLL
+	RSI           *indicator.RSI
+	KLineWindow   *types.KLineWindow
+	vm            *goja.Runtime
 }
 
 func NewExchangeEntity(
@@ -55,7 +53,7 @@ func NewExchangeEntity(
 		cfg:           cfg,
 		session:       session,
 		orderExecutor: orderExecutor,
-		position:      position,
+		position:      NewPositionX(position),
 		vm:            goja.New(),
 	}
 }
@@ -299,7 +297,7 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 
 		// Update postion accumulated Profit
 		if ent.position != nil {
-			ent.position.AccumulatedProfit = kline.GetClose().Sub(ent.position.AverageCost).Div(ent.position.AverageCost).Mul(fixedpoint.NewFromFloat(100.0))
+			ent.position.AddProfit(kline.GetClose().Sub(ent.position.AverageCost).Div(ent.position.AverageCost).Mul(fixedpoint.NewFromFloat(100.0)))
 		}
 
 		log.WithField("kline", kline).Info("kline closed")

@@ -7,6 +7,21 @@ import (
 	"github.com/c9s/bbgo/pkg/types"
 )
 
+func JoinFloatSlicePercentage[T float64 | float32](data []T, sep string) string {
+	var builder strings.Builder
+
+	total := len(data)
+	for i, item := range data {
+		builder.WriteString(fmt.Sprintf("%.3f%s", item, "%"))
+
+		if i < total-1 {
+			builder.WriteString(sep)
+		}
+	}
+
+	return builder.String()
+}
+
 func JoinFloatSlice[T float64 | float32](data []T, sep string) string {
 	var builder strings.Builder
 
