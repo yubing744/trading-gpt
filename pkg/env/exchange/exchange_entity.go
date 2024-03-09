@@ -7,7 +7,6 @@ import (
 
 	"github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/fixedpoint"
-	"github.com/c9s/bbgo/pkg/indicator"
 	"github.com/c9s/bbgo/pkg/types"
 	"github.com/dop251/goja"
 	"github.com/pkg/errors"
@@ -15,6 +14,7 @@ import (
 	"github.com/yubing744/trading-gpt/pkg/config"
 	"github.com/yubing744/trading-gpt/pkg/utils"
 
+	indicatorv2 "github.com/c9s/bbgo/pkg/indicator/v2"
 	ttypes "github.com/yubing744/trading-gpt/pkg/types"
 )
 
@@ -32,8 +32,8 @@ type ExchangeEntity struct {
 	position      *types.Position
 
 	Status      types.StrategyStatus
-	BOLL        *indicator.BOLL
-	RSI         *indicator.RSI
+	BOLL        *indicatorv2.BOLLStream
+	RSI         *indicatorv2.RSIStream
 	KLineWindow *types.KLineWindow
 
 	vm *goja.Runtime
@@ -347,7 +347,7 @@ func (ent *ExchangeEntity) setupIndicators() {
 	ent.KLineWindow = inc
 
 	// setup BOLL
-	indicators := ent.session.StandardIndicatorSet(ent.symbol)
+	indicators := ent.session.Indicators(ent.symbol)
 	ent.BOLL = indicators.BOLL(types.IntervalWindow{
 		Interval: ent.interval,
 		Window:   ent.cfg.WindowSize,
@@ -381,14 +381,17 @@ func (s *ExchangeEntity) OpenPosition(ctx context.Context, side types.SideType, 
 		}
 
 		orderForm := s.generateOrderForm(side, quantity, types.SideEffectTypeMarginBuy)
-		for _, arg := range args {
-			switch val := arg.(type) {
-			case *StopLossPrice:
-				orderForm.StopPrice = val.Value
-			case *TakeProfitPrice:
-				orderForm.TakePrice = val.Value
+
+		/*
+			for _, arg := range args {
+				switch val := arg.(type) {
+				case *StopLossPrice:
+					orderForm.StopPrice = val.Value
+				case *TakeProfitPrice:
+					orderForm.TakePrice = val.Value
+				}
 			}
-		}
+		*/
 
 		log.Infof("submit open position order %v", orderForm)
 		_, err := s.orderExecutor.SubmitOrders(ctx, orderForm)

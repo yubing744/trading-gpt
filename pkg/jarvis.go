@@ -102,6 +102,8 @@ func (s *Strategy) Subscribe(session *bbgo.ExchangeSession) {
 
 // This strategy simply spent all available quote currency to buy the symbol whenever kline gets closed
 func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, session *bbgo.ExchangeSession) error {
+	log.Info("Strategy_Run")
+
 	s.session = session
 
 	// calculate group id for orders
@@ -520,9 +522,9 @@ func (s *Strategy) handleBOLLChanged(ctx context.Context, session ttypes.ISessio
 	s.stashMsg(ctx, session, msg)
 
 	msg = fmt.Sprintf("The current UpBand is %.3f, and the current SMA is %.3f, and the current DownBand is %.3f",
-		boll.UpBand.Last(),
-		boll.SMA.Last(),
-		boll.DownBand.Last(),
+		boll.UpBand.Last(0),
+		boll.SMA.Last(0),
+		boll.DownBand.Last(0),
 	)
 
 	s.stashMsg(ctx, session, msg)
@@ -538,7 +540,7 @@ func (s *Strategy) handleRSIChanged(ctx context.Context, session ttypes.ISession
 
 	msg := fmt.Sprintf("RSI data changed: [%s], and the current RSI value is: %.3f",
 		utils.JoinFloatSlice([]float64(vals), " "),
-		rsi.Last(),
+		rsi.Last(0),
 	)
 
 	s.stashMsg(ctx, session, msg)

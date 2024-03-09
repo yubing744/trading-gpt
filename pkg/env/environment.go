@@ -90,7 +90,7 @@ func (env *Environment) run(ctx context.Context, ch chan *types.Event) error {
 			env.emitEvent(evt)
 		case <-ctx.Done():
 			log.Info("env context done")
-			break
+			return nil
 		}
 	}
 }

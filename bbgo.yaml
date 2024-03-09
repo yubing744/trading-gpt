@@ -9,7 +9,7 @@ sessions:
   okex:
     exchange: okex
     envVarPrefix: okex
-    margin: true
+    margin: false
     isolatedMargin: false
     isolatedMarginSymbol: OPUSDT
 
