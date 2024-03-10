@@ -13,7 +13,7 @@ test:
 	go test ./...
 
 run: build
-	./build/bbgo run --dotenv .env.local --config bbgo.yaml
+	./build/bbgo run --dotenv .env.local --config bbgo.yaml --lightweight false --no-sync false
 
 docker-build: build
 	docker build --tag yubing744/${NAME}:latest .

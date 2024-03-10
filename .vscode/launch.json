@@ -8,7 +8,7 @@
           "mode": "auto",
           "program": "${workspaceFolder}/cmd",
           "cwd": "${workspaceFolder}",
-          "args": [],
+          "args": ["run"],
           "env": {},
           "buildFlags": "",
           "showLog": true

@@ -1,9 +1,19 @@
 ---
+logging:
+  trade: true
+  order: true
+
 persistence:
-  redis:
-    host: 127.0.0.1  # The IP address or the hostname to your Redis server, 127.0.0.1 if same as BBGO  
-    port: 6379  # Port to Redis server, default 6379
-    db: 0  # DB number to use. You can set to another DB to avoid conflict if other applications are using Redis too.
+  json:
+    directory: "./data/"
+
+environment:
+  disableDefaultKLineSubscription: false
+  disableHistoryKLinePreload: false
+  disableStartupBalanceQuery: false
+  disableSessionTradeBuffer: false
+  disableMarketDataStore: false
+  maxSessionTradeBufferSize: false
 
 sessions:
   okex:
@@ -12,6 +22,22 @@ sessions:
     margin: false
     isolatedMargin: false
     isolatedMarginSymbol: OPUSDT
+
+sync:
+  # userDataStream is used to sync the trading data in real-time
+  # it uses the websocket connection to insert the trades
+  userDataStream:
+    trades: true
+    filledOrders: true
+
+  # since is the start date of your trading data
+  since: 2024-03-09
+
+  sessions:
+    - okex
+
+  symbols:
+    - OPUSDT
 
 exchangeStrategies:
 - on: okex
