@@ -339,7 +339,7 @@ func (ent *ExchangeEntity) setupIndicators() {
 	dataStore, ok := ent.session.MarketDataStore(ent.symbol)
 	if ok {
 		if klines, ok := dataStore.KLinesOfInterval(ent.interval); ok {
-			log.WithField("klines", klines).Warn("MarketDataStore_klines")
+			log.WithField("klines_length", len(*klines)).Warn("MarketDataStore_klines")
 
 			for _, k := range *klines {
 				inc.Add(k)
