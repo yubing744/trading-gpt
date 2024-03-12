@@ -389,16 +389,14 @@ func (s *ExchangeEntity) OpenPosition(ctx context.Context, side types.SideType, 
 
 		orderForm := s.generateOrderForm(side, quantity, types.SideEffectTypeMarginBuy)
 
-		/*
-			for _, arg := range args {
-				switch val := arg.(type) {
-				case *StopLossPrice:
-					orderForm.StopPrice = val.Value
-				case *TakeProfitPrice:
-					orderForm.TakePrice = val.Value
-				}
+		for _, arg := range args {
+			switch val := arg.(type) {
+			case *StopLossPrice:
+				orderForm.StopPrice = val.Value
+			case *TakeProfitPrice:
+				orderForm.TakePrice = val.Value
 			}
-		*/
+		}
 
 		log.Infof("submit open position order %v", orderForm)
 		_, err := s.orderExecutor.SubmitOrders(ctx, orderForm)
