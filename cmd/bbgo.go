@@ -1,12 +1,12 @@
-package main
+package cmd
 
 import (
-	"fmt"
-	"time"
+	"context"
 
 	"github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/cmd"
 
+	log "github.com/sirupsen/logrus"
 	_ "github.com/yubing744/trading-gpt/pkg"
 )
 
@@ -14,8 +14,11 @@ func init() {
 	bbgo.SetWrapperBinary()
 }
 
-func main() {
-	now := time.Now()
-	fmt.Printf("%s", now.Format("2006-01-02T15:04:05Z07:00"))
-	cmd.Execute()
+func Execute(ctx context.Context, args []string) {
+	rootCmd := cmd.RootCmd
+	rootCmd.SetArgs(args)
+
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
+		log.WithError(err).Fatalf("cannot execute command")
+	}
 }

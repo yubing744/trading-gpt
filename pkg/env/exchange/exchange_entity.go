@@ -28,7 +28,7 @@ type ExchangeEntity struct {
 	cfg *config.EnvExchangeConfig
 
 	session       *bbgo.ExchangeSession
-	orderExecutor *bbgo.GeneralOrderExecutor
+	orderExecutor bbgo.OrderExecutor
 	position      *types.Position
 
 	Status      types.StrategyStatus
@@ -45,7 +45,7 @@ func NewExchangeEntity(
 	leverage fixedpoint.Value,
 	cfg *config.EnvExchangeConfig,
 	session *bbgo.ExchangeSession,
-	orderExecutor *bbgo.GeneralOrderExecutor,
+	orderExecutor bbgo.OrderExecutor,
 	position *types.Position,
 ) *ExchangeEntity {
 	return &ExchangeEntity{
