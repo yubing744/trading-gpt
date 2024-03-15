@@ -14,7 +14,7 @@ import (
 	"github.com/yubing744/trading-gpt/pkg/config"
 	"github.com/yubing744/trading-gpt/pkg/utils"
 
-	indicatorv2 "github.com/c9s/bbgo/pkg/indicator/v2"
+	"github.com/c9s/bbgo/pkg/indicator"
 	ttypes "github.com/yubing744/trading-gpt/pkg/types"
 )
 
@@ -32,8 +32,8 @@ type ExchangeEntity struct {
 	position      *types.Position
 
 	Status      types.StrategyStatus
-	BOLL        *indicatorv2.BOLLStream
-	RSI         *indicatorv2.RSIStream
+	BOLL        *indicator.BOLL
+	RSI         *indicator.RSI
 	KLineWindow *types.KLineWindow
 
 	vm *goja.Runtime
@@ -98,11 +98,11 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 			Description: "开启做空仓位",
 			Args: []ttypes.ArgmentDesc{
 				{
-					Name:        "stop_loss",
+					Name:        "stop_loss_trigger_price",
 					Description: "Stop-loss trigger price",
 				},
 				{
-					Name:        "take_profit",
+					Name:        "take_profit_trigger_price",
 					Description: "Take-profit trigger price",
 				},
 			},
@@ -354,7 +354,7 @@ func (ent *ExchangeEntity) setupIndicators() {
 	ent.KLineWindow = inc
 
 	// setup BOLL
-	indicators := ent.session.Indicators(ent.symbol)
+	indicators := ent.session.StandardIndicatorSet(ent.symbol)
 	ent.BOLL = indicators.BOLL(types.IntervalWindow{
 		Interval: ent.interval,
 		Window:   ent.cfg.WindowSize,

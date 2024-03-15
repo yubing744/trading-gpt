@@ -6,6 +6,7 @@ require (
 	github.com/c9s/bbgo v1.43.1
 	github.com/dop251/goja v0.0.0-20230304130813-e2f543bf4b4c
 	github.com/google/uuid v1.4.0
+	github.com/joho/godotenv v1.5.1
 	github.com/kataras/go-events v0.0.3
 	github.com/larksuite/oapi-sdk-go/v3 v3.0.17
 	github.com/pkg/errors v0.9.1
@@ -74,7 +75,6 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jedib0t/go-pretty/v6 v6.5.3 // indirect
 	github.com/jmoiron/sqlx v1.3.4 // indirect
-	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect

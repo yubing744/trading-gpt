@@ -2,9 +2,11 @@ package integration
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/c9s/bbgo/pkg/bbgo"
+	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +15,7 @@ import (
 	"github.com/yubing744/trading-gpt/pkg/env/exchange"
 )
 
-func setupTestSession(t *testing.T) *bbgo.ExchangeSession {
+func setupTestSession(t *testing.T) (*bbgo.Environment, *bbgo.ExchangeSession) {
 	ctx := context.Background()
 
 	err := godotenv.Load("../../.env.local")
@@ -35,22 +37,29 @@ func setupTestSession(t *testing.T) *bbgo.ExchangeSession {
 
 	assert.NotNil(t, session)
 
-	return session
+	return environ, session
 }
 
 func TestExchangeEntityOpenPosition(t *testing.T) {
-	session := setupTestSession(t)
+	_, session := setupTestSession(t)
 
 	symbol := "OPUSDT"
 	market, ok := session.Market(symbol)
 	assert.True(t, ok)
+
+	ticker, err := session.Exchange.QueryTicker(context.Background(), symbol)
+	assert.NoError(t, err)
+
+	closePrice := ticker.Last
+	assert.True(t, ok)
+	fmt.Printf("lastPrice: %s\n", closePrice)
 
 	position := types.NewPositionFromMarket(market)
 
 	entity := exchange.NewExchangeEntity(
 		symbol,
 		"5s",
-		3,
+		fixedpoint.NewFromInt(3),
 		&config.EnvExchangeConfig{
 			WindowSize: 20,
 		},
@@ -61,6 +70,53 @@ func TestExchangeEntityOpenPosition(t *testing.T) {
 
 	assert.NotNil(t, entity)
 
-	err := entity.OpenPosition(context.Background(), "buy", 1)
+	err = entity.OpenPosition(context.Background(), types.SideTypeBuy, closePrice)
+	assert.NoError(t, err)
+}
+
+func TestExchangeEntityClosePosition50Percent(t *testing.T) {
+	environ, session := setupTestSession(t)
+
+	symbol := "OPUSDT"
+	market, ok := session.Market(symbol)
+	assert.True(t, ok)
+
+	ticker, err := session.Exchange.QueryTicker(context.Background(), symbol)
+	assert.NoError(t, err)
+
+	closePrice := ticker.Last
+	assert.True(t, ok)
+	fmt.Printf("lastPrice: %s\n", closePrice)
+
+	position := types.NewPositionFromMarket(market)
+
+	// Set fee rate
+	if session.MakerFeeRate.Sign() > 0 || session.TakerFeeRate.Sign() > 0 {
+		position.SetExchangeFeeRate(session.ExchangeName, types.ExchangeFee{
+			MakerFeeRate: session.MakerFeeRate,
+			TakerFeeRate: session.TakerFeeRate,
+		})
+	}
+
+	// Setup order executor
+	orderExecutor := bbgo.NewGeneralOrderExecutor(session, symbol, "bbgo_test", "bbgo_test_1", position)
+	orderExecutor.BindEnvironment(environ)
+	orderExecutor.Bind()
+
+	entity := exchange.NewExchangeEntity(
+		symbol,
+		"5s",
+		fixedpoint.NewFromInt(3),
+		&config.EnvExchangeConfig{
+			WindowSize: 20,
+		},
+		session,
+		orderExecutor,
+		position,
+	)
+
+	assert.NotNil(t, entity)
+
+	err = entity.ClosePosition(context.Background(), fixedpoint.NewFromFloat(0.5), closePrice)
 	assert.NoError(t, err)
 }
