@@ -564,9 +564,9 @@ func (s *Strategy) handlePositionChanged(ctx context.Context, session ttypes.ISe
 	if ok {
 		if !position.IsDust(kline.GetClose()) {
 			if position.IsLong() {
-				msg = fmt.Sprintf("The current position is long, average cost: %.3f, and accumulated profit: %.3f%s", position.AverageCost.Float64(), position.AccumulatedProfit.Float64(), "%")
+				msg = fmt.Sprintf("The current position is long with %dx leverage, average cost: %.3f, and accumulated profit: %.3f%s", s.Leverage.Int(), position.AverageCost.Float64(), position.AccumulatedProfit.Float64(), "%")
 			} else if position.IsShort() {
-				msg = fmt.Sprintf("The current position is short, average cost: %.3f, and accumulated profit: %.3f%s", position.AverageCost.Float64(), position.AccumulatedProfit.Mul(fixedpoint.NewFromInt(-1)).Float64(), "%")
+				msg = fmt.Sprintf("The current position is short with %dx leverage, average cost: %.3f, and accumulated profit: %.3f%s", s.Leverage.Int(), position.AverageCost.Float64(), position.AccumulatedProfit.Mul(fixedpoint.NewFromInt(-1)).Float64(), "%")
 			}
 		}
 
