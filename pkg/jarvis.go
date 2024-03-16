@@ -132,6 +132,7 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 
 	// Sync position to redis on trade
 	s.orderExecutor.TradeCollector().OnPositionUpdate(func(position *types.Position) {
+		log.WithField("position", position).Info("Strategy_OnPositionUpdate")
 		bbgo.Sync(ctx, s)
 	})
 

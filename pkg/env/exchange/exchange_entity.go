@@ -71,11 +71,11 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 			Description: "开启做多仓位",
 			Args: []ttypes.ArgmentDesc{
 				{
-					Name:        "stop_loss",
+					Name:        "stop_loss_trigge_price",
 					Description: "Stop-loss trigger price",
 				},
 				{
-					Name:        "take_profit",
+					Name:        "take_profit_trigger_price",
 					Description: "Take-profit trigger price",
 				},
 			},
