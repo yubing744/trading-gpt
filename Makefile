@@ -1,13 +1,13 @@
 .PHONY: clean build test run docker-*
 
 NAME=trading-gpt
-VERSION=0.10.0-beta13
+VERSION=0.10.4
 
 clean:
 	rm -rf build/*
 
 build: clean
-	CGO_ENABLED=0 go build -o ./build/bbgo ./cmd/bbgo.go
+	CGO_ENABLED=0 go build -o ./build/bbgo ./main.go
 
 build-linux:
 	CGO_ENABLED=0 GOOS=linux go build -o ./build/bbgo ./cmd/bbgo.go
@@ -16,13 +16,13 @@ test:
 	go test ./...
 
 run: build
-	./build/bbgo run --dotenv .env.local --config bbgo.yaml
+	./build/bbgo run --dotenv .env.local --config bbgo.yaml --lightweight false --no-sync false
 
 docker-build: build-linux
 	docker build --tag yubing744/${NAME}:latest .
 	docker tag yubing744/${NAME}:latest yubing744/${NAME}:${VERSION}
 
-docker-push: docker-build
+docker-push:
 	docker push yubing744/${NAME}:${VERSION}
 	docker push yubing744/${NAME}:latest
 

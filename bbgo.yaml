@@ -1,9 +1,19 @@
 ---
+logging:
+  trade: true
+  order: true
+
 persistence:
-  redis:
-    host: 127.0.0.1  # The IP address or the hostname to your Redis server, 127.0.0.1 if same as BBGO  
-    port: 6379  # Port to Redis server, default 6379
-    db: 0  # DB number to use. You can set to another DB to avoid conflict if other applications are using Redis too.
+  json:
+    directory: "./data/"
+
+environment:
+  disableDefaultKLineSubscription: false
+  disableHistoryKLinePreload: false
+  disableStartupBalanceQuery: false
+  disableSessionTradeBuffer: false
+  disableMarketDataStore: false
+  maxSessionTradeBufferSize: false
 
 sessions:
   okex:
@@ -11,7 +21,23 @@ sessions:
     envVarPrefix: okex
     margin: true
     isolatedMargin: false
-    isolatedMarginSymbol: OPUSDT
+    isolatedMarginSymbol: JUPUSDT
+
+sync:
+  # userDataStream is used to sync the trading data in real-time
+  # it uses the websocket connection to insert the trades
+  userDataStream:
+    trades: true
+    filledOrders: true
+
+  # since is the start date of your trading data
+  since: 2024-03-09
+
+  sessions:
+    - okex
+
+  symbols:
+    - JUPUSDT
 
 exchangeStrategies:
 - on: okex
@@ -30,16 +56,16 @@ exchangeStrategies:
       openai:
         enabled: true
         name: "AI"
-        model: "gpt-3.5-turbo-0301"
-        temperature: 0.1
+        model: "gpt-4-1106-preview"
+        temperature: 0.5
         backgroup: "I want you to act as an trading assistant. The trading assistant supports registering entities, analyzes market data provided by entities, and generates entity control commands. After receiving the command, the entity will report the result of the command execution. The goal of the transaction assistant is: to maximize returns by generating entity control commands."
         max_context_length: 4097
     notify:
       feishu_hook:
         enabled: true
         url: "https://open.feishu.cn/open-apis/bot/v2/hook/e926c8b5-50e6-41e8-8f70-12a8631dfd93"
-    symbol: OPUSDT
-    interval: 5m
+    symbol: JUPUSDT
+    interval: 1m
     leverage: 3
     max_window_size: 20
     strategy: "Trading on the right side, trailing stop loss 3%, trailing stop profit 10%."

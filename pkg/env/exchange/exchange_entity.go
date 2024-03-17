@@ -7,7 +7,6 @@ import (
 
 	"github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/fixedpoint"
-	"github.com/c9s/bbgo/pkg/indicator"
 	"github.com/c9s/bbgo/pkg/types"
 	"github.com/dop251/goja"
 	"github.com/pkg/errors"
@@ -15,6 +14,7 @@ import (
 	"github.com/yubing744/trading-gpt/pkg/config"
 	"github.com/yubing744/trading-gpt/pkg/utils"
 
+	"github.com/c9s/bbgo/pkg/indicator"
 	ttypes "github.com/yubing744/trading-gpt/pkg/types"
 )
 
@@ -28,13 +28,15 @@ type ExchangeEntity struct {
 	cfg *config.EnvExchangeConfig
 
 	session       *bbgo.ExchangeSession
-	orderExecutor *bbgo.GeneralOrderExecutor
+	orderExecutor bbgo.OrderExecutor
 	position      *PositionX
-	Status        types.StrategyStatus
-	BOLL          *indicator.BOLL
-	RSI           *indicator.RSI
-	KLineWindow   *types.KLineWindow
-	vm            *goja.Runtime
+
+	Status      types.StrategyStatus
+	BOLL        *indicator.BOLL
+	RSI         *indicator.RSI
+	KLineWindow *types.KLineWindow
+
+	vm *goja.Runtime
 }
 
 func NewExchangeEntity(
@@ -43,7 +45,7 @@ func NewExchangeEntity(
 	leverage fixedpoint.Value,
 	cfg *config.EnvExchangeConfig,
 	session *bbgo.ExchangeSession,
-	orderExecutor *bbgo.GeneralOrderExecutor,
+	orderExecutor bbgo.OrderExecutor,
 	position *types.Position,
 ) *ExchangeEntity {
 	return &ExchangeEntity{
@@ -69,12 +71,12 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 			Description: "open long position",
 			Args: []ttypes.ArgmentDesc{
 				{
-					Name:        "stop_loss",
-					Description: "stop-loss trigger price",
+					Name:        "stop_loss_trigge_price",
+					Description: "Stop-loss trigger price",
 				},
 				{
-					Name:        "take_profit",
-					Description: "take-profit trigger price",
+					Name:        "take_profit_trigger_price",
+					Description: "Take-profit trigger price",
 				},
 			},
 			Samples: []ttypes.Sample{
@@ -96,12 +98,12 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 			Description: "open short position",
 			Args: []ttypes.ArgmentDesc{
 				{
-					Name:        "stop_loss",
-					Description: "stop-loss trigger price",
+					Name:        "stop_loss_trigger_price",
+					Description: "Stop-loss trigger price",
 				},
 				{
-					Name:        "take_profit",
-					Description: "take-profit trigger price",
+					Name:        "take_profit_trigger_price",
+					Description: "Take-profit trigger price",
 				},
 			},
 			Samples: []ttypes.Sample{
@@ -297,7 +299,8 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 
 		// Update postion accumulated Profit
 		if ent.position != nil {
-			ent.position.AddProfit(kline.GetClose().Sub(ent.position.AverageCost).Div(ent.position.AverageCost).Mul(fixedpoint.NewFromFloat(100.0)))
+			accumulatedProfit := kline.GetClose().Sub(ent.position.AverageCost).Div(ent.position.AverageCost).Mul(fixedpoint.NewFromFloat(100.0)).Mul(ent.leverage)
+			ent.position.AddProfit(accumulatedProfit)
 		}
 
 		log.WithField("kline", kline).Info("kline closed")
@@ -337,11 +340,18 @@ func (ent *ExchangeEntity) setupIndicators() {
 	dataStore, ok := ent.session.MarketDataStore(ent.symbol)
 	if ok {
 		if klines, ok := dataStore.KLinesOfInterval(ent.interval); ok {
+			log.WithField("klines_length", len(*klines)).Warn("MarketDataStore_klines")
+
 			for _, k := range *klines {
 				inc.Add(k)
 			}
+		} else {
+			log.Warn("MarketDataStore_klines_not_found")
 		}
+	} else {
+		log.Warn("MarketDataStore_not_found")
 	}
+
 	ent.KLineWindow = inc
 
 	// setup BOLL
@@ -379,6 +389,7 @@ func (s *ExchangeEntity) OpenPosition(ctx context.Context, side types.SideType, 
 		}
 
 		orderForm := s.generateOrderForm(side, quantity, types.SideEffectTypeMarginBuy)
+
 		for _, arg := range args {
 			switch val := arg.(type) {
 			case *StopLossPrice:

@@ -45,7 +45,7 @@ func (entity *FearAndGreedEntity) Run(ctx context.Context, ch chan *types.Event)
 		select {
 		case <-ctx.Done():
 			log.Info("fng entity done")
-			break
+			return
 		case <-timer.C:
 			err := entity.updateIndex(ctx, ch)
 			if err != nil {
