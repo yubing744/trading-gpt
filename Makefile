@@ -1,7 +1,7 @@
 .PHONY: clean build test run docker-* tag release
 
 NAME=trading-gpt
-VERSION=0.11.0
+VERSION=0.11.1
 
 clean:
 	rm -rf build/*
@@ -10,7 +10,7 @@ build: clean
 	CGO_ENABLED=0 go build -o ./build/bbgo ./main.go
 
 build-linux:
-	CGO_ENABLED=0 GOOS=linux go build -o ./build/bbgo ./cmd/bbgo.go
+	CGO_ENABLED=0 GOOS=linux go build -o ./build/bbgo ./main.go
 
 test:
 	go test ./...
