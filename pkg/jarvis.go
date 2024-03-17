@@ -15,14 +15,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/yubing744/trading-gpt/pkg/agent"
-	"github.com/yubing744/trading-gpt/pkg/agent/chatgpt"
-	"github.com/yubing744/trading-gpt/pkg/agent/keeper"
-	"github.com/yubing744/trading-gpt/pkg/agent/openai"
 	"github.com/yubing744/trading-gpt/pkg/chat"
 	"github.com/yubing744/trading-gpt/pkg/chat/feishu"
 	"github.com/yubing744/trading-gpt/pkg/prompt"
 
+	"github.com/yubing744/trading-gpt/pkg/agents"
+	"github.com/yubing744/trading-gpt/pkg/agents/keeper"
+	"github.com/yubing744/trading-gpt/pkg/agents/trading"
 	"github.com/yubing744/trading-gpt/pkg/config"
 	"github.com/yubing744/trading-gpt/pkg/env"
 	"github.com/yubing744/trading-gpt/pkg/env/exchange"
@@ -69,7 +68,7 @@ type Strategy struct {
 
 	// jarvis model
 	world        *env.Environment
-	agent        agent.IAgent
+	agent        agents.IAgent
 	chatSessions *chat.ChatSessions
 }
 
@@ -187,7 +186,7 @@ func (s *Strategy) setupWorld(ctx context.Context) error {
 }
 
 func (s *Strategy) setupAgent(ctx context.Context) error {
-	var openaiAgent *openai.OpenAIAgent
+	var openaiAgent *trading.TradingAgent
 	openaiCfg := &s.Agent.OpenAI
 	if openaiCfg != nil && openaiCfg.Enabled {
 		token := os.Getenv("AGENT_OPENAI_TOKEN")
@@ -196,36 +195,16 @@ func (s *Strategy) setupAgent(ctx context.Context) error {
 		}
 
 		openaiCfg.Token = token
-		openaiAgent = openai.NewOpenAIAgent(openaiCfg)
+		openaiAgent := trading.NewTradingAgent(openaiCfg)
 		s.agent = openaiAgent
-	}
-
-	var chatgptAgent *chatgpt.ChatGPTAgent
-	chatgptCfg := &s.Agent.ChatGPT
-	if chatgptCfg != nil && chatgptCfg.Enabled {
-		email := os.Getenv("AGENT_CHATGPT_EMAIL")
-		password := os.Getenv("AGENT_CHATGPT_PASSWORD")
-		if email == "" || password == "" {
-			return errors.New("AGENT_CHATGPT_EMAIL or AGENT_CHATGPT_PASSWORD not set in .env.local")
-		}
-
-		chatgptCfg.Email = email
-		chatgptCfg.Password = password
-
-		chatgptAgent = chatgpt.NewChatGPTAgent(chatgptCfg)
-		s.agent = chatgptAgent
 	}
 
 	keeperCfg := &s.Agent.Keeper
 	if keeperCfg != nil && keeperCfg.Enabled {
-		agents := make(map[string]agent.IAgent, 0)
+		agents := make(map[string]agents.IAgent, 0)
 
 		if openaiCfg != nil && openaiCfg.Enabled {
 			agents["openai"] = openaiAgent
-		}
-
-		if chatgptCfg != nil && chatgptCfg.Enabled {
-			agents["chatgpt"] = chatgptAgent
 		}
 
 		agentKeeper := keeper.NewAgentKeeper(keeperCfg, agents)

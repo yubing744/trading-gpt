@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yubing744/trading-gpt/pkg/agent"
+	agent "github.com/yubing744/trading-gpt/pkg/agents"
 	"github.com/yubing744/trading-gpt/pkg/config"
 	"github.com/yubing744/trading-gpt/pkg/types"
 )
