@@ -1,7 +1,7 @@
-.PHONY: clean build test run docker-*
+.PHONY: clean build test run docker-* tag release
 
 NAME=trading-gpt
-VERSION=0.10.4
+VERSION=0.11.0
 
 clean:
 	rm -rf build/*
@@ -19,8 +19,8 @@ run: build
 	./build/bbgo run --dotenv .env.local --config bbgo.yaml --lightweight false --no-sync false
 
 docker-build: build-linux
-	docker build --tag yubing744/${NAME}:latest .
-	docker tag yubing744/${NAME}:latest yubing744/${NAME}:${VERSION}
+	docker build --tag yubing744/${NAME}:${VERSION} .
+	docker tag yubing744/${NAME}:${VERSION} yubing744/${NAME}:latest
 
 docker-push:
 	docker push yubing744/${NAME}:${VERSION}
@@ -34,3 +34,9 @@ docker-stop:
 
 docker-logs:
 	docker logs -f --tail 100 ${NAME}
+
+tag:
+	git tag -m "release v${VERSION}" v${VERSION}
+	git push --tags
+
+release: docker-build tag docker-push
