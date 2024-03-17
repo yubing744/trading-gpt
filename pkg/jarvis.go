@@ -15,14 +15,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/yubing744/trading-gpt/pkg/agent"
-	"github.com/yubing744/trading-gpt/pkg/agent/chatgpt"
-	"github.com/yubing744/trading-gpt/pkg/agent/keeper"
-	"github.com/yubing744/trading-gpt/pkg/agent/openai"
 	"github.com/yubing744/trading-gpt/pkg/chat"
 	"github.com/yubing744/trading-gpt/pkg/chat/feishu"
 	"github.com/yubing744/trading-gpt/pkg/prompt"
 
+	"github.com/yubing744/trading-gpt/pkg/agents"
+	"github.com/yubing744/trading-gpt/pkg/agents/keeper"
+	"github.com/yubing744/trading-gpt/pkg/agents/trading"
 	"github.com/yubing744/trading-gpt/pkg/config"
 	"github.com/yubing744/trading-gpt/pkg/env"
 	"github.com/yubing744/trading-gpt/pkg/env/exchange"
@@ -33,6 +32,8 @@ import (
 	feishu_hook "github.com/yubing744/trading-gpt/pkg/notify/feishu-hook"
 	ttypes "github.com/yubing744/trading-gpt/pkg/types"
 )
+
+const MaxRetryTime = 3
 
 // ID is the unique strategy ID, it needs to be in all lower case
 // For example, grid strategy uses "grid"
@@ -69,7 +70,7 @@ type Strategy struct {
 
 	// jarvis model
 	world        *env.Environment
-	agent        agent.IAgent
+	agent        agents.IAgent
 	chatSessions *chat.ChatSessions
 }
 
@@ -187,7 +188,7 @@ func (s *Strategy) setupWorld(ctx context.Context) error {
 }
 
 func (s *Strategy) setupAgent(ctx context.Context) error {
-	var openaiAgent *openai.OpenAIAgent
+	var openaiAgent *trading.TradingAgent
 	openaiCfg := &s.Agent.OpenAI
 	if openaiCfg != nil && openaiCfg.Enabled {
 		token := os.Getenv("AGENT_OPENAI_TOKEN")
@@ -196,36 +197,16 @@ func (s *Strategy) setupAgent(ctx context.Context) error {
 		}
 
 		openaiCfg.Token = token
-		openaiAgent = openai.NewOpenAIAgent(openaiCfg)
+		openaiAgent := trading.NewTradingAgent(openaiCfg)
 		s.agent = openaiAgent
-	}
-
-	var chatgptAgent *chatgpt.ChatGPTAgent
-	chatgptCfg := &s.Agent.ChatGPT
-	if chatgptCfg != nil && chatgptCfg.Enabled {
-		email := os.Getenv("AGENT_CHATGPT_EMAIL")
-		password := os.Getenv("AGENT_CHATGPT_PASSWORD")
-		if email == "" || password == "" {
-			return errors.New("AGENT_CHATGPT_EMAIL or AGENT_CHATGPT_PASSWORD not set in .env.local")
-		}
-
-		chatgptCfg.Email = email
-		chatgptCfg.Password = password
-
-		chatgptAgent = chatgpt.NewChatGPTAgent(chatgptCfg)
-		s.agent = chatgptAgent
 	}
 
 	keeperCfg := &s.Agent.Keeper
 	if keeperCfg != nil && keeperCfg.Enabled {
-		agents := make(map[string]agent.IAgent, 0)
+		agents := make(map[string]agents.IAgent, 0)
 
 		if openaiCfg != nil && openaiCfg.Enabled {
 			agents["openai"] = openaiAgent
-		}
-
-		if chatgptCfg != nil && chatgptCfg.Enabled {
-			agents["chatgpt"] = chatgptAgent
 		}
 
 		agentKeeper := keeper.NewAgentKeeper(keeperCfg, agents)
@@ -257,7 +238,7 @@ func (s *Strategy) setupNotify(ctx context.Context) error {
 		s.setupAdminSession(ctx, chatSession)
 		s.agentAction(ctx, chatSession, []*ttypes.Message{{
 			Text: "wait",
-		}})
+		}}, MaxRetryTime)
 
 		log.Info("init feishu notify channel ok!")
 	}
@@ -269,7 +250,7 @@ func (s *Strategy) setupNotify(ctx context.Context) error {
 		s.setupAdminSession(ctx, chatSession)
 		s.agentAction(ctx, chatSession, []*ttypes.Message{{
 			Text: "wait",
-		}})
+		}}, MaxRetryTime)
 
 		log.Info("init feishu hook notify channel ok!")
 	}
@@ -368,7 +349,7 @@ func (s *Strategy) emergencyClosePosition(ctx context.Context, chatSession ttype
 	s.replyMsg(ctx, chatSession, fmt.Sprintf("emergency close position, for %s", reason))
 }
 
-func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession, msgs []*ttypes.Message) {
+func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession, msgs []*ttypes.Message, retryTime int) {
 	s.replyMsg(ctx, chatSession, fmt.Sprintf("The agent start action at %s, and the msgs:", time.Now().Format(time.RFC3339)))
 	for _, msg := range msgs {
 		s.replyMsg(ctx, chatSession, msg.Text)
@@ -393,7 +374,7 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 	if len(resp.Texts) > 0 {
 		resultText := strings.Join(resp.Texts, "")
 
-		if strings.HasPrefix(resultText, "{") && strings.Contains(resultText, "thoughts") {
+		if strings.HasPrefix(resultText, "{") || strings.Contains(resultText, "```json") {
 			result, err := utils.ParseResult(resultText)
 			if err != nil {
 				log.WithError(err).Error("parse resp error")
@@ -432,7 +413,22 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 
 				if err != nil {
 					log.WithError(err).Error("env send cmd error")
-					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: %s failed to execute by entity, reason: %s", action.JSON(), err.Error()))
+					errMsg := fmt.Sprintf("Command: %s failed to execute by entity, reason: %s", action.JSON(), err.Error())
+					s.feedbackCmdExecuteResult(ctx, chatSession, errMsg)
+
+					if retryTime >= 0 {
+						time.Sleep(time.Second * 5)
+
+						newMsgs := append(msgs, []*ttypes.Message{
+							{
+								Text: errMsg,
+							},
+							{
+								Text: "Please try to fix the above error by responding with JSON again.",
+							},
+						}...)
+						s.agentAction(ctx, chatSession, newMsgs, retryTime-1)
+					}
 				} else {
 					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: %s executed successfully by entity.", action.JSON()))
 				}
@@ -445,7 +441,7 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 
 func (s *Strategy) handleChatMessage(ctx context.Context, chatSession *chat.ChatSession, msg *ttypes.Message) {
 	log.WithField("msg", msg).Info("new message")
-	s.agentAction(ctx, chatSession, []*ttypes.Message{msg})
+	s.agentAction(ctx, chatSession, []*ttypes.Message{msg}, MaxRetryTime)
 }
 
 func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, evt *ttypes.Event) {
@@ -627,7 +623,7 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 			Text: fmt.Sprintf(prompt.Thought, strings.Join(actionTips, "\n"), s.Strategy),
 		})
 
-		s.agentAction(ctx, session, tempMsgs)
+		s.agentAction(ctx, session, tempMsgs, MaxRetryTime)
 	}
 
 	session.RemoveAttribute("tempMsgs")

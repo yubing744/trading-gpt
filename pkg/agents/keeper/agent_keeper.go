@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/yubing744/trading-gpt/pkg/agent"
+	agent "github.com/yubing744/trading-gpt/pkg/agents"
 	"github.com/yubing744/trading-gpt/pkg/config"
 	"github.com/yubing744/trading-gpt/pkg/types"
 )

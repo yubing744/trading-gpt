@@ -1,4 +1,4 @@
-package openai
+package trading
 
 import (
 	"context"
@@ -7,11 +7,13 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/yubing744/trading-gpt/pkg/agent"
+	"github.com/tmc/langchaingo/llms"
+	"github.com/tmc/langchaingo/llms/openai"
+	"github.com/tmc/langchaingo/schema"
+
+	"github.com/yubing744/trading-gpt/pkg/agents"
 	"github.com/yubing744/trading-gpt/pkg/config"
 	"github.com/yubing744/trading-gpt/pkg/types"
-
-	gogpt "github.com/sashabaranov/go-openai"
 )
 
 const (
@@ -20,8 +22,8 @@ const (
 
 var log = logrus.WithField("agent", "openai")
 
-type OpenAIAgent struct {
-	client           *gogpt.Client
+type TradingAgent struct {
+	llm              llms.Model
 	name             string
 	model            string
 	temperature      float32
@@ -31,11 +33,16 @@ type OpenAIAgent struct {
 	maxContextLength int
 }
 
-func NewOpenAIAgent(cfg *config.AgentOpenAIConfig) *OpenAIAgent {
-	client := gogpt.NewClient(cfg.Token)
+func NewTradingAgent(cfg *config.AgentOpenAIConfig) *TradingAgent {
+	llm, err := openai.New(
+		openai.WithToken(cfg.Token),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	return &OpenAIAgent{
-		client:           client,
+	return &TradingAgent{
+		llm:              llm,
 		name:             cfg.Name,
 		model:            cfg.Model,
 		temperature:      cfg.Temperature,
@@ -46,7 +53,7 @@ func NewOpenAIAgent(cfg *config.AgentOpenAIConfig) *OpenAIAgent {
 	}
 }
 
-func (agent *OpenAIAgent) toPrompt(msgs []*types.Message) string {
+func (agent *TradingAgent) toPrompt(msgs []*types.Message) string {
 	var builder strings.Builder
 
 	for _, msg := range msgs {
@@ -59,7 +66,7 @@ func (agent *OpenAIAgent) toPrompt(msgs []*types.Message) string {
 	return builder.String()
 }
 
-func (agent *OpenAIAgent) splitChatsByLength(sessionChats []string, maxLength int) []string {
+func (agent *TradingAgent) splitChatsByLength(sessionChats []string, maxLength int) []string {
 	length := 0
 
 	for i := len(sessionChats) - 1; i >= 0; i-- {
@@ -73,7 +80,7 @@ func (agent *OpenAIAgent) splitChatsByLength(sessionChats []string, maxLength in
 	return sessionChats
 }
 
-func (agent *OpenAIAgent) GenPrompt(sessionChats []string, msgs []*types.Message) (string, error) {
+func (agent *TradingAgent) GenPrompt(sessionChats []string, msgs []*types.Message) (string, error) {
 	var builder strings.Builder
 
 	// Backgougroup
@@ -117,34 +124,15 @@ func (agent *OpenAIAgent) GenPrompt(sessionChats []string, msgs []*types.Message
 	return prompt, nil
 }
 
-func (agent *OpenAIAgent) GenChatgptMessages(sessionChats []string, msgs []*types.Message) ([]gogpt.ChatCompletionMessage, error) {
-	chatgptMsgs := make([]gogpt.ChatCompletionMessage, 0)
-
-	// Backgougroup
-	chatgptMsgs = append(chatgptMsgs, gogpt.ChatCompletionMessage{
-		Role:    "system",
-		Content: agent.backgroup,
-	})
-
-	for _, msg := range msgs {
-		chatgptMsgs = append(chatgptMsgs, gogpt.ChatCompletionMessage{
-			Role:    "user",
-			Content: msg.Text,
-		})
-	}
-
-	return chatgptMsgs, nil
-}
-
-func (a *OpenAIAgent) GetName() string {
+func (a *TradingAgent) GetName() string {
 	return fmt.Sprintf("openai-%s", a.model)
 }
 
-func (a *OpenAIAgent) SetBackgroup(backgroup string) {
+func (a *TradingAgent) SetBackgroup(backgroup string) {
 	a.backgroup = backgroup
 }
 
-func (a *OpenAIAgent) RegisterActions(ctx context.Context, name string, actions []*types.ActionDesc) {
+func (a *TradingAgent) RegisterActions(ctx context.Context, name string, actions []*types.ActionDesc) {
 	for _, def := range actions {
 		a.actions[def.Name] = def
 
@@ -160,16 +148,16 @@ func (a *OpenAIAgent) RegisterActions(ctx context.Context, name string, actions 
 	}
 }
 
-func (a *OpenAIAgent) Start() error {
+func (a *TradingAgent) Start() error {
 	return nil
 }
 
-func (a *OpenAIAgent) Stop() {
+func (a *TradingAgent) Stop() {
 
 }
 
-func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, msgs []*types.Message) (*agent.GenResult, error) {
-	gptMsgs, err := a.GenChatgptMessages(session.GetChats(), msgs)
+func (a *TradingAgent) GenActions(ctx context.Context, session types.ISession, msgs []*types.Message) (*agents.GenResult, error) {
+	gptMsgs, err := a.GenLLMMessages(session.GetChats(), msgs)
 	if err != nil {
 		return nil, err
 	}
@@ -178,23 +166,21 @@ func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, ms
 		WithField("chatgpt msgs", gptMsgs).
 		Infof("gen chatgpt messages")
 
-	req := gogpt.ChatCompletionRequest{
-		Model:       a.model,
-		Temperature: a.temperature,
-		Messages:    gptMsgs,
-	}
+	callOpts := make([]llms.CallOption, 0)
+	callOpts = append(callOpts, llms.WithModel(a.model))
+	callOpts = append(callOpts, llms.WithTemperature(float64(a.temperature)))
 
-	resp, err := a.client.CreateChatCompletion(ctx, req)
+	resp, err := a.llm.GenerateContent(ctx, gptMsgs, callOpts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "create CreateCompletionStream error")
 	}
 
-	result := &agent.GenResult{
+	result := &agents.GenResult{
 		Texts: make([]string, 0),
 	}
 
 	if len(resp.Choices) > 0 {
-		text := resp.Choices[0].Message.Content
+		text := resp.Choices[0].Content
 		log.WithField("text", text).Info("resp.Choices[0].Text")
 
 		result.Texts = append(result.Texts, text)
@@ -209,4 +195,31 @@ func (a *OpenAIAgent) GenActions(ctx context.Context, session types.ISession, ms
 	}
 
 	return result, nil
+}
+
+func (agent *TradingAgent) GenLLMMessages(sessionChats []string, msgs []*types.Message) ([]llms.MessageContent, error) {
+	llmMsgs := make([]llms.MessageContent, 0)
+
+	// Backgougroup
+	llmMsgs = append(llmMsgs, llms.MessageContent{
+		Role: schema.ChatMessageTypeSystem,
+		Parts: []llms.ContentPart{
+			llms.TextContent{
+				Text: agent.backgroup,
+			},
+		},
+	})
+
+	for _, msg := range msgs {
+		llmMsgs = append(llmMsgs, llms.MessageContent{
+			Role: schema.ChatMessageTypeSystem,
+			Parts: []llms.ContentPart{
+				llms.TextContent{
+					Text: msg.Text,
+				},
+			},
+		})
+	}
+
+	return llmMsgs, nil
 }
