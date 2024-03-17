@@ -68,4 +68,4 @@ exchangeStrategies:
     interval: 1m
     leverage: 3
     max_window_size: 20
-    prompt: "Trading strategy: Trading on the right side, trailing stop loss 3%, trailing stop profit 10%."
+    strategy: "Trading on the right side, trailing stop loss 3%, trailing stop profit 10%."

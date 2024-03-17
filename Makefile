@@ -9,13 +9,16 @@ clean:
 build: clean
 	CGO_ENABLED=0 go build -o ./build/bbgo ./main.go
 
+build-linux:
+	CGO_ENABLED=0 GOOS=linux go build -o ./build/bbgo ./cmd/bbgo.go
+
 test:
 	go test ./...
 
 run: build
 	./build/bbgo run --dotenv .env.local --config bbgo.yaml --lightweight false --no-sync false
 
-docker-build: build
+docker-build: build-linux
 	docker build --tag yubing744/${NAME}:latest .
 	docker tag yubing744/${NAME}:latest yubing744/${NAME}:${VERSION}
 

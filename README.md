@@ -69,7 +69,7 @@ exchangeStrategies:
         enabled: true
         name: "AI"
         model: "gpt-3.5-turbo-0301"
-        temperature: 0.5
+        temperature: 0.1
         backgroup: "I want you to act as an trading assistant. The trading assistant supports registering entities, analyzes market data provided by entities, and generates entity control commands. After receiving the command, the entity will report the result of the command execution. The goal of the transaction assistant is: to maximize returns by generating entity control commands."
         max_context_length: 4097
     notify:
@@ -80,7 +80,7 @@ exchangeStrategies:
     interval: 5m
     leverage: 3
     max_window_size: 20
-    prompt: "Your natural language strategy"
+    strategy: "Your natural language strategy"
 ```
 
 Install redis and config port 6379

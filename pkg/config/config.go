@@ -16,5 +16,5 @@ type Config struct {
 	Agent  AgentConfig  `json:"agent"`
 	Env    EnvConfig    `json:"env"`
 
-	Prompt string `json:"prompt"`
+	Strategy string `json:"strategy"`
 }
