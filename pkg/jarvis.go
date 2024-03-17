@@ -33,6 +33,8 @@ import (
 	ttypes "github.com/yubing744/trading-gpt/pkg/types"
 )
 
+const MaxRetryTime = 3
+
 // ID is the unique strategy ID, it needs to be in all lower case
 // For example, grid strategy uses "grid"
 const ID = "jarvis"
@@ -236,7 +238,7 @@ func (s *Strategy) setupNotify(ctx context.Context) error {
 		s.setupAdminSession(ctx, chatSession)
 		s.agentAction(ctx, chatSession, []*ttypes.Message{{
 			Text: "wait",
-		}})
+		}}, MaxRetryTime)
 
 		log.Info("init feishu notify channel ok!")
 	}
@@ -248,7 +250,7 @@ func (s *Strategy) setupNotify(ctx context.Context) error {
 		s.setupAdminSession(ctx, chatSession)
 		s.agentAction(ctx, chatSession, []*ttypes.Message{{
 			Text: "wait",
-		}})
+		}}, MaxRetryTime)
 
 		log.Info("init feishu hook notify channel ok!")
 	}
@@ -347,7 +349,7 @@ func (s *Strategy) emergencyClosePosition(ctx context.Context, chatSession ttype
 	s.replyMsg(ctx, chatSession, fmt.Sprintf("emergency close position, for %s", reason))
 }
 
-func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession, msgs []*ttypes.Message) {
+func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession, msgs []*ttypes.Message, retryTime int) {
 	s.replyMsg(ctx, chatSession, fmt.Sprintf("The agent start action at %s, and the msgs:", time.Now().Format(time.RFC3339)))
 	for _, msg := range msgs {
 		s.replyMsg(ctx, chatSession, msg.Text)
@@ -372,7 +374,7 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 	if len(resp.Texts) > 0 {
 		resultText := strings.Join(resp.Texts, "")
 
-		if strings.HasPrefix(resultText, "{") && strings.Contains(resultText, "thoughts") {
+		if strings.HasPrefix(resultText, "{") || strings.Contains(resultText, "```json") {
 			result, err := utils.ParseResult(resultText)
 			if err != nil {
 				log.WithError(err).Error("parse resp error")
@@ -411,7 +413,22 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 
 				if err != nil {
 					log.WithError(err).Error("env send cmd error")
-					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: %s failed to execute by entity, reason: %s", action.JSON(), err.Error()))
+					errMsg := fmt.Sprintf("Command: %s failed to execute by entity, reason: %s", action.JSON(), err.Error())
+					s.feedbackCmdExecuteResult(ctx, chatSession, errMsg)
+
+					if retryTime >= 0 {
+						time.Sleep(time.Second * 5)
+
+						newMsgs := append(msgs, []*ttypes.Message{
+							{
+								Text: errMsg,
+							},
+							{
+								Text: "Please try to fix the above error by responding with JSON again.",
+							},
+						}...)
+						s.agentAction(ctx, chatSession, newMsgs, retryTime-1)
+					}
 				} else {
 					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: %s executed successfully by entity.", action.JSON()))
 				}
@@ -424,7 +441,7 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 
 func (s *Strategy) handleChatMessage(ctx context.Context, chatSession *chat.ChatSession, msg *ttypes.Message) {
 	log.WithField("msg", msg).Info("new message")
-	s.agentAction(ctx, chatSession, []*ttypes.Message{msg})
+	s.agentAction(ctx, chatSession, []*ttypes.Message{msg}, MaxRetryTime)
 }
 
 func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, evt *ttypes.Event) {
@@ -606,7 +623,7 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 			Text: fmt.Sprintf(prompt.Thought, strings.Join(actionTips, "\n"), s.Strategy),
 		})
 
-		s.agentAction(ctx, session, tempMsgs)
+		s.agentAction(ctx, session, tempMsgs, MaxRetryTime)
 	}
 
 	session.RemoveAttribute("tempMsgs")

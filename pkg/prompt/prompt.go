@@ -17,6 +17,7 @@ Performance Evaluation:
 Constraints:
 1. Exclusively use the commands listed in double quotes e.g. "command name"
 2. The command's parameters only support strings. If the parameters are of other types, please convert them all to strings.
+3、Please remember to only reply in JSON format, no other explanation is required.
 
 You should only respond in JSON format as described below 
 Response Format: 
@@ -30,5 +31,5 @@ Response Format:
     "action": {"name": "command name", "args": {"arg name": "value"}}
 }
 
-Ensure the response can be parsed by a JSON decoder
+Ensure the response can be parsed by golang json.Unmarshal
 `
