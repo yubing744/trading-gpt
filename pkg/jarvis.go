@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/c9s/bbgo/pkg/bbgo"
-	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/indicator"
 	"github.com/c9s/bbgo/pkg/types"
 	"github.com/google/uuid"
@@ -574,11 +573,7 @@ func (s *Strategy) handlePositionChanged(ctx context.Context, session ttypes.ISe
 	kline, ok := s.getKline(session)
 	if ok {
 		if position.IsOpened(kline.GetClose()) {
-			if position.IsLong() {
-				msg = fmt.Sprintf("The current position is long with %dx leverage, average cost: %.3f, and accumulated profit: %.3f%s", s.Leverage.Int(), position.AverageCost.Float64(), position.AccumulatedProfit.Float64(), "%")
-			} else if position.IsShort() {
-				msg = fmt.Sprintf("The current position is short with %dx leverage, average cost: %.3f, and accumulated profit: %.3f%s", s.Leverage.Int(), position.AverageCost.Float64(), position.AccumulatedProfit.Mul(fixedpoint.NewFromInt(-1)).Float64(), "%")
-			}
+			msg = fmt.Sprintf("The current position is long with %dx leverage, average cost: %.3f, and accumulated profit: %.3f%s", s.Leverage.Int(), position.AverageCost.Float64(), position.AccumulatedProfit.Float64(), "%")
 
 			profits := position.GetProfitValues()
 			if len(profits) > s.MaxWindowSize {
