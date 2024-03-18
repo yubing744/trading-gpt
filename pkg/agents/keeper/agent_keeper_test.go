@@ -49,7 +49,7 @@ func (a *testAgentC) GenActions(ctx context.Context, session types.ISession, msg
 }
 
 func TestNewAgentKeeper(t *testing.T) {
-	cfg := &config.AgentKeeperConfig{
+	cfg := &config.KeeperAgentConfig{
 		Enabled:   true,
 		Leader:    "agent_a",
 		Followers: []string{"agent_b", "agent_c"},
@@ -79,7 +79,7 @@ func TestNewAgentKeeper(t *testing.T) {
 func TestAgentKeeperGenActions(t *testing.T) {
 	ctx := context.Background()
 
-	cfg := &config.AgentKeeperConfig{
+	cfg := &config.KeeperAgentConfig{
 		Enabled:   true,
 		Leader:    "agent_a",
 		Followers: []string{"agent_c"},
@@ -114,7 +114,7 @@ func TestAgentKeeperGenActions(t *testing.T) {
 func TestAgentKeeperGenActionsAllError(t *testing.T) {
 	ctx := context.Background()
 
-	cfg := &config.AgentKeeperConfig{
+	cfg := &config.KeeperAgentConfig{
 		Enabled:   true,
 		Leader:    "agent_a",
 		Followers: []string{"agent_b"},

@@ -12,6 +12,7 @@ type Config struct {
 	MaxWindowSize int              `json:"max_window_size"`
 
 	Notify NotifyConfig `json:"notify"`
+	LLM    LLMConfig    `json:"llm"`
 	Chat   ChatConfig   `json:"chat"`
 	Agent  AgentConfig  `json:"agent"`
 	Env    EnvConfig    `json:"env"`

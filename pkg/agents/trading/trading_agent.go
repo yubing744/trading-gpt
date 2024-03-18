@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/llms/openai"
 	"github.com/tmc/langchaingo/schema"
 
 	"github.com/yubing744/trading-gpt/pkg/agents"
@@ -27,20 +26,13 @@ type TradingAgent struct {
 	name             string
 	model            string
 	temperature      float32
+	maxContextLength int
 	backgroup        string
 	chats            []string
 	actions          map[string]*types.ActionDesc
-	maxContextLength int
 }
 
-func NewTradingAgent(cfg *config.AgentOpenAIConfig) *TradingAgent {
-	llm, err := openai.New(
-		openai.WithToken(cfg.Token),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+func NewTradingAgent(cfg *config.TradingAgentConfig, llm llms.Model) *TradingAgent {
 	return &TradingAgent{
 		llm:              llm,
 		name:             cfg.Name,
@@ -167,8 +159,12 @@ func (a *TradingAgent) GenActions(ctx context.Context, session types.ISession, m
 		Infof("gen chatgpt messages")
 
 	callOpts := make([]llms.CallOption, 0)
-	callOpts = append(callOpts, llms.WithModel(a.model))
 	callOpts = append(callOpts, llms.WithTemperature(float64(a.temperature)))
+	callOpts = append(callOpts, llms.WithMaxTokens(a.maxContextLength))
+
+	if a.model != "" {
+		callOpts = append(callOpts, llms.WithModel(a.model))
+	}
 
 	resp, err := a.llm.GenerateContent(ctx, gptMsgs, callOpts...)
 	if err != nil {
@@ -212,7 +208,7 @@ func (agent *TradingAgent) GenLLMMessages(sessionChats []string, msgs []*types.M
 
 	for _, msg := range msgs {
 		llmMsgs = append(llmMsgs, llms.MessageContent{
-			Role: schema.ChatMessageTypeSystem,
+			Role: schema.ChatMessageTypeHuman,
 			Parts: []llms.ContentPart{
 				llms.TextContent{
 					Text: msg.Text,

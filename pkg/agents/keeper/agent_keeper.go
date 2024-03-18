@@ -36,7 +36,7 @@ func findAgents(agents map[string]agent.IAgent, leaderName string, followerNames
 	return leader, followers, nil
 }
 
-func NewAgentKeeper(cfg *config.AgentKeeperConfig, agents map[string]agent.IAgent) *AgentKeeper {
+func NewAgentKeeper(cfg *config.KeeperAgentConfig, agents map[string]agent.IAgent) *AgentKeeper {
 	leader, followers, err := findAgents(agents, cfg.Leader, cfg.Followers)
 	if err != nil {
 		log.WithError(err).Fatal("init keeper error")

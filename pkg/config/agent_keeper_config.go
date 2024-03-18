@@ -1,6 +1,6 @@
 package config
 
-type AgentKeeperConfig struct {
+type KeeperAgentConfig struct {
 	Enabled   bool     `json:"enabled"`
 	Leader    string   `json:"leader"`
 	Followers []string `json:"followers"`

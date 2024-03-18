@@ -42,6 +42,15 @@ sync:
 exchangeStrategies:
 - on: okex
   jarvis:
+    llm:
+      openai:
+        model: "gpt-4-1106-preview"
+      anthropic:
+        model: "claude-3-opus-20240229"
+      ollama:
+        server_url: "http://localhost:11434"
+        model: "mistral:latest"
+      primary: "anthropic"
     env:
       exchange:
         window_size: 20
@@ -53,19 +62,18 @@ exchangeStrategies:
         - position_changed
         - update_finish
     agent:
-      openai:
+      trading:
         enabled: true
         name: "AI"
-        model: "gpt-4-1106-preview"
         temperature: 0.1
+        max_context_length: 4096
         backgroup: "I want you to act as an trading assistant. The trading assistant supports registering entities, analyzes market data provided by entities, and generates entity control commands. After receiving the command, the entity will report the result of the command execution. The goal of the transaction assistant is: to maximize returns by generating entity control commands."
-        max_context_length: 4097
     notify:
       feishu_hook:
         enabled: true
         url: "https://open.feishu.cn/open-apis/bot/v2/hook/e926c8b5-50e6-41e8-8f70-12a8631dfd93"
     symbol: JUPUSDT
-    interval: 5m
+    interval: 1m
     leverage: 3
     max_window_size: 20
     strategy: "Trading on the right side, trailing stop loss 3%, trailing stop profit 10%."
