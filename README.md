@@ -88,7 +88,7 @@ exchangeStrategies:
     notify:
       feishu_hook:
         enabled: true
-        url: "https://open.feishu.cn/open-apis/bot/v2/hook/e926c8b5-50e6-41e8-8f70-12a8631dfd93"
+        url: "your feishu group custom webhook url"
     symbol: JUPUSDT
     interval: 15m
     leverage: 3
