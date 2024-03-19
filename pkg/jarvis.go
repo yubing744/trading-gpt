@@ -421,7 +421,7 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 
 			for _, action := range actions {
 				actionName := action.Name
-				if strings.Index(action.Name, ".") == 0 {
+				if !strings.Contains(action.Name, ".") {
 					actionName = "exchange." + actionName
 				}
 
