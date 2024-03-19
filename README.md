@@ -91,7 +91,7 @@ exchangeStrategies:
         url: "your feishu group custom webhook url"
     symbol: JUPUSDT
     interval: 15m
-    leverage: 3
+    leverage: 1
     max_window_size: 20
     strategy: "Trading on the right side, trailing stop loss 3%, trailing stop profit 10%."
 ```

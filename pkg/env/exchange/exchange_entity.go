@@ -138,6 +138,32 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 			},
 		},
 		{
+			Name:        "update_position",
+			Description: "Update position's stop loss trigger price and take profit trigger price",
+			Args: []ttypes.ArgmentDesc{
+				{
+					Name:        "stop_loss_trigger_price",
+					Description: "Stop-loss trigger price",
+				},
+				{
+					Name:        "take_profit_trigger_price",
+					Description: "Take-profit trigger price",
+				},
+			},
+			Samples: []ttypes.Sample{
+				{
+					Input: []string{
+						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
+						"The current position is long, and average cost: 2.80",
+						"Analyze data, generate trading cmd",
+					},
+					Output: []string{
+						"Execute cmd: /update_position",
+					},
+				},
+			},
+		},
+		{
 			Name:        "no_action",
 			Description: "No action to be taken",
 			Samples: []ttypes.Sample{
@@ -202,7 +228,7 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 	}
 
 	// open position
-	if cmd == "open_long_position" || cmd == "open_short_position" {
+	if cmd == "open_long_position" || cmd == "open_short_position" || cmd == "update_position" {
 		side := ent.cmdToSide(cmd)
 
 		// Close opposite position if any
@@ -250,9 +276,16 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 			}
 		}
 
-		err := ent.OpenPosition(ctx, side, closePrice, opts...)
-		if err != nil {
-			return errors.Wrap(err, "open position error")
+		if cmd == "open_long_position" || cmd == "open_short_position" {
+			err := ent.OpenPosition(ctx, side, closePrice, opts...)
+			if err != nil {
+				return errors.Wrap(err, "open position error")
+			}
+		} else if cmd == "update_position" {
+			err := ent.UpdatePosition(ctx, side, closePrice, opts...)
+			if err != nil {
+				return errors.Wrap(err, "open position error")
+			}
 		}
 
 		return nil
@@ -455,6 +488,20 @@ func (s *ExchangeEntity) ClosePosition(ctx context.Context, percentage fixedpoin
 	}
 
 	return err
+}
+
+func (s *ExchangeEntity) UpdatePosition(ctx context.Context, side types.SideType, closePrice fixedpoint.Value, args ...interface{}) error {
+	err := s.ClosePosition(ctx, fixedpoint.NewFromFloat(1.0), closePrice)
+	if err != nil {
+		return errors.Wrap(err, "UpdatePosition_ClosePosition_error")
+	}
+
+	err = s.OpenPosition(ctx, side, closePrice, args...)
+	if err != nil {
+		return errors.Wrap(err, "UpdatePosition_OpenPosition_error")
+	}
+
+	return nil
 }
 
 func (s *ExchangeEntity) generateOrderForm(side types.SideType, quantity fixedpoint.Value, marginOrderSideEffect types.MarginOrderSideEffectType) types.SubmitOrder {

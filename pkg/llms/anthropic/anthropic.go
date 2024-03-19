@@ -109,6 +109,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	}
 
 	anthropicOpts = append(anthropicOpts, anthropic.WithModel[anthropic.MessageRequest](anthropic.Model(opts.Model)))
+	anthropicOpts = append(anthropicOpts, anthropic.WithTemperature[anthropic.MessageRequest](0.1))
 
 	if systemPrompt != "" {
 		anthropicOpts = append(anthropicOpts, anthropic.WithSystemPrompt(systemPrompt))

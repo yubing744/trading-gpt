@@ -17,7 +17,8 @@ Performance Evaluation:
 Constraints:
 1. Exclusively use the commands listed in double quotes e.g. "command name"
 2. The command's parameters only support strings. If the parameters are of other types, please convert them all to strings.
-3、Please remember to only reply in JSON format, no other explanation is required.
+3、Pay attention to check the current position situation
+4、Please remember to only reply in JSON format, no other explanation is required.
 
 You should only respond in JSON format as described below 
 Response Format: 
