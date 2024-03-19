@@ -13,6 +13,8 @@ import (
 	"github.com/tmc/langchaingo/schema"
 )
 
+const MaxTokenSample = 4000
+
 var (
 	ErrEmptyResponse = errors.New("no response")
 	ErrMissingToken  = errors.New("missing the Anthropic API key, set it in the ANTHROPIC_API_KEY environment variable")
@@ -77,13 +79,25 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 	systemPrompt := ""
 
-	// Assume we get a single text message
 	chatMsgs := make([]anthropic.MessagePartRequest, 0)
+	var lastRole schema.ChatMessageType
+	var buffer string
 
 	for _, mc := range messages {
 		textMsg := joinTextParts(mc.Parts)
-		msg := anthropic.MessagePartRequest{
-			Content: textMsg,
+
+		if mc.Role == lastRole && mc.Role == schema.ChatMessageTypeHuman {
+			buffer += "\r\n" + textMsg // Concatenate messages with a space
+			continue
+		}
+
+		if buffer != "" {
+			// Append the buffered message before starting a new one
+			chatMsgs = append(chatMsgs, anthropic.MessagePartRequest{
+				Content: buffer,
+				Role:    "user",
+			})
+			buffer = ""
 		}
 
 		switch mc.Role {
@@ -91,17 +105,34 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 			systemPrompt = textMsg
 			continue
 		case schema.ChatMessageTypeAI:
-			msg.Role = "assistant"
+			msg := anthropic.MessagePartRequest{
+				Content: textMsg,
+				Role:    "assistant",
+			}
+			chatMsgs = append(chatMsgs, msg)
 		case schema.ChatMessageTypeHuman:
-			msg.Role = "user"
+			buffer = textMsg // Start buffering user messages
 		default:
 			return nil, fmt.Errorf("role %v not supported", mc.Role)
 		}
 
-		chatMsgs = append(chatMsgs, msg)
+		lastRole = mc.Role
+	}
+
+	if buffer != "" {
+		chatMsgs = append(chatMsgs, anthropic.MessagePartRequest{
+			Content: buffer,
+			Role:    "user",
+		})
 	}
 
 	anthropicOpts := make([]anthropic.GenericOption[anthropic.MessageRequest], 0)
+
+	maxTokenSample := opts.MaxTokens
+	if maxTokenSample > MaxTokenSample {
+		maxTokenSample = MaxTokenSample
+	}
+
 	anthropicOpts = append(anthropicOpts, anthropic.WithMaxTokens[anthropic.MessageRequest](opts.MaxTokens))
 
 	if opts.Model == "" {
@@ -109,7 +140,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	}
 
 	anthropicOpts = append(anthropicOpts, anthropic.WithModel[anthropic.MessageRequest](anthropic.Model(opts.Model)))
-	anthropicOpts = append(anthropicOpts, anthropic.WithTemperature[anthropic.MessageRequest](0.1))
+	anthropicOpts = append(anthropicOpts, anthropic.WithTemperature[anthropic.MessageRequest](opts.Temperature))
 
 	if systemPrompt != "" {
 		anthropicOpts = append(anthropicOpts, anthropic.WithSystemPrompt(systemPrompt))
@@ -121,13 +152,12 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		anthropicOpts...,
 	)
 
-	log.WithField("req", req).Info("GenerateContent_req")
-
 	response, err := o.client.Message(req)
 	if err != nil {
 		if o.CallbacksHandler != nil {
 			o.CallbacksHandler.HandleLLMError(ctx, err)
 		}
+
 		return nil, err
 	}
 
