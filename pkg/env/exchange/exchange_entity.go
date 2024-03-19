@@ -194,6 +194,14 @@ func (ent *ExchangeEntity) cmdToSide(cmd string) types.SideType {
 	}
 }
 
+func (ent *ExchangeEntity) getPositionSide(pos *PositionX) types.SideType {
+	if pos.IsLong() {
+		return types.SideTypeBuy
+	} else {
+		return types.SideTypeSell
+	}
+}
+
 func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args map[string]string) error {
 	log.
 		WithField("cmd", cmd).
@@ -285,6 +293,7 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 				return errors.Wrap(err, "open position error")
 			}
 		} else if cmd == "update_position" {
+			side := ent.getPositionSide(ent.position)
 			err := ent.UpdatePosition(ctx, side, closePrice, opts...)
 			if err != nil {
 				return errors.Wrap(err, "open position error")
