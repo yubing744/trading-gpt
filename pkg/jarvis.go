@@ -379,12 +379,11 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 		return
 	}
 
-	log.WithField("resp", resp).Info("gen actions resp")
-
 	actions := make([]*ttypes.Action, 0)
 
 	if len(resp.Texts) > 0 {
-		resultText := strings.Join(resp.Texts, "")
+		resultText := strings.TrimSpace(strings.Join(resp.Texts, ""))
+		log.WithField("resultText", resultText).Info("gen actions resp text")
 
 		if strings.HasPrefix(resultText, "{") || strings.Contains(resultText, "```json") {
 			result, err := utils.ParseResult(resultText)
@@ -421,7 +420,12 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 			}
 
 			for _, action := range actions {
-				err := s.world.SendCommand(ctx, action.Name, action.Args)
+				actionName := action.Name
+				if strings.Index(action.Name, ".") == 0 {
+					actionName = "exchange." + actionName
+				}
+
+				err := s.world.SendCommand(ctx, actionName, action.Args)
 
 				if err != nil {
 					log.WithError(err).Error("env send cmd error")
