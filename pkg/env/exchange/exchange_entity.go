@@ -241,7 +241,9 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 					return errors.Wrap(err, "close existing position error")
 				}
 			} else {
-				return errors.Errorf("existing %s position has the same direction with the signal", ent.symbol)
+				if cmd == "open_long_position" || cmd == "open_short_position" {
+					return errors.Errorf("existing %s position has the same direction with the signal", ent.symbol)
+				}
 			}
 		}
 
