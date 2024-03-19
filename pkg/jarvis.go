@@ -16,6 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/yubing744/trading-gpt/pkg/chat"
 	"github.com/yubing744/trading-gpt/pkg/chat/feishu"
+	"github.com/yubing744/trading-gpt/pkg/llms"
 	"github.com/yubing744/trading-gpt/pkg/prompt"
 
 	"github.com/yubing744/trading-gpt/pkg/agents"
@@ -68,6 +69,7 @@ type Strategy struct {
 	bbgo.StrategyController
 
 	// jarvis model
+	llm          *llms.LLMManager
 	world        *env.Environment
 	agent        agents.IAgent
 	chatSessions *chat.ChatSessions
@@ -137,8 +139,14 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		bbgo.Sync(ctx, s)
 	})
 
+	// Setup LLM
+	err := s.setupLLM(ctx)
+	if err != nil {
+		return err
+	}
+
 	// Setup Environment
-	err := s.setupWorld(ctx)
+	err = s.setupWorld(ctx)
 	if err != nil {
 		return err
 	}
@@ -161,6 +169,17 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 		return err
 	}
 
+	return nil
+}
+
+func (s *Strategy) setupLLM(ctx context.Context) error {
+	llm := llms.NewLLMManager(&s.LLM)
+	err := llm.Init()
+	if err != nil {
+		return errors.Wrap(err, "Init LLM fail")
+	}
+
+	s.llm = llm
 	return nil
 }
 
@@ -187,25 +206,19 @@ func (s *Strategy) setupWorld(ctx context.Context) error {
 }
 
 func (s *Strategy) setupAgent(ctx context.Context) error {
-	var openaiAgent *trading.TradingAgent
-	openaiCfg := &s.Agent.OpenAI
-	if openaiCfg != nil && openaiCfg.Enabled {
-		token := os.Getenv("AGENT_OPENAI_TOKEN")
-		if token == "" {
-			return errors.New("AGENT_OPENAI_TOKEN not set in .env.local")
-		}
-
-		openaiCfg.Token = token
-		openaiAgent := trading.NewTradingAgent(openaiCfg)
-		s.agent = openaiAgent
+	var tradingAgent *trading.TradingAgent
+	tradingCfg := &s.Agent.Trading
+	if tradingCfg != nil && tradingCfg.Enabled {
+		tradingAgent := trading.NewTradingAgent(tradingCfg, s.llm)
+		s.agent = tradingAgent
 	}
 
 	keeperCfg := &s.Agent.Keeper
 	if keeperCfg != nil && keeperCfg.Enabled {
 		agents := make(map[string]agents.IAgent, 0)
 
-		if openaiCfg != nil && openaiCfg.Enabled {
-			agents["openai"] = openaiAgent
+		if tradingCfg != nil && tradingCfg.Enabled {
+			agents["trading"] = tradingAgent
 		}
 
 		agentKeeper := keeper.NewAgentKeeper(keeperCfg, agents)
@@ -366,12 +379,11 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 		return
 	}
 
-	log.WithField("resp", resp).Info("gen actions resp")
-
 	actions := make([]*ttypes.Action, 0)
 
 	if len(resp.Texts) > 0 {
-		resultText := strings.Join(resp.Texts, "")
+		resultText := strings.TrimSpace(strings.Join(resp.Texts, ""))
+		log.WithField("resultText", resultText).Info("gen actions resp text")
 
 		if strings.HasPrefix(resultText, "{") || strings.Contains(resultText, "```json") {
 			result, err := utils.ParseResult(resultText)
@@ -408,7 +420,12 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 			}
 
 			for _, action := range actions {
-				err := s.world.SendCommand(ctx, action.Name, action.Args)
+				actionName := action.Name
+				if strings.Index(action.Name, ".") == 0 {
+					actionName = "exchange." + actionName
+				}
+
+				err := s.world.SendCommand(ctx, actionName, action.Args)
 
 				if err != nil {
 					log.WithError(err).Error("env send cmd error")

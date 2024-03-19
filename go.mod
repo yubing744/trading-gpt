@@ -85,6 +85,7 @@ require (
 	github.com/lestrrat-go/file-rotatelogs v2.2.0+incompatible // indirect
 	github.com/lestrrat-go/strftime v1.0.0 // indirect
 	github.com/lib/pq v1.10.9 // indirect
+	github.com/madebywelch/anthropic-go/v2 v2.1.8 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect

@@ -57,3 +57,47 @@ func TestParseResult(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "exchange.open_long_position", ret.Action.Name)
 }
+
+func TestParseResult2(t *testing.T) {
+	testDatas := ` {
+		"thoughts": {
+				"text": "Considering opening a long position based on the current market trend and indicators.",
+				"analyze": "The close price is trending upwards, RSI is strong but not overbought, and the Fear and Greed Index is high, indicating greed.",
+				"criticism": "Need to be cautious due to the high Fear and Greed Index, which could precede a correction.",
+				"speak": "The market is showing signs of an uptrend, and we're considering a long position with a trailing stop loss and profit to maximize returns. However, we'll remain vigilant due to the current market sentiment."
+		},
+		"action": {
+				"name": "exchange.open_long_position",
+				"args": {
+						"stop_loss_trigger_price": "1.3095",
+						"take_profit_trigger_price": "1.4850"
+				}
+		}
+} `
+
+	ret, err := ParseResult(testDatas)
+	assert.NoError(t, err)
+	assert.Equal(t, "exchange.open_long_position", ret.Action.Name)
+}
+
+func TestParseResult3(t *testing.T) {
+	testDatas := `{
+			"thoughts": {
+			"text": "The current close price is 1.430, and the RSI value is 10.921, which indicates an oversold condition.",
+			"analyze": "The Bollinger Bands UpBand is at 1.509, SMA is at 1.466, DownBand is at 1.423, and the Fear and Greed Index value is 77, which suggests extreme greed.",
+			"criticism": "I should have considered closing the position earlier to avoid further losses due to the oversold condition of the asset.",
+			"speak": "Based on the current market conditions, I recommend opening a long position with a stop loss at 1.423 and a take profit at 1.509."
+			},
+			"action": {
+			"name": "exchange.open\_long\_position",
+			"args": {
+			"stop\_loss\_trigger\_price": "1.423",
+			"take\_profit\_trigger\_price": "1.509"
+			}
+			}
+			}`
+
+	ret, err := ParseResult(testDatas)
+	assert.NoError(t, err)
+	assert.Equal(t, "exchange.open_long_position", ret.Action.Name)
+}
