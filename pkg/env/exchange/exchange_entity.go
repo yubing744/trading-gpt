@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/fixedpoint"
@@ -496,6 +497,31 @@ func (s *ExchangeEntity) UpdatePosition(ctx context.Context, side types.SideType
 		return errors.Wrap(err, "UpdatePosition_ClosePosition_error")
 	}
 
+	// Create a context with a 20-second timeout
+	timeoutCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+
+	// Create a ticker that ticks every second
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	// Loop until the position is closed or the context times out
+	for {
+		select {
+		case <-timeoutCtx.Done():
+			// Context has reached its deadline
+			return errors.Wrap(timeoutCtx.Err(), "UpdatePosition_timeout")
+		case <-ticker.C:
+			if s.position.IsClosed() {
+				// If the position is closed, break out of the loop
+				goto POSITION_CLOSED
+			}
+			// Otherwise, continue looping
+		}
+	}
+
+POSITION_CLOSED:
+	// Once the position is confirmed closed, open a new position
 	err = s.OpenPosition(ctx, side, closePrice, args...)
 	if err != nil {
 		return errors.Wrap(err, "UpdatePosition_OpenPosition_error")
