@@ -33,7 +33,7 @@ import (
 	ttypes "github.com/yubing744/trading-gpt/pkg/types"
 )
 
-const MaxRetryTime = 3
+const MaxRetryTime = 1
 
 // ID is the unique strategy ID, it needs to be in all lower case
 // For example, grid strategy uses "grid"
@@ -329,23 +329,6 @@ func (s *Strategy) replyMsg(ctx context.Context, chatSession ttypes.ISession, ms
 
 func (s *Strategy) feedbackCmdExecuteResult(ctx context.Context, chatSession ttypes.ISession, msg string) {
 	s.replyMsg(ctx, chatSession, msg)
-
-	result, err := s.agent.GenActions(ctx, chatSession, []*ttypes.Message{
-		{
-			Text: msg,
-		},
-	})
-	if err != nil {
-		log.WithError(err).Error("gen action error")
-		s.replyMsg(ctx, chatSession, fmt.Sprintf("gen action error: %s", err.Error()))
-		return
-	}
-
-	log.WithField("result", result).Info("feedback result")
-
-	if len(result.Texts) > 0 {
-		s.replyMsg(ctx, chatSession, strings.Join(result.Texts, ""))
-	}
 }
 
 func (s *Strategy) emergencyClosePosition(ctx context.Context, chatSession ttypes.ISession, reason string) {
@@ -430,9 +413,8 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 				if err != nil {
 					log.WithError(err).Error("env send cmd error")
 					errMsg := fmt.Sprintf("Command: %s failed to execute by entity, reason: %s", action.JSON(), err.Error())
-					s.feedbackCmdExecuteResult(ctx, chatSession, errMsg)
 
-					if retryTime >= 0 {
+					if retryTime > 0 {
 						time.Sleep(time.Second * 5)
 
 						newMsgs := append(msgs, []*ttypes.Message{
@@ -444,6 +426,8 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 							},
 						}...)
 						s.agentAction(ctx, chatSession, newMsgs, retryTime-1)
+					} else {
+						s.feedbackCmdExecuteResult(ctx, chatSession, errMsg)
 					}
 				} else {
 					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: %s executed successfully by entity.", action.JSON()))
@@ -589,8 +573,13 @@ func (s *Strategy) handlePositionChanged(ctx context.Context, session ttypes.ISe
 
 	kline, ok := s.getKline(session)
 	if ok {
-		if position.IsOpened(kline.GetClose()) {
-			msg = fmt.Sprintf("The current position is long with %dx leverage, average cost: %.3f, and accumulated profit: %.3f%s", s.Leverage.Int(), position.AverageCost.Float64(), position.AccumulatedProfit.Float64(), "%")
+		if !position.Dust && position.IsOpened(kline.GetClose()) {
+			side := "short"
+			if position.IsLong() {
+				side = "long"
+			}
+
+			msg = fmt.Sprintf("The current position is %s with %dx leverage, average cost: %.3f, and accumulated profit: %.3f%s", side, s.Leverage.Int(), position.AverageCost.Float64(), position.AccumulatedProfit.Float64(), "%")
 
 			profits := position.GetProfitValues()
 			if len(profits) > s.MaxWindowSize {
