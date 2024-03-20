@@ -9,6 +9,7 @@ import (
 type PositionX struct {
 	*types.Position
 
+	Dust           bool
 	historyProfits []fixedpoint.Value
 }
 

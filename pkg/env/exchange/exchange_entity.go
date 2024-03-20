@@ -350,6 +350,7 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 			}
 
 			ent.position.AddProfit(accumulatedProfit)
+			ent.position.Dust = ent.position.IsDust(kline.GetClose())
 		}
 
 		log.WithField("kline", kline).Info("kline closed")
