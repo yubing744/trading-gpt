@@ -260,7 +260,7 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 		opts := make([]interface{}, 0)
 
 		// config stop losss
-		if stopLoss, ok := args["stop_loss"]; ok {
+		if stopLoss, ok := args["stop_loss_trigger_price"]; ok {
 			stopLoss, err := utils.ParseStopLoss(ent.vm, side, closePrice, stopLoss)
 			if err != nil {
 				return errors.Wrapf(err, "the stop loss invalid: %s", stopLoss)
@@ -274,7 +274,7 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 		}
 
 		// config take profix
-		if takeProfix, ok := args["take_profix"]; ok {
+		if takeProfix, ok := args["take_profit_trigger_price"]; ok {
 			takeProfix, err := utils.ParseTakeProfit(ent.vm, side, closePrice, takeProfix)
 			if err != nil {
 				return errors.Wrapf(err, "the take profit invalid: %s", takeProfix)
