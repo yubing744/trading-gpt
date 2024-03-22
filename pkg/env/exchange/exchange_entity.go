@@ -15,7 +15,6 @@ import (
 	"github.com/yubing744/trading-gpt/pkg/config"
 	"github.com/yubing744/trading-gpt/pkg/utils"
 
-	"github.com/c9s/bbgo/pkg/indicator"
 	ttypes "github.com/yubing744/trading-gpt/pkg/types"
 )
 
@@ -33,8 +32,7 @@ type ExchangeEntity struct {
 	position      *PositionX
 
 	Status      types.StrategyStatus
-	BOLL        *indicator.BOLL
-	RSI         *indicator.RSI
+	Indicators  []*ExchangeIndicator
 	KLineWindow *types.KLineWindow
 
 	vm *goja.Runtime
@@ -360,15 +358,12 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 			Data: ent.KLineWindow,
 		})
 
-		ent.emitEvent(ch, &ttypes.Event{
-			Type: "boll_changed",
-			Data: ent.BOLL,
-		})
-
-		ent.emitEvent(ch, &ttypes.Event{
-			Type: "rsi_changed",
-			Data: ent.RSI,
-		})
+		for indicator := range ent.Indicators {
+			ent.emitEvent(ch, &ttypes.Event{
+				Type: "indicator_changed",
+				Data: indicator,
+			})
+		}
 
 		ent.emitEvent(ch, &ttypes.Event{
 			Type: "position_changed",
@@ -404,18 +399,12 @@ func (ent *ExchangeEntity) setupIndicators() {
 
 	ent.KLineWindow = inc
 
-	// setup BOLL
+	// setup indicators
 	indicators := ent.session.StandardIndicatorSet(ent.symbol)
-	ent.BOLL = indicators.BOLL(types.IntervalWindow{
-		Interval: ent.interval,
-		Window:   ent.cfg.WindowSize,
-	}, 2)
 
-	// setup RSI
-	ent.RSI = indicators.RSI(types.IntervalWindow{
-		Interval: ent.interval,
-		Window:   ent.cfg.WindowSize,
-	})
+	for name, cfg := range ent.cfg.Indicators {
+		ent.Indicators = append(ent.Indicators, NewExchangeIndicator(name, cfg, indicators))
+	}
 }
 
 func (ent *ExchangeEntity) emitEvent(ch chan *ttypes.Event, evt *ttypes.Event) {
