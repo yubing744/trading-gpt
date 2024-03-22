@@ -39,9 +39,15 @@ exchangeStrategies:
     env:
       exchange:
         window_size: 20
+        indicators:
+          rsi:
+            type: "rsi"
+            params:
+              interval: "5m"
+              windowSize: "21"
       include_events:
         - kline_changed
-        - rsi_changed
+        - indicator_changed
         - fng_changed
         - position_changed
         - update_finish
