@@ -68,6 +68,7 @@ exchangeStrategies:
         server_url: "http://localhost:11434"
         model: "mistral:latest"
       primary: "ollama"
+      secondly: "openai"
     env:
       exchange:
         window_size: 20

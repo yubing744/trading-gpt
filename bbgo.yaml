@@ -34,7 +34,8 @@ exchangeStrategies:
       ollama:
         server_url: "http://localhost:11434"
         model: "mistral:latest"
-      primary: "anthropic"
+      primary: "openai"
+      secondly: "anthropic"
     env:
       exchange:
         window_size: 20

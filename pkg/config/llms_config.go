@@ -20,7 +20,7 @@ type AnthropicConfig struct {
 
 type LLMConfig struct {
 	Primary   string           `json:"primary,omitempty"`
-	Backup    string           `json:"backup,omitempty"`
+	Secondly  string           `json:"secondly,omitempty"`
 	OpenAI    *OpenAIConfig    `json:"openai,omitempty"`
 	Ollama    *OllamaConfig    `json:"ollama,omitempty"`
 	Anthropic *AnthropicConfig `json:"anthropic,omitempty"`
