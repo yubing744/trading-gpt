@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/ollama"
 	"github.com/tmc/langchaingo/llms/openai"
@@ -13,17 +15,21 @@ import (
 	"github.com/yubing744/trading-gpt/pkg/llms/anthropic"
 )
 
+var log = logrus.WithField("module", "llm_manager")
+
 type LLMManager struct {
-	cfg     *config.LLMConfig
-	llms    map[string]llms.Model
-	primary string
+	cfg      *config.LLMConfig
+	llms     map[string]llms.Model
+	primary  string
+	secondly string
 }
 
 func NewLLMManager(cfg *config.LLMConfig) *LLMManager {
 	return &LLMManager{
-		cfg:     cfg,
-		llms:    make(map[string]llms.Model, 0),
-		primary: cfg.Primary,
+		cfg:      cfg,
+		llms:     make(map[string]llms.Model, 0),
+		primary:  cfg.Primary,
+		secondly: cfg.Secondly,
 	}
 }
 
@@ -104,6 +110,15 @@ func (mgr *LLMManager) GetLLM() (llms.Model, error) {
 	return llm, nil
 }
 
+func (mgr *LLMManager) GetSecondlyLLM() (llms.Model, error) {
+	llm, ok := mgr.llms[mgr.secondly]
+	if !ok {
+		return nil, errors.New("no secondly llm")
+	}
+
+	return llm, nil
+}
+
 // GenerateContent asks the model to generate content from a sequence of
 // messages. It's the most general interface for multi-modal LLMs that support
 // chat-like interactions.
@@ -113,7 +128,19 @@ func (mgr *LLMManager) GenerateContent(ctx context.Context, messages []llms.Mess
 		return nil, errors.Wrap(err, "get llm fail")
 	}
 
-	return llm.GenerateContent(ctx, messages, options...)
+	resp, err := llm.GenerateContent(ctx, messages, options...)
+	if err != nil {
+		log.WithError(err).WithField("model", mgr.primary).Error("GenerateContent_fail_by_primary_model")
+
+		llm2, err2 := mgr.GetSecondlyLLM()
+		if err2 != nil {
+			return nil, errors.Wrap(err2, "get secondly fail")
+		}
+
+		return llm2.GenerateContent(ctx, messages, options...)
+	}
+
+	return resp, nil
 }
 
 // Call is a simplified interface for a text-only Model, generating a single
@@ -129,5 +156,17 @@ func (mgr *LLMManager) Call(ctx context.Context, prompt string, options ...llms.
 		return "", errors.Wrap(err, "get llm fail")
 	}
 
-	return llm.Call(ctx, prompt, options...)
+	result, err := llm.Call(ctx, prompt, options...)
+	if err != nil {
+		log.WithError(err).WithField("model", mgr.primary).Error("Call_fail_by_primary_model")
+
+		llm2, err2 := mgr.GetSecondlyLLM()
+		if err2 != nil {
+			return "", errors.Wrap(err2, "get secondly fail")
+		}
+
+		return llm2.Call(ctx, prompt, options...)
+	}
+
+	return result, nil
 }
