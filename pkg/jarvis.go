@@ -370,7 +370,7 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 		if strings.HasPrefix(resultText, "{") || strings.Contains(resultText, "```json") {
 			result, err := utils.ParseResult(resultText)
 			if err != nil {
-				log.WithError(err).Error("parse resp error")
+				log.WithError(err).WithField("resultText", resultText).Error("parse resp error")
 				s.replyMsg(ctx, chatSession, fmt.Sprintf("parse resp error: %s, resultText: %s", err.Error(), resultText))
 				return
 			}

@@ -27,7 +27,7 @@ Response Format:
         "text": "thought",
         "analyze": "step-by-step analysis and calculation process",
         "criticism": "constructive self-criticism",
-        "speak": "thoughts summary to say to user",
+        "speak": "thoughts summary to say to user"
     },
     "action": {"name": "command name", "args": {"arg name": "value"}}
 }

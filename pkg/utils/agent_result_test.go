@@ -101,3 +101,19 @@ func TestParseResult3(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "exchange.open_long_position", ret.Action.Name)
 }
+
+func TestParseResult4(t *testing.T) {
+	testDatas := `{
+    "thoughts": {
+        "text": "The entity cannot open a new long position because it already has an open long position with the same direction as the signal.",
+        "analyze": "The entity cannot open a new long position because it already has an open long position with the same direction as the signal. This is because the entity is not allowed to open multiple long positions with the same direction at the same time.",
+        "criticism": "The entity should not have opened a new long position because it already has an open long position with the same direction as the signal. This is a violation of the trading strategy.",
+        "speak": "The entity cannot open a new long position because it already has an open long position with the same direction as the signal. Please try to fix this error by closing the existing long position before opening a new one."
+    },
+    "action": {"name": "exchange.close_position"}
+}`
+
+	ret, err := ParseResult(testDatas)
+	assert.NoError(t, err)
+	assert.Equal(t, "exchange.close_position", ret.Action.Name)
+}
