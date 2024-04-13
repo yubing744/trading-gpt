@@ -33,16 +33,21 @@ exchangeStrategies:
         model: "claude-3-opus-20240229"
       ollama:
         server_url: "http://localhost:11434"
-        model: "mistral:latest"
-      primary: "openai"
+        model: "codegemma:7b"
+      primary: "ollama"
       secondly: "anthropic"
     env:
       exchange:
         window_size: 20
+        indicators:
+          rsi:
+            type: "rsi"
+            params:
+              interval: "5m"
+              windowSize: "21"
       include_events:
         - kline_changed
-        - rsi_changed
-        - boll_changed
+        - indicator_changed
         - fng_changed
         - position_changed
         - update_finish

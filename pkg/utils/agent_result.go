@@ -41,7 +41,7 @@ func trimJSON(text string) string {
 		jsonEnd := strings.LastIndex(text, "}")
 
 		if jsonEnd >= 0 {
-			text = text[jsonStart : jsonEnd+1]
+			return text[jsonStart : jsonEnd+1]
 		}
 	}
 

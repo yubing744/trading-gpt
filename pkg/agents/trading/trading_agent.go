@@ -19,7 +19,7 @@ const (
 	HumanLable = "You"
 )
 
-var log = logrus.WithField("agent", "openai")
+var log = logrus.WithField("agent", "trading")
 
 type TradingAgent struct {
 	llm              llms.Model

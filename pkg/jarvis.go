@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/c9s/bbgo/pkg/bbgo"
-	"github.com/c9s/bbgo/pkg/indicator"
 	"github.com/c9s/bbgo/pkg/types"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -371,7 +370,7 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 		if strings.HasPrefix(resultText, "{") || strings.Contains(resultText, "```json") {
 			result, err := utils.ParseResult(resultText)
 			if err != nil {
-				log.WithError(err).Error("parse resp error")
+				log.WithError(err).WithField("resultText", resultText).Error("parse resp error")
 				s.replyMsg(ctx, chatSession, fmt.Sprintf("parse resp error: %s, resultText: %s", err.Error(), resultText))
 				return
 			}
@@ -462,17 +461,10 @@ func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, 
 		} else {
 			log.Warn("event data Type not match")
 		}
-	case "boll_changed":
-		boll, ok := evt.Data.(*indicator.BOLL)
+	case "indicator_changed":
+		indicator, ok := evt.Data.(*exchange.ExchangeIndicator)
 		if ok {
-			s.handleBOLLChanged(ctx, session, boll)
-		} else {
-			log.Warn("event data Type not match")
-		}
-	case "rsi_changed":
-		rsi, ok := evt.Data.(*indicator.RSI)
-		if ok {
-			s.handleRSIChanged(ctx, session, rsi)
+			s.handleExchangeIndicatorChanged(ctx, session, indicator)
 		} else {
 			log.Warn("event data Type not match")
 		}
@@ -506,55 +498,14 @@ func (s *Strategy) handleKlineChanged(ctx context.Context, session ttypes.ISessi
 	s.stashMsg(ctx, session, msg)
 }
 
-func (s *Strategy) handleBOLLChanged(ctx context.Context, session ttypes.ISession, boll *indicator.BOLL) {
-	log.WithField("boll", boll).Info("handle boll values changed")
+func (s *Strategy) handleExchangeIndicatorChanged(ctx context.Context, session ttypes.ISession, indicator *exchange.ExchangeIndicator) {
+	log.WithField("indicator", indicator).Info("handle indicator changed")
 
-	upVals := boll.UpBand
-	if len(upVals) > s.MaxWindowSize {
-		upVals = upVals[len(upVals)-s.MaxWindowSize:]
+	messages := indicator.ToPrompts(s.MaxWindowSize)
+
+	for _, msg := range messages {
+		s.stashMsg(ctx, session, msg)
 	}
-
-	midVals := boll.SMA.Values
-	if len(midVals) > s.MaxWindowSize {
-		midVals = midVals[len(midVals)-s.MaxWindowSize:]
-	}
-
-	downVals := boll.DownBand
-	if len(downVals) > s.MaxWindowSize {
-		downVals = downVals[len(downVals)-s.MaxWindowSize:]
-	}
-
-	msg := fmt.Sprintf("BOLL data changed: UpBand:[%s], SMA:[%s], DownBand:[%s]",
-		utils.JoinFloatSlice([]float64(upVals), " "),
-		utils.JoinFloatSlice([]float64(midVals), " "),
-		utils.JoinFloatSlice([]float64(downVals), " "),
-	)
-
-	s.stashMsg(ctx, session, msg)
-
-	msg = fmt.Sprintf("The current UpBand is %.3f, and the current SMA is %.3f, and the current DownBand is %.3f",
-		boll.UpBand.Last(0),
-		boll.SMA.Last(0),
-		boll.DownBand.Last(0),
-	)
-
-	s.stashMsg(ctx, session, msg)
-}
-
-func (s *Strategy) handleRSIChanged(ctx context.Context, session ttypes.ISession, rsi *indicator.RSI) {
-	log.WithField("rsi", rsi).Info("handle RSI values changed")
-
-	vals := rsi.Values
-	if len(vals) > s.MaxWindowSize {
-		vals = vals[len(vals)-s.MaxWindowSize:]
-	}
-
-	msg := fmt.Sprintf("RSI data changed: [%s], and the current RSI value is: %.3f",
-		utils.JoinFloatSlice([]float64(vals), " "),
-		rsi.Last(0),
-	)
-
-	s.stashMsg(ctx, session, msg)
 }
 
 func (s *Strategy) handleFngChanged(ctx context.Context, session ttypes.ISession, fng *string) {
