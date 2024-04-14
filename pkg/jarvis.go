@@ -365,7 +365,6 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 
 	if len(resp.Texts) > 0 {
 		resultText := strings.TrimSpace(strings.Join(resp.Texts, ""))
-		log.WithField("resultText", resultText).Info("gen actions resp text")
 
 		if strings.HasPrefix(resultText, "{") || strings.Contains(resultText, "```json") {
 			result, err := utils.ParseResult(resultText)
