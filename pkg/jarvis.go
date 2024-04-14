@@ -59,7 +59,7 @@ type Strategy struct {
 	Market      types.Market
 
 	// persistence fields
-	Position *types.Position `persistence:"position"`
+	Position *types.Position
 
 	session       *bbgo.ExchangeSession
 	orderExecutor *bbgo.GeneralOrderExecutor
@@ -365,7 +365,6 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 
 	if len(resp.Texts) > 0 {
 		resultText := strings.TrimSpace(strings.Join(resp.Texts, ""))
-		log.WithField("resultText", resultText).Info("gen actions resp text")
 
 		if strings.HasPrefix(resultText, "{") || strings.Contains(resultText, "```json") {
 			result, err := utils.ParseResult(resultText)
@@ -412,6 +411,7 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 				if err != nil {
 					log.WithError(err).Error("env send cmd error")
 					errMsg := fmt.Sprintf("Command: %s failed to execute by entity, reason: %s", action.JSON(), err.Error())
+					s.feedbackCmdExecuteResult(ctx, chatSession, errMsg)
 
 					if retryTime > 0 {
 						time.Sleep(time.Second * 5)
@@ -425,8 +425,6 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 							},
 						}...)
 						s.agentAction(ctx, chatSession, newMsgs, retryTime-1)
-					} else {
-						s.feedbackCmdExecuteResult(ctx, chatSession, errMsg)
 					}
 				} else {
 					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: %s executed successfully by entity.", action.JSON()))
@@ -517,14 +515,14 @@ func (s *Strategy) handleFngChanged(ctx context.Context, session ttypes.ISession
 	})
 }
 
-func (s *Strategy) handlePositionChanged(ctx context.Context, session ttypes.ISession, position *exchange.PositionX) {
+func (s *Strategy) handlePositionChanged(_ctx context.Context, session ttypes.ISession, position *exchange.PositionX) {
 	log.WithField("position", position).Info("handle position changed")
 
 	msg := "There are currently no open positions"
 
 	kline, ok := s.getKline(session)
 	if ok {
-		if !position.Dust && position.IsOpened(kline.GetClose()) {
+		if position.IsOpened(kline.GetClose()) {
 			side := "short"
 			if position.IsLong() {
 				side = "long"

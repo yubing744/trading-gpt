@@ -138,7 +138,7 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 		},
 		{
 			Name:        "update_position",
-			Description: "Update position's stop loss trigger price and take profit trigger price",
+			Description: "update position",
 			Args: []ttypes.ArgmentDesc{
 				{
 					Name:        "stop_loss_trigger_price",
@@ -342,6 +342,8 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 
 		// Update postion accumulated Profit
 		if ent.position != nil {
+			log.WithField("position", ent.position).Info("update_position")
+
 			accumulatedProfit := kline.GetClose().Sub(ent.position.AverageCost).Div(ent.position.AverageCost).Mul(fixedpoint.NewFromFloat(100.0)).Mul(ent.leverage)
 			if ent.position.IsShort() {
 				accumulatedProfit = accumulatedProfit.Mul(fixedpoint.NewFromInt(-1))
@@ -481,7 +483,7 @@ func (s *ExchangeEntity) ClosePosition(ctx context.Context, percentage fixedpoin
 		orderForm.ClosePosition = true // Full close position
 	}
 
-	bbgo.Notify("submitting %s %s order to close position by %v", s.symbol, side.String(), percentage, orderForm)
+	bbgo.Notify("submitting %s %s order to close position by %v, orderForm:%v", s.symbol, side.String(), percentage, orderForm)
 
 	_, err := s.orderExecutor.SubmitOrders(ctx, orderForm)
 	if err != nil {
