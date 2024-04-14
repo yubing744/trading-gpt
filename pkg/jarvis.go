@@ -59,7 +59,7 @@ type Strategy struct {
 	Market      types.Market
 
 	// persistence fields
-	Position *types.Position `persistence:"position"`
+	Position *types.Position
 
 	session       *bbgo.ExchangeSession
 	orderExecutor *bbgo.GeneralOrderExecutor
@@ -517,14 +517,14 @@ func (s *Strategy) handleFngChanged(ctx context.Context, session ttypes.ISession
 	})
 }
 
-func (s *Strategy) handlePositionChanged(ctx context.Context, session ttypes.ISession, position *exchange.PositionX) {
+func (s *Strategy) handlePositionChanged(_ctx context.Context, session ttypes.ISession, position *exchange.PositionX) {
 	log.WithField("position", position).Info("handle position changed")
 
 	msg := "There are currently no open positions"
 
 	kline, ok := s.getKline(session)
 	if ok {
-		if !position.Dust && position.IsOpened(kline.GetClose()) {
+		if position.IsOpened(kline.GetClose()) {
 			side := "short"
 			if position.IsLong() {
 				side = "long"

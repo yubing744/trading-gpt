@@ -11,6 +11,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/kataras/go-events v0.0.3
 	github.com/larksuite/oapi-sdk-go/v3 v3.2.1
+	github.com/madebywelch/anthropic-go/v2 v2.1.8
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
@@ -85,7 +86,6 @@ require (
 	github.com/lestrrat-go/file-rotatelogs v2.2.0+incompatible // indirect
 	github.com/lestrrat-go/strftime v1.0.0 // indirect
 	github.com/lib/pq v1.10.9 // indirect
-	github.com/madebywelch/anthropic-go/v2 v2.1.8 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
