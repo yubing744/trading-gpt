@@ -411,6 +411,7 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 				if err != nil {
 					log.WithError(err).Error("env send cmd error")
 					errMsg := fmt.Sprintf("Command: %s failed to execute by entity, reason: %s", action.JSON(), err.Error())
+					s.feedbackCmdExecuteResult(ctx, chatSession, errMsg)
 
 					if retryTime > 0 {
 						time.Sleep(time.Second * 5)
@@ -424,8 +425,6 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 							},
 						}...)
 						s.agentAction(ctx, chatSession, newMsgs, retryTime-1)
-					} else {
-						s.feedbackCmdExecuteResult(ctx, chatSession, errMsg)
 					}
 				} else {
 					s.feedbackCmdExecuteResult(ctx, chatSession, fmt.Sprintf("Command: %s executed successfully by entity.", action.JSON()))
