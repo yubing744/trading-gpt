@@ -292,7 +292,7 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 			}
 		} else if cmd == "update_position" {
 			side := ent.getPositionSide(ent.position)
-			err := ent.UpdatePosition(ctx, side, closePrice, opts...)
+			err := ent.UpdatePositionV2(ctx, side, closePrice, opts...)
 			if err != nil {
 				return errors.Wrap(err, "open position error")
 			}
@@ -531,6 +531,42 @@ POSITION_CLOSED:
 	}
 
 	return nil
+}
+
+func (s *ExchangeEntity) UpdatePositionV2(ctx context.Context, side types.SideType, closePrice fixedpoint.Value, args ...interface{}) error {
+	exchange := s.session.Exchange
+	service, implemented := exchange.(types.ExchangePositionUpdateService)
+	if implemented {
+		log.Info("UpdatePositionV2_start")
+
+		tmpPos := &types.Position{
+			Market: s.position.Market,
+			Symbol: s.symbol,
+		}
+
+		for _, arg := range args {
+			switch val := arg.(type) {
+			case *StopLossPrice:
+				tmpPos.TpTriggerPx = &val.Value
+			case *TakeProfitPrice:
+				tmpPos.SlTriggerPx = &val.Value
+			}
+		}
+
+		err := service.UpdatePosition(ctx, tmpPos)
+		if err != nil {
+			log.WithError(err).Error("UpdatePositionV2_fail")
+
+			log.Info("fallback_to_UpdatePosition")
+			return s.UpdatePosition(ctx, side, closePrice, args...)
+		}
+
+		log.Info("UpdatePositionV2_ok")
+		return nil
+	} else {
+		log.Info("Exchange not impl types.ExchangePositionUpdateService")
+		return s.UpdatePosition(ctx, side, closePrice, args...)
+	}
 }
 
 func (s *ExchangeEntity) generateOrderForm(side types.SideType, quantity fixedpoint.Value, marginOrderSideEffect types.MarginOrderSideEffectType) types.SubmitOrder {
