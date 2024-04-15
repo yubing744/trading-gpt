@@ -405,6 +405,7 @@ func (ent *ExchangeEntity) setupIndicators() {
 	indicators := ent.session.StandardIndicatorSet(ent.symbol)
 
 	for name, cfg := range ent.cfg.Indicators {
+		log.WithField("name", name).WithField("cfg", cfg).Info("setupIndicators")
 		ent.Indicators = append(ent.Indicators, NewExchangeIndicator(name, cfg, indicators))
 	}
 }
