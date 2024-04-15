@@ -450,28 +450,28 @@ func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, 
 		if ok {
 			s.handlePositionChanged(ctx, session, position)
 		} else {
-			log.Warn("event data Type not match")
+			log.WithField("eventType", evt.Type).Warn("event data Type not match")
 		}
 	case "kline_changed":
 		klineWindow, ok := evt.Data.(*types.KLineWindow)
 		if ok {
 			s.handleKlineChanged(ctx, session, klineWindow)
 		} else {
-			log.Warn("event data Type not match")
+			log.WithField("eventType", evt.Type).Warn("event data Type not match")
 		}
 	case "indicator_changed":
 		indicator, ok := evt.Data.(*exchange.ExchangeIndicator)
 		if ok {
 			s.handleExchangeIndicatorChanged(ctx, session, indicator)
 		} else {
-			log.Warn("event data Type not match")
+			log.WithField("eventType", evt.Type).Warn("event data Type not match")
 		}
 	case "fng_changed":
 		fng, ok := evt.Data.(*string)
 		if ok {
 			s.handleFngChanged(ctx, session, fng)
 		} else {
-			log.Warn("event data Type not match")
+			log.WithField("eventType", evt.Type).Warn("event data Type not match")
 		}
 	case "update_finish":
 		s.handleUpdateFinish(ctx, session)

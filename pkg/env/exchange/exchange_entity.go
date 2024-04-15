@@ -360,7 +360,7 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 			Data: ent.KLineWindow,
 		})
 
-		for indicator := range ent.Indicators {
+		for _, indicator := range ent.Indicators {
 			ent.emitEvent(ch, &ttypes.Event{
 				Type: "indicator_changed",
 				Data: indicator,
