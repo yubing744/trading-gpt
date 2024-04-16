@@ -540,10 +540,7 @@ func (s *ExchangeEntity) UpdatePositionV2(ctx context.Context, side types.SideTy
 	if implemented {
 		log.Info("UpdatePositionV2_start")
 
-		tmpPos := &types.Position{
-			Market: s.position.Market,
-			Symbol: s.symbol,
-		}
+		tmpPos := s.position.Position
 
 		for _, arg := range args {
 			switch val := arg.(type) {
