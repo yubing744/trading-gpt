@@ -370,7 +370,24 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 			result, err := utils.ParseResult(resultText)
 			if err != nil {
 				log.WithError(err).WithField("resultText", resultText).Error("parse resp error")
-				s.replyMsg(ctx, chatSession, fmt.Sprintf("parse resp error: %s, resultText: %s", err.Error(), resultText))
+
+				errMsg := fmt.Sprintf("parse resp error, resultText: %s", resultText)
+				s.feedbackCmdExecuteResult(ctx, chatSession, errMsg)
+
+				if retryTime > 0 {
+					time.Sleep(time.Second * 5)
+
+					newMsgs := append(msgs, []*ttypes.Message{
+						{
+							Text: errMsg,
+						},
+						{
+							Text: "Please try to fix the above error by responding with JSON again.",
+						},
+					}...)
+					s.agentAction(ctx, chatSession, newMsgs, retryTime-1)
+				}
+
 				return
 			}
 
