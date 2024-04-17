@@ -545,9 +545,9 @@ func (s *ExchangeEntity) UpdatePositionV2(ctx context.Context, side types.SideTy
 		for _, arg := range args {
 			switch val := arg.(type) {
 			case *StopLossPrice:
-				tmpPos.TpTriggerPx = &val.Value
-			case *TakeProfitPrice:
 				tmpPos.SlTriggerPx = &val.Value
+			case *TakeProfitPrice:
+				tmpPos.TpTriggerPx = &val.Value
 			}
 		}
 
