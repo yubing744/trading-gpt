@@ -55,7 +55,7 @@ func (ei *ExchangeIndicator) ToPrompts(maxWindowSize int) []string {
 }
 
 func (indicator *ExchangeIndicator) BOLLToPrompts(boll *indicator.BOLL, maxWindowSize int) []string {
-	log.WithField("boll", boll).Info("handle boll values changed")
+	log.WithField("boll", boll).Info("handle BOLL values changed")
 
 	upVals := boll.UpBand
 	if len(upVals) > maxWindowSize {
@@ -88,7 +88,7 @@ func (indicator *ExchangeIndicator) BOLLToPrompts(boll *indicator.BOLL, maxWindo
 }
 
 func (indicator *ExchangeIndicator) RSIToPrompts(rsi *indicator.RSI, maxWindowSize int) []string {
-	log.WithField("rsi", rsi).Info("handle boll values changed")
+	log.WithField("rsi", rsi).Info("handle RSI values changed")
 
 	vals := rsi.Values
 	if len(vals) > maxWindowSize {

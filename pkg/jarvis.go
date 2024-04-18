@@ -370,7 +370,24 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 			result, err := utils.ParseResult(resultText)
 			if err != nil {
 				log.WithError(err).WithField("resultText", resultText).Error("parse resp error")
-				s.replyMsg(ctx, chatSession, fmt.Sprintf("parse resp error: %s, resultText: %s", err.Error(), resultText))
+
+				errMsg := fmt.Sprintf("parse resp error, resultText: %s", resultText)
+				s.feedbackCmdExecuteResult(ctx, chatSession, errMsg)
+
+				if retryTime > 0 {
+					time.Sleep(time.Second * 5)
+
+					newMsgs := append(msgs, []*ttypes.Message{
+						{
+							Text: errMsg,
+						},
+						{
+							Text: "Please try to fix the above error by responding with JSON again.",
+						},
+					}...)
+					s.agentAction(ctx, chatSession, newMsgs, retryTime-1)
+				}
+
 				return
 			}
 
@@ -450,28 +467,28 @@ func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, 
 		if ok {
 			s.handlePositionChanged(ctx, session, position)
 		} else {
-			log.Warn("event data Type not match")
+			log.WithField("eventType", evt.Type).Warn("event data Type not match")
 		}
 	case "kline_changed":
 		klineWindow, ok := evt.Data.(*types.KLineWindow)
 		if ok {
 			s.handleKlineChanged(ctx, session, klineWindow)
 		} else {
-			log.Warn("event data Type not match")
+			log.WithField("eventType", evt.Type).Warn("event data Type not match")
 		}
 	case "indicator_changed":
 		indicator, ok := evt.Data.(*exchange.ExchangeIndicator)
 		if ok {
 			s.handleExchangeIndicatorChanged(ctx, session, indicator)
 		} else {
-			log.Warn("event data Type not match")
+			log.WithField("eventType", evt.Type).Warn("event data Type not match")
 		}
 	case "fng_changed":
 		fng, ok := evt.Data.(*string)
 		if ok {
 			s.handleFngChanged(ctx, session, fng)
 		} else {
-			log.Warn("event data Type not match")
+			log.WithField("eventType", evt.Type).Warn("event data Type not match")
 		}
 	case "update_finish":
 		s.handleUpdateFinish(ctx, session)
