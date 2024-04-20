@@ -545,14 +545,22 @@ func (s *Strategy) handlePositionChanged(_ctx context.Context, session ttypes.IS
 				side = "long"
 			}
 
-			msg = fmt.Sprintf("The current position is %s with %dx leverage, average cost: %.3f, and accumulated profit: %.3f%s", side, s.Leverage.Int(), position.AverageCost.Float64(), position.AccumulatedProfit.Float64(), "%")
+			msg = fmt.Sprintf("The current position is %s with %dx leverage, average cost: %.3f, and accumulated profit: %.3f%s.", side, s.Leverage.Int(), position.AverageCost.Float64(), position.AccumulatedProfit.Float64(), "%")
+
+			if position.TpTriggerPx != nil {
+				msg += fmt.Sprintf("\nThe current position's take-profit trigger price is %s.", position.Market.FormatPrice(*position.TpTriggerPx))
+			}
+
+			if position.SlTriggerPx != nil {
+				msg += fmt.Sprintf("\nThe current position's stop-loss trigger price is %s.", position.Market.FormatPrice(*position.SlTriggerPx))
+			}
 
 			profits := position.GetProfitValues()
 			if len(profits) > s.MaxWindowSize {
 				profits = profits[len(profits)-s.MaxWindowSize:]
 			}
 
-			msg = msg + fmt.Sprintf("\nThe profits of the recent %d periods: [%s], and the holding period: %d",
+			msg = msg + fmt.Sprintf("\nThe profits of the recent %d periods: [%s], and the holding period: %d.",
 				s.MaxWindowSize,
 				utils.JoinFloatSlicePercentage([]float64(profits), " "),
 				position.GetHoldingPeriod())
