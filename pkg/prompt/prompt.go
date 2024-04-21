@@ -13,6 +13,7 @@ Performance Evaluation:
 2. Constructively self-criticize your big-picture behavior constantly.
 3. Reflect on past decisions and strategies to refine your approach.
 4. Every command has a cost, so be smart and efficient. Aim to complete tasks in the least number of steps.
+5. Command parameters do not support variables or expressions. Please fill them in after calculating them step by step.
 
 Constraints:
 1. Exclusively use the commands listed in double quotes e.g. "command name"
