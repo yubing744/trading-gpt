@@ -120,23 +120,6 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 			},
 		},
 		{
-			Name:        "close_position",
-			Description: "close position",
-			Samples: []ttypes.Sample{
-				{
-					Input: []string{
-						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
-						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
-						"The current position is long, average cost: 2.736, and accumulated profit: 15.324",
-						"Analyze data, generate trading cmd",
-					},
-					Output: []string{
-						"Execute cmd: /close_position",
-					},
-				},
-			},
-		},
-		{
 			Name:        "update_position",
 			Description: "update position",
 			Args: []ttypes.ArgmentDesc{
@@ -158,6 +141,23 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 					},
 					Output: []string{
 						"Execute cmd: /update_position",
+					},
+				},
+			},
+		},
+		{
+			Name:        "close_position",
+			Description: "close position",
+			Samples: []ttypes.Sample{
+				{
+					Input: []string{
+						"BOLL data changed: UpBand:[2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.92 2.91 2.91 2.90 2.90 2.89 2.89 2.89 2.89 2.89 2.89 2.90 2.92], SMA:[2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.87 2.86 2.86 2.86 2.85 2.85 2.85 2.85 2.85 2.85 2.85 2.86], DownBand:[2.81 2.81 2.82 2.82 2.82 2.82 2.83 2.83 2.82 2.82 2.82 2.81 2.81 2.82 2.82 2.82 2.82 2.82 2.82 2.81 2.80]",
+						"RSI data changed: [2.66 2.65 2.65 2.64 2.64 2.63 2.63 2.63 2.63 2.63 2.63 2.64 2.65 2.66 2.67 2.67 2.68 2.68 2.68 2.68 2.69]",
+						"The current position is long, average cost: 2.736, and accumulated profit: 15.324",
+						"Analyze data, generate trading cmd",
+					},
+					Output: []string{
+						"Execute cmd: /close_position",
 					},
 				},
 			},
