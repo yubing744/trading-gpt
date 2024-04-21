@@ -72,4 +72,4 @@ exchangeStrategies:
     interval: 5m
     leverage: 1
     max_window_size: 20
-    strategy: "Trading on the right side, trailing stop loss 3%, trailing stop profit 10%."
+    strategy: "This strategy utilizes the Bollinger Bands and RSI indicators, capturing overbought and oversold signals when the stock price reaches the upper and lower Bollinger Bands, confirms the timing by combining with the RSI indicator, and sets stop-loss levels, aiming to profit from both upward and downward cycles."
