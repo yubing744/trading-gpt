@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/indicator"
@@ -72,19 +73,31 @@ func (indicator *ExchangeIndicator) BOLLToPrompts(boll *indicator.BOLL, maxWindo
 		downVals = downVals[len(downVals)-maxWindowSize:]
 	}
 
-	tip1 := fmt.Sprintf("BOLL data changed: UpBand:[%s], SMA:[%s], DownBand:[%s]",
-		utils.JoinFloatSlice([]float64(upVals), " "),
-		utils.JoinFloatSlice([]float64(midVals), " "),
-		utils.JoinFloatSlice([]float64(downVals), " "),
-	)
+	sb := strings.Builder{}
 
-	tip2 := fmt.Sprintf("The current UpBand is %.3f, and the current SMA is %.3f, and the current DownBand is %.3f",
+	sb.WriteString("BOLL (Bollinger Bands) data changed:\n")
+	sb.WriteString(fmt.Sprintf("# Data Recorded at %s Intervals\n", boll.Interval))
+	sb.WriteString("# Column Meanings:\n")
+	sb.WriteString("# Time:     Time Point Number, Starting from 0\n")
+	sb.WriteString("# UpBand:   Upper Band Value\n")
+	sb.WriteString("# SMA:      Simple Moving Average Value\n")
+	sb.WriteString("# DownBand: Lower Band Value\n")
+	sb.WriteString("\n")
+
+	sb.WriteString("Time   UpBand   SMA   DownBand\n")
+	for i := 0; i < len(upVals); i++ {
+		sb.WriteString(fmt.Sprintf("%d      %.3f  %.3f    %.3f\n", i, upVals[i], midVals[i], downVals[i]))
+	}
+
+	sb.WriteString("\n")
+
+	sb.WriteString(fmt.Sprintf("The current UpBand is %.3f, and the current SMA is %.3f, and the current DownBand is %.3f",
 		boll.UpBand.Last(0),
 		boll.SMA.Last(0),
 		boll.DownBand.Last(0),
-	)
+	))
 
-	return []string{tip1, tip2}
+	return []string{sb.String()}
 }
 
 func (indicator *ExchangeIndicator) RSIToPrompts(rsi *indicator.RSI, maxWindowSize int) []string {
@@ -95,10 +108,14 @@ func (indicator *ExchangeIndicator) RSIToPrompts(rsi *indicator.RSI, maxWindowSi
 		vals = vals[len(vals)-maxWindowSize:]
 	}
 
-	msg := fmt.Sprintf("RSI data changed: [%s], and the current RSI value is: %.3f",
-		utils.JoinFloatSlice([]float64(vals), " "),
-		rsi.Last(0),
-	)
+	msgs := make([]string, 0)
 
-	return []string{msg}
+	if len(vals) > 0 {
+		msgs = append(msgs, fmt.Sprintf("RSI data changed: [%s], and the current RSI value is: %.3f",
+			utils.JoinFloatSlice([]float64(vals), " "),
+			rsi.Last(0),
+		))
+	}
+
+	return msgs
 }

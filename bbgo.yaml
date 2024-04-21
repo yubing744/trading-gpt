@@ -33,7 +33,7 @@ exchangeStrategies:
         model: "claude-3-opus-20240229"
       ollama:
         server_url: "http://localhost:11434"
-        model: "codegemma:7b"
+        model: "llama3:latest" # Options：codegemma:7b, llama3:latest, and mistral:latest
       primary: "ollama"
       secondly: "anthropic"
     env:
@@ -45,6 +45,12 @@ exchangeStrategies:
             params:
               interval: "5m"
               windowSize: "21"
+          boll:
+            type: "boll"
+            params:
+              interval: "5m"
+              windowSize: "21"
+              bandWidth: "2.0"
       include_events:
         - kline_changed
         - indicator_changed
@@ -63,7 +69,7 @@ exchangeStrategies:
         enabled: true
         url: "https://open.feishu.cn/open-apis/bot/v2/hook/e926c8b5-50e6-41e8-8f70-12a8631dfd93"
     symbol: JUPUSDT
-    interval: 1m
+    interval: 5m
     leverage: 1
     max_window_size: 20
     strategy: "Trading on the right side, trailing stop loss 3%, trailing stop profit 10%."
