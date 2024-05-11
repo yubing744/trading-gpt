@@ -20,6 +20,7 @@ Constraints:
 2. The command's parameters only support strings. If the parameters are of other types, please convert them all to strings.
 3、Be careful not to open positions repeatedly. If you need to adjust the take profit and stop loss, please use the exchange.update_position command.
 4、Please remember to only reply in JSON format, no other explanation is required.
+5、The returned JSON format does not support comments
 
 You should only respond in JSON format as described below 
 Response Format: 

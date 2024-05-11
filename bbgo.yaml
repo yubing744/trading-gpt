@@ -33,7 +33,7 @@ exchangeStrategies:
         model: "claude-3-opus-20240229"
       ollama:
         server_url: "http://localhost:11434"
-        model: "codegemma:7b" # Options：codegemma:7b, llama3:latest, and mistral:latest
+        model: "wizardlm2:7b" # Options：wizardlm2:7b, codegemma:7b, llama3:latest, and mistral:latest
       primary: "ollama"
       secondly: "anthropic"
     env:
