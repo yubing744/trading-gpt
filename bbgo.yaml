@@ -40,17 +40,16 @@ exchangeStrategies:
       exchange:
         window_size: 20
         indicators:
-          rsi:
-            type: "rsi"
+          MA5:
+            type: "sma"
             params:
               interval: "5m"
-              windowSize: "21"
-          boll:
-            type: "boll"
+              windowSize: "5"
+          MA20:
+            type: "sma"
             params:
               interval: "5m"
-              windowSize: "21"
-              bandWidth: "2.0"
+              windowSize: "20"
       include_events:
         - kline_changed
         - indicator_changed
@@ -71,5 +70,5 @@ exchangeStrategies:
     symbol: JUPUSDT
     interval: 5m
     leverage: 1
-    max_window_size: 20
-    strategy: "This strategy utilizes the Bollinger Bands and RSI indicators, capturing overbought and oversold signals when the stock price reaches the upper and lower Bollinger Bands, confirms the timing by combining with the RSI indicator, and sets stop-loss levels, aiming to profit from both upward and downward cycles."
+    max_window_size: 21
+    strategy: "Trading on the right side, stop loss 3%, stop profit 10%."

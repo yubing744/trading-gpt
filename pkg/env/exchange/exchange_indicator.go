@@ -12,6 +12,12 @@ import (
 	"github.com/yubing744/trading-gpt/pkg/utils"
 )
 
+type IBasicIndicator interface {
+	Length() int
+	Index(i int) float64
+	Last(i int) float64
+}
+
 type ExchangeIndicator struct {
 	Name string
 	Type config.IndicatorType
@@ -25,6 +31,26 @@ func NewExchangeIndicator(name string, cfg *config.IndicatorConfig, indicators *
 	}
 
 	switch cfg.Type {
+	case config.IndicatorTypeSMA:
+		indicator.Data = indicators.SMA(types.IntervalWindow{
+			Interval: cfg.GetInterval("interval", "5m"),
+			Window:   cfg.GetInt("windowSize", 5),
+		})
+	case config.IndicatorTypeEWMA:
+		indicator.Data = indicators.EWMA(types.IntervalWindow{
+			Interval: cfg.GetInterval("interval", "5m"),
+			Window:   cfg.GetInt("windowSize", 5),
+		})
+	case config.IndicatorTypeVWMA:
+		indicator.Data = indicators.VWMA(types.IntervalWindow{
+			Interval: cfg.GetInterval("interval", "5m"),
+			Window:   cfg.GetInt("windowSize", 5),
+		})
+	case config.IndicatorTypeEMV:
+		indicator.Data = indicators.EMV(types.IntervalWindow{
+			Interval: cfg.GetInterval("interval", "5m"),
+			Window:   cfg.GetInt("windowSize", 5),
+		})
 	case config.IndicatorTypeBOLL:
 		indicator.Data = indicators.BOLL(types.IntervalWindow{
 			Interval: cfg.GetInterval("interval", "5m"),
@@ -46,10 +72,13 @@ func (ei *ExchangeIndicator) ToPrompts(maxWindowSize int) []string {
 	switch ei.Type {
 	case config.IndicatorTypeBOLL:
 		return ei.BOLLToPrompts(ei.Data.(*indicator.BOLL), maxWindowSize)
-	case config.IndicatorTypeRSI:
-		return ei.RSIToPrompts(ei.Data.(*indicator.RSI), maxWindowSize)
 	default:
-		log.Panic("not support type" + ei.Type)
+		basicIndicator, ok := ei.Data.(IBasicIndicator)
+		if ok {
+			return ei.BasicToPrompts(ei.Name, ei.Type, basicIndicator, maxWindowSize)
+		} else {
+			log.Panic("not support type" + ei.Type)
+		}
 	}
 
 	return []string{}
@@ -100,22 +129,38 @@ func (indicator *ExchangeIndicator) BOLLToPrompts(boll *indicator.BOLL, maxWindo
 	return []string{sb.String()}
 }
 
-func (indicator *ExchangeIndicator) RSIToPrompts(rsi *indicator.RSI, maxWindowSize int) []string {
-	log.WithField("rsi", rsi).Info("handle RSI values changed")
+func (indicator *ExchangeIndicator) BasicToPrompts(name string, indicatorType config.IndicatorType, basicIndicator IBasicIndicator, maxWindowSize int) []string {
+	log.
+		WithField("name", name).
+		WithField("indicatorType", indicatorType).
+		WithField("maxWindowSize", maxWindowSize).
+		Info("indicator values changed")
 
-	vals := rsi.Values
+	vals := basicIndicatorToValues(basicIndicator)
 	if len(vals) > maxWindowSize {
-		vals = vals[len(vals)-maxWindowSize:]
+		vals = vals[:maxWindowSize]
 	}
 
 	msgs := make([]string, 0)
 
 	if len(vals) > 0 {
-		msgs = append(msgs, fmt.Sprintf("RSI data changed: [%s], and the current RSI value is: %.3f",
+		msgs = append(msgs, fmt.Sprintf("%s data changed: [%s], and the current %s at index 0 value is: %.3f",
+			name,
 			utils.JoinFloatSlice([]float64(vals), " "),
-			rsi.Last(0),
+			name,
+			basicIndicator.Last(0),
 		))
 	}
 
 	return msgs
+}
+
+func basicIndicatorToValues(basicIndicator IBasicIndicator) []float64 {
+	vals := make([]float64, 0)
+
+	for i := 0; i < basicIndicator.Length(); i++ {
+		vals = append(vals, basicIndicator.Index(i))
+	}
+
+	return vals
 }

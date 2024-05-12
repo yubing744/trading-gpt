@@ -108,7 +108,7 @@ exchangeStrategies:
     interval: 15m
     leverage: 1
     max_window_size: 20
-    strategy: "Utilizes the Bollinger Bands and RSI indicators, capturing overbought and oversold signals when the stock price reaches the upper and lower Bollinger Bands, confirms the timing by combining with the RSI indicator, and sets stop-loss levels, aiming to profit from both upward and downward cycles."
+    strategy: "Trading on the right side, stop loss 3%, stop profit 10%."
 ```
 
 Run
