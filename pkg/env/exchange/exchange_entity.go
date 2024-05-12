@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -408,6 +409,10 @@ func (ent *ExchangeEntity) setupIndicators() {
 		log.WithField("name", name).WithField("cfg", cfg).Info("setupIndicators")
 		ent.Indicators = append(ent.Indicators, NewExchangeIndicator(name, cfg, indicators))
 	}
+
+	sort.Slice(ent.Indicators, func(i int, j int) bool {
+		return strings.Compare(string(ent.Indicators[i].Type), string(ent.Indicators[j].Type)) < 0
+	})
 }
 
 func (ent *ExchangeEntity) emitEvent(ch chan *ttypes.Event, evt *ttypes.Event) {

@@ -23,6 +23,10 @@ Trading strategy: Trading on the right side, stop loss 3%, stop profit 10%.
 Trading strategy: Calculate the MACD indicator based on the K-line. The short period of the MACD indicator is 13, the long period is 34, the moving average period is 9, and the length of the ATR indicator is 13. Open a short order when the MACD indicator is bullish and there is a double top divergence. Open a long order when the MACD indicator is bearish and there is a double bottom divergence. Stop loss 1%, take profit 5%.
 ```
 
+* BOLL and RSI
+```
+Trading strategy: This strategy utilizes the Bollinger Bands and RSI indicators, capturing overbought and oversold signals when the stock price reaches the upper and lower Bollinger Bands, confirms the timing by combining with the RSI indicator, and sets stop-loss levels, aiming to profit from both upward and downward cycles.
+```
 
 ## Usage
 Prepare your dotenv file .env.local and BBGO yaml config file bbgo.yaml
@@ -66,16 +70,25 @@ exchangeStrategies:
         model: "claude-3-opus-20240229"
       ollama:
         server_url: "http://localhost:11434"
-        model: "mistral:latest"
+        model: "codegemma:7b"
       primary: "ollama"
       secondly: "openai"
     env:
       exchange:
-        window_size: 20
+        indicators:
+          MA5:
+            type: "sma"
+            params:
+              interval: "5m"
+              windowSize: "5"
+          MA20:
+            type: "sma"
+            params:
+              interval: "5m"
+              windowSize: "20"
       include_events:
         - kline_changed
-        - rsi_changed
-        - boll_changed
+        - indicator_changed
         - fng_changed
         - position_changed
         - update_finish
@@ -94,7 +107,7 @@ exchangeStrategies:
     interval: 15m
     leverage: 1
     max_window_size: 20
-    strategy: "Trading on the right side, trailing stop loss 3%, trailing stop profit 10%."
+    strategy: "Trading on the right side, stop loss 3%, stop profit 10%."
 ```
 
 Run

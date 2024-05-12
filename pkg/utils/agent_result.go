@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -10,9 +11,10 @@ import (
 
 func ParseResult(text string) (*types.Result, error) {
 	text = trimJSON(trimMarkdownJSON(strings.ReplaceAll(text, "\\", "")))
+	jsonBytes := removeJSONComments([]byte(text))
 
 	var result types.Result
-	err := json.Unmarshal([]byte(text), &result)
+	err := json.Unmarshal(jsonBytes, &result)
 	if err != nil {
 		return nil, errors.Wrap(err, "json.Unmarshal_error")
 	}
@@ -46,4 +48,13 @@ func trimJSON(text string) string {
 	}
 
 	return text
+}
+
+func removeJSONComments(jsonData []byte) []byte {
+	singleLineCommentPattern := regexp.MustCompile(`//.*$`)
+	jsonData = singleLineCommentPattern.ReplaceAll(jsonData, []byte{})
+
+	multiLineCommentPattern := regexp.MustCompile(`/\*.*?\*/`)
+	jsonData = multiLineCommentPattern.ReplaceAll(jsonData, []byte{})
+	return jsonData
 }

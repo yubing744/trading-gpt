@@ -500,14 +500,7 @@ func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, 
 func (s *Strategy) handleKlineChanged(ctx context.Context, session ttypes.ISession, klineWindow *types.KLineWindow) {
 	log.WithField("kline", klineWindow).Info("handle klineWindow values changed")
 
-	msg := fmt.Sprintf("KLine data changed: Open:[%s], Close:[%s], High:[%s], Low:[%s], Volume:[%s], and the current close price is: %.3f",
-		utils.JoinFloatSeries(klineWindow.Open(), " "),
-		utils.JoinFloatSeries(klineWindow.Close(), " "),
-		utils.JoinFloatSeries(klineWindow.High(), " "),
-		utils.JoinFloatSeries(klineWindow.Low(), " "),
-		utils.JoinFloatSeries(klineWindow.Volume(), " "),
-		klineWindow.GetClose().Float64(),
-	)
+	msg := fmt.Sprintf("KLine data changed:\n%s", utils.FormatKLineWindow(*klineWindow))
 
 	session.SetAttribute("kline", klineWindow)
 	s.stashMsg(ctx, session, msg)

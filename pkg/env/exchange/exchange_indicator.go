@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/indicator"
@@ -10,6 +11,12 @@ import (
 	"github.com/yubing744/trading-gpt/pkg/config"
 	"github.com/yubing744/trading-gpt/pkg/utils"
 )
+
+type IBasicIndicator interface {
+	Length() int
+	Index(i int) float64
+	Last(i int) float64
+}
 
 type ExchangeIndicator struct {
 	Name string
@@ -24,6 +31,26 @@ func NewExchangeIndicator(name string, cfg *config.IndicatorConfig, indicators *
 	}
 
 	switch cfg.Type {
+	case config.IndicatorTypeSMA:
+		indicator.Data = indicators.SMA(types.IntervalWindow{
+			Interval: cfg.GetInterval("interval", "5m"),
+			Window:   cfg.GetInt("windowSize", 5),
+		})
+	case config.IndicatorTypeEWMA:
+		indicator.Data = indicators.EWMA(types.IntervalWindow{
+			Interval: cfg.GetInterval("interval", "5m"),
+			Window:   cfg.GetInt("windowSize", 5),
+		})
+	case config.IndicatorTypeVWMA:
+		indicator.Data = indicators.VWMA(types.IntervalWindow{
+			Interval: cfg.GetInterval("interval", "5m"),
+			Window:   cfg.GetInt("windowSize", 5),
+		})
+	case config.IndicatorTypeEMV:
+		indicator.Data = indicators.EMV(types.IntervalWindow{
+			Interval: cfg.GetInterval("interval", "5m"),
+			Window:   cfg.GetInt("windowSize", 5),
+		})
 	case config.IndicatorTypeBOLL:
 		indicator.Data = indicators.BOLL(types.IntervalWindow{
 			Interval: cfg.GetInterval("interval", "5m"),
@@ -45,10 +72,13 @@ func (ei *ExchangeIndicator) ToPrompts(maxWindowSize int) []string {
 	switch ei.Type {
 	case config.IndicatorTypeBOLL:
 		return ei.BOLLToPrompts(ei.Data.(*indicator.BOLL), maxWindowSize)
-	case config.IndicatorTypeRSI:
-		return ei.RSIToPrompts(ei.Data.(*indicator.RSI), maxWindowSize)
 	default:
-		log.Panic("not support type" + ei.Type)
+		basicIndicator, ok := ei.Data.(IBasicIndicator)
+		if ok {
+			return ei.BasicToPrompts(ei.Name, ei.Type, basicIndicator, maxWindowSize)
+		} else {
+			log.Panic("not support type" + ei.Type)
+		}
 	}
 
 	return []string{}
@@ -72,33 +102,65 @@ func (indicator *ExchangeIndicator) BOLLToPrompts(boll *indicator.BOLL, maxWindo
 		downVals = downVals[len(downVals)-maxWindowSize:]
 	}
 
-	tip1 := fmt.Sprintf("BOLL data changed: UpBand:[%s], SMA:[%s], DownBand:[%s]",
-		utils.JoinFloatSlice([]float64(upVals), " "),
-		utils.JoinFloatSlice([]float64(midVals), " "),
-		utils.JoinFloatSlice([]float64(downVals), " "),
-	)
+	sb := strings.Builder{}
 
-	tip2 := fmt.Sprintf("The current UpBand is %.3f, and the current SMA is %.3f, and the current DownBand is %.3f",
+	sb.WriteString("BOLL (Bollinger Bands) data changed:\n")
+	sb.WriteString(fmt.Sprintf("# Data Recorded at %s Intervals\n", boll.Interval))
+	sb.WriteString("# Column Meanings:\n")
+	sb.WriteString("# Time:     Time Point Number, Starting from 0\n")
+	sb.WriteString("# UpBand:   Upper Band Value\n")
+	sb.WriteString("# SMA:      Simple Moving Average Value\n")
+	sb.WriteString("# DownBand: Lower Band Value\n")
+	sb.WriteString("\n")
+
+	sb.WriteString("Time   UpBand   SMA   DownBand\n")
+	for i := 0; i < len(upVals); i++ {
+		sb.WriteString(fmt.Sprintf("%d      %.3f  %.3f    %.3f\n", i, upVals[i], midVals[i], downVals[i]))
+	}
+
+	sb.WriteString("\n")
+
+	sb.WriteString(fmt.Sprintf("The current UpBand is %.3f, and the current SMA is %.3f, and the current DownBand is %.3f",
 		boll.UpBand.Last(0),
 		boll.SMA.Last(0),
 		boll.DownBand.Last(0),
-	)
+	))
 
-	return []string{tip1, tip2}
+	return []string{sb.String()}
 }
 
-func (indicator *ExchangeIndicator) RSIToPrompts(rsi *indicator.RSI, maxWindowSize int) []string {
-	log.WithField("rsi", rsi).Info("handle RSI values changed")
+func (indicator *ExchangeIndicator) BasicToPrompts(name string, indicatorType config.IndicatorType, basicIndicator IBasicIndicator, maxWindowSize int) []string {
+	log.
+		WithField("name", name).
+		WithField("indicatorType", indicatorType).
+		WithField("maxWindowSize", maxWindowSize).
+		Info("indicator values changed")
 
-	vals := rsi.Values
+	vals := basicIndicatorToValues(basicIndicator)
 	if len(vals) > maxWindowSize {
-		vals = vals[len(vals)-maxWindowSize:]
+		vals = vals[:maxWindowSize]
 	}
 
-	msg := fmt.Sprintf("RSI data changed: [%s], and the current RSI value is: %.3f",
-		utils.JoinFloatSlice([]float64(vals), " "),
-		rsi.Last(0),
-	)
+	msgs := make([]string, 0)
 
-	return []string{msg}
+	if len(vals) > 0 {
+		msgs = append(msgs, fmt.Sprintf("%s data changed: [%s], and the current %s at index 0 value is: %.3f",
+			name,
+			utils.JoinFloatSlice([]float64(vals), " "),
+			name,
+			basicIndicator.Last(0),
+		))
+	}
+
+	return msgs
+}
+
+func basicIndicatorToValues(basicIndicator IBasicIndicator) []float64 {
+	vals := make([]float64, 0)
+
+	for i := 0; i < basicIndicator.Length(); i++ {
+		vals = append(vals, basicIndicator.Index(i))
+	}
+
+	return vals
 }
