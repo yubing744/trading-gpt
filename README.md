@@ -76,17 +76,16 @@ exchangeStrategies:
     env:
       exchange:
         indicators:
-          rsi:
-            type: "rsi"
+          MA5:
+            type: "sma"
             params:
               interval: "5m"
-              windowSize: "21"
-          boll:
-            type: "boll"
+              windowSize: "5"
+          MA20:
+            type: "sma"
             params:
               interval: "5m"
-              windowSize: "21"
-              bandWidth: "2.0"
+              windowSize: "20"
       include_events:
         - kline_changed
         - indicator_changed
