@@ -15,7 +15,7 @@ Trading strategy: Moving average strategy.
 
 * Trend trading Strategies
 ```
-Trading strategy: Trading on the right side, stop loss 3%, stop profit 10%.
+Trading strategy: Trading on the right side, trailing stop loss 3%, trailing stop profit 10%.
 ```
 
 * MACD divergence strategy
@@ -58,21 +58,21 @@ sessions:
     envVarPrefix: okex
     margin: true
     isolatedMargin: false
-    isolatedMarginSymbol: JUPUSDT
+    isolatedMarginSymbol: SUIUSDT
 
 exchangeStrategies:
 - on: okex
   jarvis:
     llm:
       openai:
-        model: "gpt-4-1106-preview"
+        model: "gpt-4o"
       anthropic:
         model: "claude-3-opus-20240229"
       ollama:
         server_url: "http://localhost:11434"
         model: "codegemma:7b"
-      primary: "ollama"
-      secondly: "openai"
+      primary: "openai"
+      secondly: "anthropic"
     env:
       exchange:
         indicators:
@@ -103,11 +103,11 @@ exchangeStrategies:
       feishu_hook:
         enabled: true
         url: "your feishu group custom webhook url"
-    symbol: JUPUSDT
+    symbol: SUIUSDT
     interval: 15m
     leverage: 1
     max_window_size: 20
-    strategy: "Trading on the right side, stop loss 3%, stop profit 10%."
+    strategy: "Trading on the right side, trailing stop loss 3%, trailing stop profit 10%."
 ```
 
 Run
