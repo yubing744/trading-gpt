@@ -65,14 +65,14 @@ exchangeStrategies:
   jarvis:
     llm:
       openai:
-        model: "gpt-4-1106-preview"
+        model: "gpt-4o"
       anthropic:
         model: "claude-3-opus-20240229"
       ollama:
         server_url: "http://localhost:11434"
         model: "codegemma:7b"
-      primary: "ollama"
-      secondly: "openai"
+      primary: "openai"
+      secondly: "anthropic"
     env:
       exchange:
         indicators:
