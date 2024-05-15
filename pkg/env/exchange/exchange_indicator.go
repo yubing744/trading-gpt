@@ -66,6 +66,16 @@ func NewExchangeIndicator(name string, cfg *config.IndicatorConfig, indicators *
 			Interval: cfg.GetInterval("interval", "5m"),
 			Window:   cfg.GetInt("windowSize", 20),
 		})
+	case config.IndicatorTypeATR:
+		indicator.Data = indicators.ATR(types.IntervalWindow{
+			Interval: cfg.GetInterval("interval", "5m"),
+			Window:   cfg.GetInt("windowSize", 20),
+		})
+	case config.IndicatorTypeATRP:
+		indicator.Data = indicators.ATRP(types.IntervalWindow{
+			Interval: cfg.GetInterval("interval", "5m"),
+			Window:   cfg.GetInt("windowSize", 20),
+		})
 	default:
 		log.Panic("not support type" + cfg.Type)
 	}
