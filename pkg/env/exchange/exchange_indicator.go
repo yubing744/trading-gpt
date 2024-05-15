@@ -36,6 +36,11 @@ func NewExchangeIndicator(name string, cfg *config.IndicatorConfig, indicators *
 			Interval: cfg.GetInterval("interval", "5m"),
 			Window:   cfg.GetInt("windowSize", 5),
 		})
+	case config.IndicatorTypeVR:
+		indicator.Data = indicators.VR(types.IntervalWindow{
+			Interval: cfg.GetInterval("interval", "5m"),
+			Window:   cfg.GetInt("windowSize", 5),
+		})
 	case config.IndicatorTypeEWMA:
 		indicator.Data = indicators.EWMA(types.IntervalWindow{
 			Interval: cfg.GetInterval("interval", "5m"),
