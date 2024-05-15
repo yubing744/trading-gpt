@@ -26,6 +26,7 @@ const (
 	IndicatorTypeRSI          IndicatorType = "rsi"
 	IndicatorTypeGHFilter     IndicatorType = "ghfilter"
 	IndicatorTypeKalmanFilter IndicatorType = "kalmanfilter"
+	IndicatorTypeVR           IndicatorType = "vr"
 )
 
 type IndicatorConfig struct {

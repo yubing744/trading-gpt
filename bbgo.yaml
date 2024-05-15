@@ -41,6 +41,11 @@ exchangeStrategies:
       exchange:
         window_size: 20
         indicators:
+          VR5:
+            type: "vr"
+            params:
+              interval: "5m"
+              windowSize: "5"
           MA5:
             type: "sma"
             params:
