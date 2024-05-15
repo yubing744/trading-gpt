@@ -35,17 +35,17 @@ exchangeStrategies:
       ollama:
         server_url: "http://localhost:11434"
         model: "wizardlm2:7b" # Options：wizardlm2:7b, codegemma:7b, llama3:latest, and mistral:latest
-      primary: "openai"
+      primary: "ollama"
       secondly: "anthropic"
     env:
       exchange:
         window_size: 20
         indicators:
-          VR5:
+          VR14:
             type: "vr"
             params:
               interval: "5m"
-              windowSize: "5"
+              windowSize: "14"
           MA5:
             type: "sma"
             params:
@@ -56,6 +56,12 @@ exchangeStrategies:
             params:
               interval: "5m"
               windowSize: "20"
+          Weekly_BOLL:
+            type: "boll"
+            params:
+              interval: "15m"
+              windowSize: "20"
+              bandWidth: "2.0"
       include_events:
         - kline_changed
         - indicator_changed
