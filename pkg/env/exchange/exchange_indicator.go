@@ -59,12 +59,12 @@ func NewExchangeIndicator(name string, cfg *config.IndicatorConfig, indicators *
 	case config.IndicatorTypeBOLL:
 		indicator.Data = indicators.BOLL(types.IntervalWindow{
 			Interval: cfg.GetInterval("interval", "5m"),
-			Window:   cfg.GetInt("windowSize", 21),
+			Window:   cfg.GetInt("windowSize", 20),
 		}, cfg.GetFloat("bandWidth", 2.0))
 	case config.IndicatorTypeRSI:
 		indicator.Data = indicators.RSI(types.IntervalWindow{
 			Interval: cfg.GetInterval("interval", "5m"),
-			Window:   cfg.GetInt("windowSize", 21),
+			Window:   cfg.GetInt("windowSize", 20),
 		})
 	default:
 		log.Panic("not support type" + cfg.Type)
@@ -76,7 +76,7 @@ func NewExchangeIndicator(name string, cfg *config.IndicatorConfig, indicators *
 func (ei *ExchangeIndicator) ToPrompts(maxWindowSize int) []string {
 	switch ei.Type {
 	case config.IndicatorTypeBOLL:
-		return ei.BOLLToPrompts(ei.Data.(*indicator.BOLL), maxWindowSize)
+		return ei.BOLLToPrompts(ei.Name, ei.Type, ei.Data.(*indicator.BOLL), maxWindowSize)
 	default:
 		basicIndicator, ok := ei.Data.(IBasicIndicator)
 		if ok {
@@ -89,8 +89,12 @@ func (ei *ExchangeIndicator) ToPrompts(maxWindowSize int) []string {
 	return []string{}
 }
 
-func (indicator *ExchangeIndicator) BOLLToPrompts(boll *indicator.BOLL, maxWindowSize int) []string {
-	log.WithField("boll", boll).Info("handle BOLL values changed")
+func (indicator *ExchangeIndicator) BOLLToPrompts(name string, indicatorType config.IndicatorType, boll *indicator.BOLL, maxWindowSize int) []string {
+	log.
+		WithField("name", name).
+		WithField("indicatorType", indicatorType).
+		WithField("maxWindowSize", maxWindowSize).
+		Info("handle BOLL values changed")
 
 	upVals := boll.UpBand
 	if len(upVals) > maxWindowSize {
@@ -109,12 +113,11 @@ func (indicator *ExchangeIndicator) BOLLToPrompts(boll *indicator.BOLL, maxWindo
 
 	sb := strings.Builder{}
 
-	sb.WriteString("BOLL (Bollinger Bands) data changed:\n")
-	sb.WriteString(fmt.Sprintf("# Data Recorded at %s Intervals\n", boll.Interval))
+	sb.WriteString(fmt.Sprintf("%s (Bollinger Bands) data changed:\n", name))
 	sb.WriteString("# Column Meanings:\n")
 	sb.WriteString("# Time:     Time Point Number, Starting from 0\n")
 	sb.WriteString("# UpBand:   Upper Band Value\n")
-	sb.WriteString("# SMA:      Simple Moving Average Value\n")
+	sb.WriteString(fmt.Sprintf("# SMA:      Simple Moving Average Value by %d windowSize\n", boll.SMA.Window))
 	sb.WriteString("# DownBand: Lower Band Value\n")
 	sb.WriteString("\n")
 
