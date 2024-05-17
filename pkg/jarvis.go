@@ -99,7 +99,11 @@ func (s *Strategy) Subscribe(session *bbgo.ExchangeSession) {
 	// We want 1m kline data of the symbol
 	// It will be BTCUSDT 1m if our s.Symbol is BTCUSDT
 	log.Info("subscribe KLineChannel")
-	session.Subscribe(types.KLineChannel, s.Symbol, types.SubscribeOptions{Interval: s.Interval})
+
+	s.SubscribeIntervals = append(s.SubscribeIntervals, s.Interval)
+	for _, interval := range s.SubscribeIntervals {
+		session.Subscribe(types.KLineChannel, s.Symbol, types.SubscribeOptions{Interval: interval})
+	}
 }
 
 // This strategy simply spent all available quote currency to buy the symbol whenever kline gets closed

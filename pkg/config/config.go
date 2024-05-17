@@ -6,10 +6,11 @@ import (
 )
 
 type Config struct {
-	Symbol        string           `json:"symbol"`
-	Interval      types.Interval   `json:"interval"`
-	Leverage      fixedpoint.Value `json:"leverage"`
-	MaxWindowSize int              `json:"max_window_size"`
+	Symbol             string           `json:"symbol"`
+	Interval           types.Interval   `json:"interval"`
+	SubscribeIntervals []types.Interval `json:"subscribe_intervals"`
+	Leverage           fixedpoint.Value `json:"leverage"`
+	MaxWindowSize      int              `json:"max_window_size"`
 
 	Notify NotifyConfig `json:"notify"`
 	LLM    LLMConfig    `json:"llm"`
