@@ -81,6 +81,7 @@ exchangeStrategies:
         url: "https://open.feishu.cn/open-apis/bot/v2/hook/e926c8b5-50e6-41e8-8f70-12a8631dfd93"
     symbol: SUIUSDT
     interval: 5m
+    subscribe_intervals: ["15m"]
     leverage: 1
     max_window_size: 21
     strategy: "Trading on the right side, stop loss 3%, stop profit 10%."
