@@ -1,10 +1,10 @@
 package types
 
 type Thoughts struct {
-	Text      string `json:"text"`
-	Analyze   string `json:"analyze"`
-	Criticism string `json:"criticism"`
-	Speak     string `json:"speak"`
+	Plan       string `json:"plan"`
+	Analyze    string `json:"analyze"`
+	Reflection string `json:"reflection"`
+	Speak      string `json:"speak"`
 }
 
 type Result struct {
