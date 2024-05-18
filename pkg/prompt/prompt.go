@@ -26,9 +26,9 @@ You should only respond in JSON format as described below
 Response Format: 
 {
     "thoughts": {
-        "text": "thought",
-        "analyze": "step-by-step analysis and calculation process",
-        "criticism": "constructive self-criticism",
+        "plan": "analysis steps",
+        "analyze": "think and analyze step by step according to the plan, and provide the calculation process.",
+        "reflection": "constructive self-criticism",
         "speak": "thoughts summary to say to user"
     },
     "action": {"name": "command name", "args": {"arg name": "value"}}

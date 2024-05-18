@@ -25,7 +25,7 @@ func FormatKLineWindow(window types.KLineWindow) string {
 	}
 
 	// Add latest closing price
-	sb.WriteString(fmt.Sprintf("\nCurrentClose: %.3f", window.Close().Last(0)))
+	sb.WriteString(fmt.Sprintf("\nCurrent close price: %.3f", window.Close().Last(0)))
 
 	return sb.String()
 }

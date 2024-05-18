@@ -396,9 +396,9 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 			}
 
 			if result.Thoughts != nil {
-				s.replyMsg(ctx, chatSession, fmt.Sprintf("Text: %s", result.Thoughts.Text))
+				s.replyMsg(ctx, chatSession, fmt.Sprintf("Plan: %s", result.Thoughts.Plan))
 				s.replyMsg(ctx, chatSession, fmt.Sprintf("Analyze: %s", result.Thoughts.Analyze))
-				s.replyMsg(ctx, chatSession, fmt.Sprintf("Criticism: %s", result.Thoughts.Criticism))
+				s.replyMsg(ctx, chatSession, fmt.Sprintf("Reflection: %s", result.Thoughts.Reflection))
 				s.replyMsg(ctx, chatSession, fmt.Sprintf("Speak: %s", result.Thoughts.Speak))
 			}
 
