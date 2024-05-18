@@ -27,7 +27,7 @@ Response Format:
 {
     "thoughts": {
         "plan": "analysis steps",
-        "analyze": step by step calculation process",
+        "analyze": "detailed step-by-step analysis and calculation process",
         "reflection": "constructive self-criticism",
         "speak": "thoughts summary to say to user"
     },
