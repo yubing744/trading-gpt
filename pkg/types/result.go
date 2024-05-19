@@ -3,6 +3,7 @@ package types
 type Thoughts struct {
 	Plan       string `json:"plan"`
 	Analyze    string `json:"analyze"`
+	Detail     string `json:"detail"`
 	Reflection string `json:"reflection"`
 	Speak      string `json:"speak"`
 }

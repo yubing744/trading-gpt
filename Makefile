@@ -1,7 +1,7 @@
 .PHONY: clean build test run docker-* tag release
 
 NAME=trading-gpt
-VERSION=0.19.0
+VERSION=0.19.1
 
 clean:
 	rm -rf build/*

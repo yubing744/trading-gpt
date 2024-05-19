@@ -10,12 +10,12 @@ Commands:
 Trading strategy:
 {{.Strategy}}
 
-{{- if .StrategyAttentionPoints}}
+{{if .StrategyAttentionPoints}}
 Strategy points of attention:
 {{- range $index, $item := .StrategyAttentionPoints}}
 {{add $index 1}}. {{$item}}
 {{- end}}
-{{- end}}
+{{end}}
 
 Constraints:
 1. Exclusively use the commands listed in double quotes e.g. "command name"
@@ -30,7 +30,8 @@ Response Format:
 {
     "thoughts": {
         "plan": "analysis steps",
-        "analyze": "detailed step-by-step analysis and calculation process",
+        "analyze": "step-by-step analysis",
+        "detail": "output detailed calculation process",
         "reflection": "constructive self-criticism",
         "speak": "thoughts summary to say to user"
     },
