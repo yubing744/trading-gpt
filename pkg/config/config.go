@@ -18,5 +18,6 @@ type Config struct {
 	Agent  AgentConfig  `json:"agent"`
 	Env    EnvConfig    `json:"env"`
 
-	Strategy string `json:"strategy"`
+	Strategy                string   `json:"strategy"`
+	StrategyAttentionPoints []string `json:"strategy_attention_points"`
 }

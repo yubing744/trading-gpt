@@ -85,3 +85,6 @@ exchangeStrategies:
     leverage: 1
     max_window_size: 21
     strategy: "Trading on the right side, stop loss 3%, stop profit 10%."
+    strategy_attention_points:
+      - Summarize the changing trend of historical closing prices
+      - Trailing Stop

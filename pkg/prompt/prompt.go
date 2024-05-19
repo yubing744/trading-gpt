@@ -1,33 +1,37 @@
 package prompt
 
-var Thought = `Analyze the data provided above, and step-by-step consider the only executable trade command based on the trading strategy provided below to maximize user profit.
+var ThoughtTpl = `Analyze the data provided above, and step-by-step consider the only executable trade command based on the trading strategy provided below to maximize user profit.
 
 Commands:
-%s
+{{- range $index, $item := .ActionTips}}
+{{add $index 1}}. {{$item}}
+{{- end}}
 
 Trading strategy:
-%s
+{{.Strategy}}
 
-Performance Evaluation:
-1. Continuously review and analyze your actions to ensure you are performing to the best of your abilities.
-2. Constructively self-criticize your big-picture behavior constantly.
-3. Reflect on past decisions and strategies to refine your approach.
-4. Every command has a cost, so be smart and efficient. Aim to complete tasks in the least number of steps.
-5. Command parameters do not support variables or expressions. Please fill them in after calculating them step by step.
+{{if .StrategyAttentionPoints}}
+Strategy points of attention:
+{{- range $index, $item := .StrategyAttentionPoints}}
+{{add $index 1}}. {{$item}}
+{{- end}}
+{{end}}
 
 Constraints:
 1. Exclusively use the commands listed in double quotes e.g. "command name"
 2. The command's parameters only support strings. If the parameters are of other types, please convert them all to strings.
-3、Be careful not to open positions repeatedly. If you need to adjust the take profit and stop loss, please use the exchange.update_position command.
-4、Please remember to only reply in JSON format, no other explanation is required.
-5、The returned JSON format does not support comments
+3. Command parameters do not support variables or expressions. Please fill them in after calculating them step by step.
+4、Be careful not to open positions repeatedly. If you need to adjust the take profit and stop loss, please use the exchange.update_position command.
+5、The analyze statement can be very long to ensure that the reasoning process of the analysis is rigorous.
+6、The returned JSON format does not support comments
 
-You should only respond in JSON format as described below 
+You should only respond in JSON format as described below, no other explanation is required
 Response Format: 
 {
     "thoughts": {
         "plan": "analysis steps",
-        "analyze": "detailed step-by-step analysis and calculation process",
+        "analyze": "step-by-step analysis",
+        "detail": "output detailed calculation process",
         "reflection": "constructive self-criticism",
         "speak": "thoughts summary to say to user"
     },
