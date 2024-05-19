@@ -159,14 +159,20 @@ func (indicator *ExchangeIndicator) BasicToPrompts(name string, indicatorType co
 		vals = vals[:maxWindowSize]
 	}
 
+	// Reverse the vals slice
+	for i, j := 0, len(vals)-1; i < j; i, j = i+1, j-1 {
+		vals[i], vals[j] = vals[j], vals[i]
+	}
+
 	msgs := make([]string, 0)
 
 	if len(vals) > 0 {
-		msgs = append(msgs, fmt.Sprintf("%s data changed: [%s], and the current %s at index 0 value is: %.3f",
+		msgs = append(msgs, fmt.Sprintf("%s data changed: [%s], and the most recent %s value is: %.3f at index %d",
 			name,
-			utils.JoinFloatSlice([]float64(vals), " "),
+			utils.JoinFloatSlice(vals, " "),
 			name,
 			basicIndicator.Last(0),
+			len(vals)-1,
 		))
 	}
 
