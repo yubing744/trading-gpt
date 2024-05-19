@@ -1,12 +1,21 @@
 package prompt
 
-var Thought = `Analyze the data provided above, and step-by-step consider the only executable trade command based on the trading strategy provided below to maximize user profit.
+var ThoughtTpl = `Analyze the data provided above, and step-by-step consider the only executable trade command based on the trading strategy provided below to maximize user profit.
 
 Commands:
-%s
+{{- range $index, $item := .ActionTips}}
+{{add $index 1}}. {{$item}}
+{{- end}}
 
 Trading strategy:
-%s
+{{.Strategy}}
+
+{{- if .StrategyAttentionPoints}}
+Trading strategy points of attention:
+{{- range $index, $item := .StrategyAttentionPoints}}
+{{add $index 1}}. {{$item}}
+{{- end}}
+{{- end}}
 
 Performance Evaluation:
 1. Continuously review and analyze your actions to ensure you are performing to the best of your abilities.

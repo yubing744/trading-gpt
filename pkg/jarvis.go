@@ -17,6 +17,7 @@ import (
 	"github.com/yubing744/trading-gpt/pkg/chat/feishu"
 	"github.com/yubing744/trading-gpt/pkg/llms"
 	"github.com/yubing744/trading-gpt/pkg/prompt"
+	"github.com/yubing744/trading-gpt/pkg/utils/xtemplate"
 
 	"github.com/yubing744/trading-gpt/pkg/agents"
 	"github.com/yubing744/trading-gpt/pkg/agents/keeper"
@@ -587,12 +588,22 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 		}
 
 		actionTips := make([]string, 0)
-		for i, ac := range s.world.Actions() {
-			actionTips = append(actionTips, fmt.Sprintf(`%d. %s`, i+1, ac.String()))
+		for _, ac := range s.world.Actions() {
+			actionTips = append(actionTips, ac.String())
+		}
+
+		prompt, err := xtemplate.Render(prompt.ThoughtTpl, map[string]interface{}{
+			"ActionTips":              actionTips,
+			"Strategy":                s.Strategy,
+			"StrategyAttentionPoints": s.StrategyAttentionPoints,
+		})
+		if err != nil {
+			s.replyMsg(ctx, session, fmt.Sprintf("Render prompt error: %s", err.Error()))
+			return
 		}
 
 		tempMsgs = append(tempMsgs, &ttypes.Message{
-			Text: fmt.Sprintf(prompt.Thought, strings.Join(actionTips, "\n"), s.Strategy),
+			Text: prompt,
 		})
 
 		s.agentAction(ctx, session, tempMsgs, MaxRetryTime)
