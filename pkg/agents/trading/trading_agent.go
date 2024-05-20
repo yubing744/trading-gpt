@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/schema"
 
 	"github.com/yubing744/trading-gpt/pkg/agents"
 	"github.com/yubing744/trading-gpt/pkg/config"
@@ -198,7 +197,7 @@ func (agent *TradingAgent) GenLLMMessages(sessionChats []string, msgs []*types.M
 
 	// Backgougroup
 	llmMsgs = append(llmMsgs, llms.MessageContent{
-		Role: schema.ChatMessageTypeSystem,
+		Role: llms.ChatMessageTypeSystem,
 		Parts: []llms.ContentPart{
 			llms.TextContent{
 				Text: agent.backgroup,
@@ -208,7 +207,7 @@ func (agent *TradingAgent) GenLLMMessages(sessionChats []string, msgs []*types.M
 
 	for _, msg := range msgs {
 		llmMsgs = append(llmMsgs, llms.MessageContent{
-			Role: schema.ChatMessageTypeHuman,
+			Role: llms.ChatMessageTypeHuman,
 			Parts: []llms.ContentPart{
 				llms.TextContent{
 					Text: msg.Text,

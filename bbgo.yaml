@@ -27,6 +27,8 @@ exchangeStrategies:
 - on: okex
   jarvis:
     llm:
+      googleai:
+        model: "gemini-1.5-pro-latest"
       openai:
         base_url: "https://api.deepseek.com"
         model: "deepseek-coder"
@@ -35,7 +37,7 @@ exchangeStrategies:
       ollama:
         server_url: "http://localhost:11434"
         model: "wizardlm2:7b" # Options：wizardlm2:7b, codegemma:7b, llama3:latest, and mistral:latest
-      primary: "ollama"
+      primary: "googleai"
       secondly: "anthropic"
     env:
       exchange:

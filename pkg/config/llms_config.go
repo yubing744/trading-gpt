@@ -18,10 +18,16 @@ type AnthropicConfig struct {
 	BaseURL string `json:"base_url"`
 }
 
+type GoogleAIConfig struct {
+	APIKey string `json:"api_key"`
+	Model  string `json:"model"`
+}
+
 type LLMConfig struct {
 	Primary   string           `json:"primary,omitempty"`
 	Secondly  string           `json:"secondly,omitempty"`
 	OpenAI    *OpenAIConfig    `json:"openai,omitempty"`
 	Ollama    *OllamaConfig    `json:"ollama,omitempty"`
 	Anthropic *AnthropicConfig `json:"anthropic,omitempty"`
+	GoogleAI  *GoogleAIConfig  `json:"googleai,omitempty"`
 }

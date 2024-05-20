@@ -6,13 +6,13 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/ollama"
 	"github.com/tmc/langchaingo/llms/openai"
 
 	"github.com/yubing744/trading-gpt/pkg/config"
 	"github.com/yubing744/trading-gpt/pkg/llms/anthropic"
+	"github.com/yubing744/trading-gpt/pkg/llms/googleai"
 )
 
 var log = logrus.WithField("module", "llm_manager")
@@ -80,6 +80,28 @@ func (mgr *LLMManager) Init() error {
 		}
 
 		mgr.llms["anthropic"] = llm
+	}
+
+	// init google AI model
+	if mgr.cfg.GoogleAI != nil {
+		googleAICfg := mgr.cfg.GoogleAI
+
+		apiKey := os.Getenv("LLM_GOOGLEAI_APIKEY")
+		if apiKey == "" {
+			return errors.New("LLM_GOOGLEAI_APIKEY not set in .env.local")
+		}
+		googleAICfg.APIKey = apiKey
+
+		opts := make([]googleai.Option, 0)
+		opts = append(opts, googleai.WithAPIKey(googleAICfg.APIKey))
+		opts = append(opts, googleai.WithDefaultModel(googleAICfg.Model))
+
+		llm, err := googleai.New(context.Background(), opts...)
+		if err != nil {
+			return errors.Wrap(err, "New anthropic AI fail")
+		}
+
+		mgr.llms["googleai"] = llm
 	}
 
 	// init ollama model
