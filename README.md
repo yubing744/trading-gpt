@@ -3,7 +3,7 @@ Trading-AI is a trading bot based on [bbgo](https://github.com/c9s/bbgo) and [la
 
 ## Features
 - Writing Trading Strategies Using Natural Language
-- Supports multiple LLMs: Open AI, Claude AI and ollama
+- Supports multiple LLMs: Google AI, Open AI, Claude AI and ollama
 - Support for setting take profit and stop loss in the strategy
 - Chat with strategy
 
@@ -38,6 +38,9 @@ OKEX_API_KEY="your okex api key"
 OKEX_API_SECRET="your okex api secret"
 OKEX_API_PASSPHRASE="your okex api password"
 
+# LLM Google AI
+LLM_GOOGLEAI_APIKEY="your googleai api key"
+
 # LLM OpenAI
 LLM_OPENAI_TOKEN="your openai api token"
 
@@ -64,6 +67,8 @@ exchangeStrategies:
 - on: okex
   jarvis:
     llm:
+      googleai:
+        model: "gemini-1.5-pro-latest"
       openai:
         model: "gpt-4o"
       anthropic:

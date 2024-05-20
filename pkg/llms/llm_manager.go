@@ -6,8 +6,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-
 	"github.com/tmc/langchaingo/llms"
+	"github.com/tmc/langchaingo/llms/googleai"
 	"github.com/tmc/langchaingo/llms/ollama"
 	"github.com/tmc/langchaingo/llms/openai"
 
@@ -80,6 +80,28 @@ func (mgr *LLMManager) Init() error {
 		}
 
 		mgr.llms["anthropic"] = llm
+	}
+
+	// init gemini model
+	if mgr.cfg.GoogleAI != nil {
+		googleAICfg := mgr.cfg.GoogleAI
+
+		apiKey := os.Getenv("LLM_GOOGLEAI_APIKEY")
+		if apiKey == "" {
+			return errors.New("LLM_GOOGLEAI_APIKEY not set in .env.local")
+		}
+		googleAICfg.APIKey = apiKey
+
+		opts := make([]googleai.Option, 0)
+		opts = append(opts, googleai.WithAPIKey(googleAICfg.APIKey))
+		opts = append(opts, googleai.WithDefaultModel(googleAICfg.Model))
+
+		llm, err := googleai.New(context.Background(), opts...)
+		if err != nil {
+			return errors.Wrap(err, "New anthropic AI fail")
+		}
+
+		mgr.llms["googleai"] = llm
 	}
 
 	// init ollama model
