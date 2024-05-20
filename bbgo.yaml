@@ -37,37 +37,21 @@ exchangeStrategies:
       ollama:
         server_url: "http://localhost:11434"
         model: "wizardlm2:7b" # Options：wizardlm2:7b, codegemma:7b, llama3:latest, and mistral:latest
-      primary: "googleai"
+      primary: "openai"
       secondly: "anthropic"
     env:
       exchange:
         window_size: 20
         indicators:
-          VR14:
-            type: "vr"
-            params:
-              interval: "5m"
-              windowSize: "14"
-          MA5:
-            type: "sma"
-            params:
-              interval: "5m"
-              windowSize: "5"
-          MA20:
-            type: "sma"
-            params:
-              interval: "5m"
-              windowSize: "20"
-          Weekly_BOLL:
+          BOLL:
             type: "boll"
             params:
-              interval: "15m"
+              interval: "5m"
               windowSize: "20"
               bandWidth: "2.0"
       include_events:
         - kline_changed
         - indicator_changed
-        - fng_changed
         - position_changed
         - update_finish
     agent:
@@ -84,9 +68,8 @@ exchangeStrategies:
     symbol: SUIUSDT
     interval: 5m
     subscribe_intervals: ["15m"]
-    leverage: 1
+    leverage: 3
     max_window_size: 21
-    strategy: "Trading on the right side, stop loss 3%, stop profit 10%."
+    strategy: "Trading on the right side, trailing stop loss 3%, stop profit 10%."
     strategy_attention_points:
       - Summarize the changing trend of historical closing prices
-      - Trailing Stop
