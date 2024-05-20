@@ -10,7 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/tmc/langchaingo/callbacks"
 	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/schema"
 )
 
 const MaxTokenSample = 4000
@@ -80,13 +79,13 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	systemPrompt := ""
 
 	chatMsgs := make([]anthropic.MessagePartRequest, 0)
-	var lastRole schema.ChatMessageType
+	var lastRole llms.ChatMessageType
 	var buffer string
 
 	for _, mc := range messages {
 		textMsg := joinTextParts(mc.Parts)
 
-		if mc.Role == lastRole && mc.Role == schema.ChatMessageTypeHuman {
+		if mc.Role == lastRole && mc.Role == llms.ChatMessageTypeHuman {
 			buffer += "\r\n" + textMsg // Concatenate messages with a space
 			continue
 		}
@@ -101,16 +100,16 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		}
 
 		switch mc.Role {
-		case schema.ChatMessageTypeSystem:
+		case llms.ChatMessageTypeSystem:
 			systemPrompt = textMsg
 			continue
-		case schema.ChatMessageTypeAI:
+		case llms.ChatMessageTypeAI:
 			msg := anthropic.MessagePartRequest{
 				Content: textMsg,
 				Role:    "assistant",
 			}
 			chatMsgs = append(chatMsgs, msg)
-		case schema.ChatMessageTypeHuman:
+		case llms.ChatMessageTypeHuman:
 			buffer = textMsg // Start buffering user messages
 		default:
 			return nil, fmt.Errorf("role %v not supported", mc.Role)

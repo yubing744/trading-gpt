@@ -7,12 +7,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/llms/googleai"
 	"github.com/tmc/langchaingo/llms/ollama"
 	"github.com/tmc/langchaingo/llms/openai"
 
 	"github.com/yubing744/trading-gpt/pkg/config"
 	"github.com/yubing744/trading-gpt/pkg/llms/anthropic"
+	"github.com/yubing744/trading-gpt/pkg/llms/googleai"
 )
 
 var log = logrus.WithField("module", "llm_manager")
@@ -82,7 +82,7 @@ func (mgr *LLMManager) Init() error {
 		mgr.llms["anthropic"] = llm
 	}
 
-	// init gemini model
+	// init google AI model
 	if mgr.cfg.GoogleAI != nil {
 		googleAICfg := mgr.cfg.GoogleAI
 
