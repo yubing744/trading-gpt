@@ -23,9 +23,13 @@ func TestToHumanText(t *testing.T) {
 				Speak:      "Let's focus on the key objectives.",
 			},
 			expected: `Plan: Complete the project plan by end of the week.
+
 Analyze: {"strength":10,"weakness":5}
+
 Detail: Task 1: Research, Task 2: Development, Task 3: Testing
+
 Reflection: Reflect on progress weekly.
+
 Speak: Let's focus on the key objectives.
 `,
 		},
@@ -39,9 +43,13 @@ Speak: Let's focus on the key objectives.
 				Speak:      "",
 			},
 			expected: `Plan: none
+
 Analyze: 
+
 Detail: 
+
 Reflection: none
+
 Speak: 
 `,
 		},
@@ -55,9 +63,13 @@ Speak:
 				Speak:      "A statement.",
 			},
 			expected: `Plan: 12345
+
 Analyze: {"Field":"Value"}
+
 Detail: Single task
+
 Reflection: none
+
 Speak: A statement.
 `,
 		},

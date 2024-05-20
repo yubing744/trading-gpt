@@ -17,7 +17,7 @@ type Thoughts struct {
 
 // toHumanText converts the Thoughts struct into a human-readable string.
 func (t *Thoughts) ToHumanText() string {
-	return fmt.Sprintf("Plan: %s\nAnalyze: %s\nDetail: %s\nReflection: %s\nSpeak: %s\n",
+	return fmt.Sprintf("Plan: %s\n\nAnalyze: %s\n\nDetail: %s\n\nReflection: %s\n\nSpeak: %s\n",
 		interfaceToString(t.Plan),
 		interfaceToString(t.Analyze),
 		interfaceToString(t.Detail),
