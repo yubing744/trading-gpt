@@ -41,14 +41,21 @@ exchangeStrategies:
       secondly: "anthropic"
     env:
       exchange:
-        window_size: 20
+        kline_num: 50
         indicators:
-          BOLL:
-            type: "boll"
+          VR3:
+            type: "vr"
+            max_num: 5
             params:
               interval: "5m"
-              windowSize: "20"
-              bandWidth: "2.0"
+              windowSize: "3"
+          BOLL:
+            type: "boll"
+            max_num: 5
+            params:
+              interval: "5m"
+              window_size: "20"
+              band_width: "2.0"
       include_events:
         - kline_changed
         - indicator_changed
@@ -69,7 +76,10 @@ exchangeStrategies:
     interval: 5m
     subscribe_intervals: ["15m"]
     leverage: 3
-    max_window_size: 21
-    strategy: "Trading on the right side, trailing stop loss 3%, stop profit 10%."
+    max_num: 60
+    strategy: |
+      Trading on the right side
+      trailing stop loss 3%
+      trailing stop profit 10%.
     strategy_attention_points:
-      - Summarize the changing trend of historical closing prices
+      - Analyze the K-line pattern

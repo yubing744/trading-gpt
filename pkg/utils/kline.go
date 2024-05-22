@@ -8,7 +8,7 @@ import (
 	"github.com/c9s/bbgo/pkg/types"
 )
 
-func FormatKLineWindow(window types.KLineWindow) string {
+func FormatKLineWindow(window types.KLineWindow, maxNum int) string {
 	var sb strings.Builder
 
 	// Add descriptive information
@@ -21,7 +21,7 @@ func FormatKLineWindow(window types.KLineWindow) string {
 	sb.WriteString("Time   Open   Close   High    Low     Volume    Change    Change%    Amplitude\n")
 
 	// Iterate through candlestick data and format as rows
-	for i, kline := range window {
+	for i, kline := range window.Tail(maxNum) {
 		change := kline.GetChange()
 		changePercent := change.Div(kline.GetOpen()).Mul(fixedpoint.NewFromFloat(100))
 		amplitude := kline.GetMaxChange().Div(kline.GetLow()).Mul(fixedpoint.NewFromFloat(100))

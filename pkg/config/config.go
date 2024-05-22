@@ -10,7 +10,7 @@ type Config struct {
 	Interval           types.Interval   `json:"interval"`
 	SubscribeIntervals []types.Interval `json:"subscribe_intervals"`
 	Leverage           fixedpoint.Value `json:"leverage"`
-	MaxWindowSize      int              `json:"max_window_size"`
+	MaxNum             int              `json:"max_num"`
 
 	Notify NotifyConfig `json:"notify"`
 	LLM    LLMConfig    `json:"llm"`

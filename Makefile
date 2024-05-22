@@ -1,7 +1,7 @@
 .PHONY: clean build test run docker-* tag release
 
 NAME=trading-gpt
-VERSION=0.20.2
+VERSION=0.21.0
 
 clean:
 	rm -rf build/*
@@ -13,7 +13,7 @@ build-linux:
 	CGO_ENABLED=0 GOOS=linux go build -o ./build/bbgo ./main.go
 
 test:
-	go test ./...
+	go test ./pkg/...
 
 run: build
 	./build/bbgo run --dotenv .env.local --config bbgo.yaml --lightweight false --no-sync false
