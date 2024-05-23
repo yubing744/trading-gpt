@@ -37,18 +37,25 @@ exchangeStrategies:
       ollama:
         server_url: "http://localhost:11434"
         model: "wizardlm2:7b" # Options：wizardlm2:7b, codegemma:7b, llama3:latest, and mistral:latest
-      primary: "openai"
+      primary: "ollama"
       secondly: "anthropic"
     env:
       exchange:
-        window_size: 20
+        kline_num: 50
         indicators:
-          BOLL:
-            type: "boll"
+          VR3:
+            type: "vr"
+            max_num: 5
             params:
               interval: "5m"
-              windowSize: "20"
-              bandWidth: "2.0"
+              windowSize: "3"
+          BOLL:
+            type: "boll"
+            max_num: 5
+            params:
+              interval: "5m"
+              window_size: "20"
+              band_width: "2.0"
       include_events:
         - kline_changed
         - indicator_changed
@@ -69,7 +76,33 @@ exchangeStrategies:
     interval: 5m
     subscribe_intervals: ["15m"]
     leverage: 3
-    max_window_size: 21
-    strategy: "Trading on the right side, trailing stop loss 3%, stop profit 10%."
+    max_num: 50
+    strategy: |
+      1. Identify Key Support and Resistance Levels
+      - *Support Level*: A price level where a downtrend can be expected to pause due to a concentration of demand.
+      - *Resistance Level*: A price level where an uptrend can be expected to pause due to a concentration of supply.
+      - *Tools*: Use historical price data, trendlines, and moving averages to identify key support and resistance levels.
+
+      2. Wait for Price to Approach Key Levels
+      - *Confirmation Signal*: When the price nears the identified support or resistance level, observe market behavior and volume changes.
+      - *Volume Observation*: A breakout with significant volume is considered more reliable.
+
+      3. Enter the Trade
+      - *Buy Breakout*: Execute a buy order when the price breaks above the resistance level.
+      - *Sell Breakout*: Execute a sell order when the price breaks below the support level.
+      - *Order Type*: Use market orders to ensure quick entry during a breakout, or limit orders to set a specific entry price after the breakout.
+
+      4. Set Stop-Loss and Take-Profit Levels
+      - *Stop-Loss*: Protect capital in case of a failed breakout. Typically set just below the breakout level (for a buy) or just above (for a sell).
+      - *Take-Profit*: Lock in profits when the price reaches a predetermined target. Targets can be based on historical price levels, technical indicators (e.g., Fibonacci extensions), or a fixed risk-reward ratio (e.g., 1:2 or 1:3).
+
+      5. Monitor and Manage the Trade
+      - *Continuous Monitoring*: Keep an eye on price movements, especially as they near the stop-loss or take-profit levels.
+      - *Dynamic Adjustments*: Adjust stop-loss and take-profit levels based on market conditions to lock in more profits when favorable.
     strategy_attention_points:
-      - Summarize the changing trend of historical closing prices
+      - Analyze K-line patterns to determine support and resistance levels
+      - BOLL can be used to confirm support and resistance levels
+      - VR3 can be used to confirm a breakout
+      - Enter after a breakout.
+      - If a false breakout occurs, enter the market in the opposite direction.
+      - If the stop loss price of a short position needs to be greater than the closing price, the take profit price should be less than the closing price

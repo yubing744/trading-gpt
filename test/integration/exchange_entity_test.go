@@ -61,7 +61,7 @@ func TestExchangeEntityOpenPosition(t *testing.T) {
 		"5s",
 		fixedpoint.NewFromInt(3),
 		&config.EnvExchangeConfig{
-			WindowSize: 20,
+			KlineNum: 20,
 		},
 		session,
 		session.OrderExecutor,
@@ -108,7 +108,7 @@ func TestExchangeEntityClosePosition50Percent(t *testing.T) {
 		"5s",
 		fixedpoint.NewFromInt(3),
 		&config.EnvExchangeConfig{
-			WindowSize: 20,
+			KlineNum: 20,
 		},
 		session,
 		orderExecutor,

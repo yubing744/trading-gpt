@@ -336,8 +336,8 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 		if ent.KLineWindow != nil {
 			ent.KLineWindow.Add(kline)
 
-			if ent.KLineWindow.Len() > ent.cfg.WindowSize {
-				ent.KLineWindow.Truncate(ent.cfg.WindowSize)
+			if ent.KLineWindow.Len() > ent.cfg.KlineNum {
+				ent.KLineWindow.Truncate(ent.cfg.KlineNum)
 			}
 		}
 
@@ -381,7 +381,7 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 
 // setupIndicators initializes indicators
 func (ent *ExchangeEntity) setupIndicators() {
-	log.WithField("WindowSize", ent.cfg.WindowSize).Infof("setup indicators")
+	log.Infof("setup indicators")
 
 	// set kline window
 	inc := &types.KLineWindow{}

@@ -31,6 +31,7 @@ const (
 
 type IndicatorConfig struct {
 	Type   IndicatorType     `json:"type"`
+	MaxNum *int              `json:"max_num"`
 	Params map[string]string `json:"params"`
 }
 
@@ -95,6 +96,6 @@ func (cfg IndicatorConfig) GetInterval(key string, def types.Interval) types.Int
 }
 
 type EnvExchangeConfig struct {
-	WindowSize int                         `json:"window_size"`
+	KlineNum   int                         `json:"kline_num"`
 	Indicators map[string]*IndicatorConfig `json:"indicators"`
 }

@@ -19,62 +19,64 @@ type IBasicIndicator interface {
 }
 
 type ExchangeIndicator struct {
-	Name string
-	Type config.IndicatorType
-	Data interface{}
+	Name   string
+	Type   config.IndicatorType
+	Config *config.IndicatorConfig
+	Data   interface{}
 }
 
 func NewExchangeIndicator(name string, cfg *config.IndicatorConfig, indicators *bbgo.StandardIndicatorSet) *ExchangeIndicator {
 	indicator := &ExchangeIndicator{
-		Name: name,
-		Type: cfg.Type,
+		Name:   name,
+		Type:   cfg.Type,
+		Config: cfg,
 	}
 
 	switch cfg.Type {
 	case config.IndicatorTypeSMA:
 		indicator.Data = indicators.SMA(types.IntervalWindow{
 			Interval: cfg.GetInterval("interval", "5m"),
-			Window:   cfg.GetInt("windowSize", 5),
+			Window:   cfg.GetInt("window_size", 5),
 		})
 	case config.IndicatorTypeVR:
 		indicator.Data = indicators.VR(types.IntervalWindow{
 			Interval: cfg.GetInterval("interval", "5m"),
-			Window:   cfg.GetInt("windowSize", 5),
+			Window:   cfg.GetInt("window_size", 5),
 		})
 	case config.IndicatorTypeEWMA:
 		indicator.Data = indicators.EWMA(types.IntervalWindow{
 			Interval: cfg.GetInterval("interval", "5m"),
-			Window:   cfg.GetInt("windowSize", 5),
+			Window:   cfg.GetInt("window_size", 5),
 		})
 	case config.IndicatorTypeVWMA:
 		indicator.Data = indicators.VWMA(types.IntervalWindow{
 			Interval: cfg.GetInterval("interval", "5m"),
-			Window:   cfg.GetInt("windowSize", 5),
+			Window:   cfg.GetInt("window_size", 5),
 		})
 	case config.IndicatorTypeEMV:
 		indicator.Data = indicators.EMV(types.IntervalWindow{
 			Interval: cfg.GetInterval("interval", "5m"),
-			Window:   cfg.GetInt("windowSize", 5),
+			Window:   cfg.GetInt("window_size", 5),
 		})
 	case config.IndicatorTypeBOLL:
 		indicator.Data = indicators.BOLL(types.IntervalWindow{
 			Interval: cfg.GetInterval("interval", "5m"),
-			Window:   cfg.GetInt("windowSize", 20),
-		}, cfg.GetFloat("bandWidth", 2.0))
+			Window:   cfg.GetInt("window_size", 20),
+		}, cfg.GetFloat("band_width", 2.0))
 	case config.IndicatorTypeRSI:
 		indicator.Data = indicators.RSI(types.IntervalWindow{
 			Interval: cfg.GetInterval("interval", "5m"),
-			Window:   cfg.GetInt("windowSize", 20),
+			Window:   cfg.GetInt("window_size", 20),
 		})
 	case config.IndicatorTypeATR:
 		indicator.Data = indicators.ATR(types.IntervalWindow{
 			Interval: cfg.GetInterval("interval", "5m"),
-			Window:   cfg.GetInt("windowSize", 20),
+			Window:   cfg.GetInt("window_size", 20),
 		})
 	case config.IndicatorTypeATRP:
 		indicator.Data = indicators.ATRP(types.IntervalWindow{
 			Interval: cfg.GetInterval("interval", "5m"),
-			Window:   cfg.GetInt("windowSize", 20),
+			Window:   cfg.GetInt("window_size", 20),
 		})
 	default:
 		log.Panic("not support type" + cfg.Type)
@@ -83,14 +85,18 @@ func NewExchangeIndicator(name string, cfg *config.IndicatorConfig, indicators *
 	return indicator
 }
 
-func (ei *ExchangeIndicator) ToPrompts(maxWindowSize int) []string {
+func (ei *ExchangeIndicator) ToPrompts(maxNum int) []string {
+	if ei.Config.MaxNum != nil {
+		maxNum = *ei.Config.MaxNum
+	}
+
 	switch ei.Type {
 	case config.IndicatorTypeBOLL:
-		return ei.BOLLToPrompts(ei.Name, ei.Type, ei.Data.(*indicator.BOLL), maxWindowSize)
+		return ei.BOLLToPrompts(ei.Name, ei.Type, ei.Data.(*indicator.BOLL), maxNum)
 	default:
 		basicIndicator, ok := ei.Data.(IBasicIndicator)
 		if ok {
-			return ei.BasicToPrompts(ei.Name, ei.Type, basicIndicator, maxWindowSize)
+			return ei.BasicToPrompts(ei.Name, ei.Type, basicIndicator, maxNum)
 		} else {
 			log.Panic("not support type" + ei.Type)
 		}
@@ -99,26 +105,26 @@ func (ei *ExchangeIndicator) ToPrompts(maxWindowSize int) []string {
 	return []string{}
 }
 
-func (indicator *ExchangeIndicator) BOLLToPrompts(name string, indicatorType config.IndicatorType, boll *indicator.BOLL, maxWindowSize int) []string {
+func (indicator *ExchangeIndicator) BOLLToPrompts(name string, indicatorType config.IndicatorType, boll *indicator.BOLL, maxNum int) []string {
 	log.
 		WithField("name", name).
 		WithField("indicatorType", indicatorType).
-		WithField("maxWindowSize", maxWindowSize).
+		WithField("maxWindowSize", maxNum).
 		Info("handle BOLL values changed")
 
 	upVals := boll.UpBand
-	if len(upVals) > maxWindowSize {
-		upVals = upVals[len(upVals)-maxWindowSize:]
+	if len(upVals) > maxNum {
+		upVals = upVals[len(upVals)-maxNum:]
 	}
 
 	midVals := boll.SMA.Values
-	if len(midVals) > maxWindowSize {
-		midVals = midVals[len(midVals)-maxWindowSize:]
+	if len(midVals) > maxNum {
+		midVals = midVals[len(midVals)-maxNum:]
 	}
 
 	downVals := boll.DownBand
-	if len(downVals) > maxWindowSize {
-		downVals = downVals[len(downVals)-maxWindowSize:]
+	if len(downVals) > maxNum {
+		downVals = downVals[len(downVals)-maxNum:]
 	}
 
 	sb := strings.Builder{}
@@ -147,16 +153,16 @@ func (indicator *ExchangeIndicator) BOLLToPrompts(name string, indicatorType con
 	return []string{sb.String()}
 }
 
-func (indicator *ExchangeIndicator) BasicToPrompts(name string, indicatorType config.IndicatorType, basicIndicator IBasicIndicator, maxWindowSize int) []string {
+func (indicator *ExchangeIndicator) BasicToPrompts(name string, indicatorType config.IndicatorType, basicIndicator IBasicIndicator, maxNum int) []string {
 	log.
 		WithField("name", name).
 		WithField("indicatorType", indicatorType).
-		WithField("maxWindowSize", maxWindowSize).
+		WithField("maxWindowSize", maxNum).
 		Info("indicator values changed")
 
 	vals := basicIndicatorToValues(basicIndicator)
-	if len(vals) > maxWindowSize {
-		vals = vals[:maxWindowSize]
+	if len(vals) > maxNum {
+		vals = vals[:maxNum]
 	}
 
 	// Reverse the vals slice

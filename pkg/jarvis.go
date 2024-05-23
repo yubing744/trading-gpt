@@ -253,7 +253,7 @@ func (s *Strategy) setupNotify(ctx context.Context) error {
 		chatSession := chat.NewChatSession(feishuNotifyChannel)
 		s.setupAdminSession(ctx, chatSession)
 		s.agentAction(ctx, chatSession, []*ttypes.Message{{
-			Text: "wait",
+			Text: "Please wait a moment while I prepare the market data. ",
 		}}, MaxRetryTime)
 
 		log.Info("init feishu notify channel ok!")
@@ -265,7 +265,7 @@ func (s *Strategy) setupNotify(ctx context.Context) error {
 		chatSession := chat.NewChatSession(feishuHookNotifyChannel)
 		s.setupAdminSession(ctx, chatSession)
 		s.agentAction(ctx, chatSession, []*ttypes.Message{{
-			Text: "wait",
+			Text: "Please wait a moment while I prepare the market data. ",
 		}}, MaxRetryTime)
 
 		log.Info("init feishu hook notify channel ok!")
@@ -502,7 +502,7 @@ func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, 
 func (s *Strategy) handleKlineChanged(ctx context.Context, session ttypes.ISession, klineWindow *types.KLineWindow) {
 	log.WithField("kline", klineWindow).Info("handle klineWindow values changed")
 
-	msg := fmt.Sprintf("KLine data changed:\n%s", utils.FormatKLineWindow(*klineWindow))
+	msg := fmt.Sprintf("KLine data changed:\n%s", utils.FormatKLineWindow(*klineWindow, s.MaxNum))
 
 	session.SetAttribute("kline", klineWindow)
 	s.stashMsg(ctx, session, msg)
@@ -511,7 +511,7 @@ func (s *Strategy) handleKlineChanged(ctx context.Context, session ttypes.ISessi
 func (s *Strategy) handleExchangeIndicatorChanged(ctx context.Context, session ttypes.ISession, indicator *exchange.ExchangeIndicator) {
 	log.WithField("indicator", indicator).Info("handle indicator changed")
 
-	messages := indicator.ToPrompts(s.MaxWindowSize)
+	messages := indicator.ToPrompts(s.MaxNum)
 
 	for _, msg := range messages {
 		s.stashMsg(ctx, session, msg)
@@ -551,12 +551,12 @@ func (s *Strategy) handlePositionChanged(_ctx context.Context, session ttypes.IS
 			}
 
 			profits := position.GetProfitValues()
-			if len(profits) > s.MaxWindowSize {
-				profits = profits[len(profits)-s.MaxWindowSize:]
+			if len(profits) > s.MaxNum {
+				profits = profits[len(profits)-s.MaxNum:]
 			}
 
 			msg = msg + fmt.Sprintf("\nThe profits of the recent %d periods: [%s], and the holding period: %d.",
-				s.MaxWindowSize,
+				s.MaxNum,
 				utils.JoinFloatSlicePercentage([]float64(profits), " "),
 				position.GetHoldingPeriod())
 		}

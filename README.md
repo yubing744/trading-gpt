@@ -85,12 +85,12 @@ exchangeStrategies:
             type: "sma"
             params:
               interval: "5m"
-              windowSize: "5"
+              window_size: "5"
           MA20:
             type: "sma"
             params:
               interval: "5m"
-              windowSize: "20"
+              window_size: "20"
       include_events:
         - kline_changed
         - indicator_changed
@@ -111,7 +111,7 @@ exchangeStrategies:
     symbol: SUIUSDT
     interval: 15m
     leverage: 1
-    max_window_size: 20
+    max_num: 20
     strategy: "Trading on the right side, trailing stop loss 3%, trailing stop profit 10%."
 ```
 
