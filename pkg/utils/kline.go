@@ -20,6 +20,10 @@ func FormatKLineWindow(window types.KLineWindow, maxNum int) string {
 	// Add header
 	sb.WriteString("Time   Open   Close   High    Low     Volume    Change    Change%    Amplitude\n")
 
+	if len(window) == 0 {
+		return sb.String()
+	}
+
 	// Iterate through candlestick data and format as rows
 	for i, kline := range window.Tail(maxNum) {
 		change := kline.GetChange()

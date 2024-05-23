@@ -253,7 +253,7 @@ func (s *Strategy) setupNotify(ctx context.Context) error {
 		chatSession := chat.NewChatSession(feishuNotifyChannel)
 		s.setupAdminSession(ctx, chatSession)
 		s.agentAction(ctx, chatSession, []*ttypes.Message{{
-			Text: "wait",
+			Text: "Please wait a moment while I prepare the market data. ",
 		}}, MaxRetryTime)
 
 		log.Info("init feishu notify channel ok!")
@@ -265,7 +265,7 @@ func (s *Strategy) setupNotify(ctx context.Context) error {
 		chatSession := chat.NewChatSession(feishuHookNotifyChannel)
 		s.setupAdminSession(ctx, chatSession)
 		s.agentAction(ctx, chatSession, []*ttypes.Message{{
-			Text: "wait",
+			Text: "Please wait a moment while I prepare the market data. ",
 		}}, MaxRetryTime)
 
 		log.Info("init feishu hook notify channel ok!")
