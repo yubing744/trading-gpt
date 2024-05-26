@@ -537,9 +537,8 @@ func (s *Strategy) handleExchangeIndicatorChanged(ctx context.Context, session t
 }
 
 func (s *Strategy) handleDefaultEvent(ctx context.Context, session ttypes.ISession, evt ttypes.IEvent) {
-	log.WithField("event", evt.GetType()).Info("handle_default_event")
-
 	messages := evt.ToPrompts()
+	log.WithField("event", evt.GetType()).WithField("messages", messages).Info("handle_default_event")
 
 	for _, msg := range messages {
 		s.stashMsg(ctx, session, msg)
