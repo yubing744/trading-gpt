@@ -37,7 +37,7 @@ func (entity *FearAndGreedEntity) HandleCommand(ctx context.Context, cmd string,
 	return nil
 }
 
-func (entity *FearAndGreedEntity) Run(ctx context.Context, ch chan *types.Event) {
+func (entity *FearAndGreedEntity) Run(ctx context.Context, ch chan types.IEvent) {
 	timer := time.NewTimer(entity.delay)
 	ticker := time.NewTicker(entity.interval)
 
@@ -60,7 +60,7 @@ func (entity *FearAndGreedEntity) Run(ctx context.Context, ch chan *types.Event)
 	}
 }
 
-func (entity *FearAndGreedEntity) updateIndex(ctx context.Context, ch chan *types.Event) error {
+func (entity *FearAndGreedEntity) updateIndex(ctx context.Context, ch chan types.IEvent) error {
 	index, err := entity.client.GetFearAndGreedIndex(1)
 	if err != nil {
 		return err
@@ -71,10 +71,7 @@ func (entity *FearAndGreedEntity) updateIndex(ctx context.Context, ch chan *type
 	if index != nil && len(index.Data) > 0 {
 		fng := index.Data[0].Value
 
-		ch <- &types.Event{
-			Type: "fng_changed",
-			Data: &fng,
-		}
+		ch <- types.NewEvent("fng_changed", &fng)
 	}
 
 	return nil

@@ -307,7 +307,7 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 	return nil
 }
 
-func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
+func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 	session := ent.session
 
 	ent.Status = types.StrategyStatusRunning
@@ -356,26 +356,15 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan *ttypes.Event) {
 
 		log.WithField("kline", kline).Info("kline closed")
 
-		ent.emitEvent(ch, &ttypes.Event{
-			Type: "kline_changed",
-			Data: ent.KLineWindow,
-		})
+		ent.emitEvent(ch, ttypes.NewEvent("kline_changed", ent.KLineWindow))
 
 		for _, indicator := range ent.Indicators {
-			ent.emitEvent(ch, &ttypes.Event{
-				Type: "indicator_changed",
-				Data: indicator,
-			})
+			ent.emitEvent(ch, ttypes.NewEvent("indicator_changed", indicator))
 		}
 
-		ent.emitEvent(ch, &ttypes.Event{
-			Type: "position_changed",
-			Data: ent.position,
-		})
+		ent.emitEvent(ch, ttypes.NewEvent("position_changed", ent.position))
 
-		ent.emitEvent(ch, &ttypes.Event{
-			Type: "update_finish",
-		})
+		ent.emitEvent(ch, ttypes.NewEvent("update_finish", nil))
 	}))
 }
 
@@ -415,7 +404,7 @@ func (ent *ExchangeEntity) setupIndicators() {
 	})
 }
 
-func (ent *ExchangeEntity) emitEvent(ch chan *ttypes.Event, evt *ttypes.Event) {
+func (ent *ExchangeEntity) emitEvent(ch chan ttypes.IEvent, evt ttypes.IEvent) {
 	ch <- evt
 }
 

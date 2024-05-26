@@ -15,20 +15,20 @@ import (
 var log = logrus.WithField("env", "environment")
 
 type Environment struct {
-	entites       map[string]Entity
+	entites       map[string]IEntity
 	callbacks     []types.EventCallback
 	includeEvents []string
 }
 
 func NewEnvironment(cfg *config.EnvConfig) *Environment {
 	return &Environment{
-		entites:       make(map[string]Entity, 0),
+		entites:       make(map[string]IEntity, 0),
 		callbacks:     make([]types.EventCallback, 0),
 		includeEvents: cfg.IncludeEvents,
 	}
 }
 
-func (env *Environment) RegisterEntity(entity Entity) {
+func (env *Environment) RegisterEntity(entity IEntity) {
 	env.entites[entity.GetID()] = entity
 }
 
@@ -84,10 +84,10 @@ func (env *Environment) OnEvent(cb types.EventCallback) {
 }
 
 func (env *Environment) Start(ctx context.Context) error {
-	ch := make(chan *types.Event)
+	ch := make(chan types.IEvent)
 
 	for _, entity := range env.entites {
-		go func(ent Entity) {
+		go func(ent IEntity) {
 			ent.Run(ctx, ch)
 		}(entity)
 	}
@@ -103,7 +103,7 @@ func (env *Environment) Stop(ctx context.Context) {
 
 }
 
-func (env *Environment) run(ctx context.Context, ch chan *types.Event) error {
+func (env *Environment) run(ctx context.Context, ch chan types.IEvent) error {
 	for {
 		select {
 		case evt := <-ch:
@@ -115,12 +115,12 @@ func (env *Environment) run(ctx context.Context, ch chan *types.Event) error {
 	}
 }
 
-func (env *Environment) emitEvent(evt *types.Event) {
+func (env *Environment) emitEvent(evt types.IEvent) {
 	log.WithField("event", evt).Info("env emit event")
 
-	if !utils.Contains(env.includeEvents, evt.Type) {
+	if !utils.Contains(env.includeEvents, evt.GetType()) {
 		log.
-			WithField("eventType", evt.Type).
+			WithField("eventType", evt.GetType()).
 			WithField("includeEvents", env.includeEvents).
 			Info("skip event for include blacklist")
 		return

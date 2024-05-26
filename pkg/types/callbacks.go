@@ -1,4 +1,4 @@
 package types
 
 type MessageCallback func(msg *Message)
-type EventCallback func(evt *Event)
+type EventCallback func(evt IEvent)
