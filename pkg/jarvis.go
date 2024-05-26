@@ -201,11 +201,13 @@ func (s *Strategy) setupWorld(ctx context.Context) error {
 	))
 
 	if s.Env.FNG != nil && s.Env.FNG.Enabled {
+		log.Info("fng_enabled")
+
 		world.RegisterEntity(fng.NewFearAndGreedEntity())
 	}
 
 	if s.Env.Coze != nil && s.Env.Coze.Enabled {
-		log.Info("coze enabled")
+		log.Info("coze_enabled")
 
 		cozeAPIKey := os.Getenv("COZE_API_KEY")
 		if cozeAPIKey == "" {
