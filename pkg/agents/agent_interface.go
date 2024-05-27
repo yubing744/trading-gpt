@@ -8,6 +8,7 @@ import (
 
 type GenResult struct {
 	Texts []string
+	Model string
 }
 
 type IAgent interface {

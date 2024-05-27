@@ -179,6 +179,15 @@ func (a *TradingAgent) GenActions(ctx context.Context, session types.ISession, m
 		log.WithField("text", text).Info("resp.Choices[0].Text")
 
 		result.Texts = append(result.Texts, text)
+
+		// extract model
+		extInfo := resp.Choices[0].GenerationInfo
+		if extInfo != nil {
+			model, ok := extInfo["model"]
+			if ok {
+				result.Model = model.(string)
+			}
+		}
 	}
 
 	if len(result.Texts) > 0 {

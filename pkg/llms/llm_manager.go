@@ -159,10 +159,21 @@ func (mgr *LLMManager) GenerateContent(ctx context.Context, messages []llms.Mess
 			return nil, errors.Wrap(err2, "get secondly fail")
 		}
 
-		return llm2.GenerateContent(ctx, messages, options...)
+		resp2, err := llm2.GenerateContent(ctx, messages, options...)
+		setModel(resp, mgr.secondly)
+		return resp2, err
 	}
 
+	setModel(resp, mgr.primary)
 	return resp, nil
+}
+
+func setModel(resp *llms.ContentResponse, model string) {
+	if resp != nil {
+		for _, choice := range resp.Choices {
+			choice.GenerationInfo["model"] = model
+		}
+	}
 }
 
 // Call is a simplified interface for a text-only Model, generating a single
