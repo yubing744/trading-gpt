@@ -55,22 +55,30 @@ func (e *CozeEntity) Run(ctx context.Context, ch chan types.IEvent) {
 
 	for _, item := range e.config.IndicatorItems {
 		log.WithField("item", item).Info("coze_run_item")
-		e.communicateWithCoze(ctx, ch, item)
 
-		ticker := time.NewTicker(item.Interval.Duration())
-		e.timers[item.Name] = ticker
-		go func(item *config.IndicatorItem, ticker *time.Ticker) {
-			for {
-				select {
-				case <-ctx.Done():
-					ticker.Stop()
-					return
-				case <-ticker.C:
-					e.communicateWithCoze(ctx, ch, item)
+		interval := item.Interval.Duration()
+		nextTick := time.Now().Truncate(interval).Add(interval)
+		initialDelay := time.Until(nextTick) - item.Before.Duration()
+
+		time.AfterFunc(initialDelay, func() {
+			e.communicateWithCoze(ctx, ch, item)
+			ticker := time.NewTicker(interval)
+			e.timers[item.Name] = ticker
+
+			go func(item *config.IndicatorItem, ticker *time.Ticker) {
+				for {
+					select {
+					case <-ctx.Done():
+						ticker.Stop()
+						return
+					case <-ticker.C:
+						e.communicateWithCoze(ctx, ch, item)
+					}
 				}
-			}
-		}(item, ticker)
+			}(item, ticker)
+		})
 	}
+
 	<-ctx.Done() // Wait for cancellation
 }
 

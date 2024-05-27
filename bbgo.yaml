@@ -64,6 +64,7 @@ exchangeStrategies:
           - name: "news_changed"
             description: "Sui news score and reasons:"
             interval: "5m"
+            before: "20s"
             bot_id: "7372584552936079367"
             message: "Please obtain the SUI message score and give a brief reason"
       include_events:
