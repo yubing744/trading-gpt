@@ -24,6 +24,7 @@ import (
 	"github.com/yubing744/trading-gpt/pkg/agents/trading"
 	"github.com/yubing744/trading-gpt/pkg/config"
 	"github.com/yubing744/trading-gpt/pkg/env"
+	"github.com/yubing744/trading-gpt/pkg/env/coze"
 	"github.com/yubing744/trading-gpt/pkg/env/exchange"
 	"github.com/yubing744/trading-gpt/pkg/env/fng"
 	"github.com/yubing744/trading-gpt/pkg/utils"
@@ -198,7 +199,24 @@ func (s *Strategy) setupWorld(ctx context.Context) error {
 		s.orderExecutor,
 		s.Position,
 	))
-	world.RegisterEntity(fng.NewFearAndGreedEntity())
+
+	if s.Env.FNG != nil && s.Env.FNG.Enabled {
+		log.Info("fng_enabled")
+
+		world.RegisterEntity(fng.NewFearAndGreedEntity())
+	}
+
+	if s.Env.Coze != nil && s.Env.Coze.Enabled {
+		log.Info("coze_enabled")
+
+		cozeAPIKey := os.Getenv("COZE_API_KEY")
+		if cozeAPIKey == "" {
+			return errors.New("COZE_API_KEY not set in .env.local")
+		}
+		s.Env.Coze.APIKey = cozeAPIKey
+
+		world.RegisterEntity(coze.NewCozeEntity(s.Env.Coze))
+	}
 
 	err := world.Start(ctx)
 	if err != nil {
@@ -316,7 +334,7 @@ func (s *Strategy) setupChat(ctx context.Context) error {
 func (s *Strategy) setupAdminSession(ctx context.Context, chatSession ttypes.ISession) {
 	chatSession.SetRoles([]string{ttypes.RoleAdmin})
 
-	s.world.OnEvent(func(evt *ttypes.Event) {
+	s.world.OnEvent(func(evt ttypes.IEvent) {
 		s.handleEnvEvent(context.Background(), chatSession, evt)
 	})
 }
@@ -460,42 +478,42 @@ func (s *Strategy) handleChatMessage(ctx context.Context, chatSession *chat.Chat
 	s.agentAction(ctx, chatSession, []*ttypes.Message{msg}, MaxRetryTime)
 }
 
-func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, evt *ttypes.Event) {
+func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, evt ttypes.IEvent) {
 	log.WithField("event", evt).Info("handle env event")
 
-	switch evt.Type {
+	switch evt.GetType() {
 	case "position_changed":
-		position, ok := evt.Data.(*exchange.PositionX)
+		position, ok := evt.GetData().(*exchange.PositionX)
 		if ok {
 			s.handlePositionChanged(ctx, session, position)
 		} else {
-			log.WithField("eventType", evt.Type).Warn("event data Type not match")
+			log.WithField("eventType", evt.GetType()).Warn("event data Type not match")
 		}
 	case "kline_changed":
-		klineWindow, ok := evt.Data.(*types.KLineWindow)
+		klineWindow, ok := evt.GetData().(*types.KLineWindow)
 		if ok {
 			s.handleKlineChanged(ctx, session, klineWindow)
 		} else {
-			log.WithField("eventType", evt.Type).Warn("event data Type not match")
+			log.WithField("eventType", evt.GetType()).Warn("event data Type not match")
 		}
 	case "indicator_changed":
-		indicator, ok := evt.Data.(*exchange.ExchangeIndicator)
+		indicator, ok := evt.GetData().(*exchange.ExchangeIndicator)
 		if ok {
 			s.handleExchangeIndicatorChanged(ctx, session, indicator)
 		} else {
-			log.WithField("eventType", evt.Type).Warn("event data Type not match")
+			log.WithField("eventType", evt.GetType()).Warn("event data Type not match")
 		}
 	case "fng_changed":
-		fng, ok := evt.Data.(*string)
+		fng, ok := evt.GetData().(*string)
 		if ok {
 			s.handleFngChanged(ctx, session, fng)
 		} else {
-			log.WithField("eventType", evt.Type).Warn("event data Type not match")
+			log.WithField("eventType", evt.GetType()).Warn("event data Type not match")
 		}
 	case "update_finish":
 		s.handleUpdateFinish(ctx, session)
 	default:
-		log.WithField("eventType", evt.Type).Warn("no match event type")
+		s.handleDefaultEvent(ctx, session, evt)
 	}
 }
 
@@ -512,6 +530,15 @@ func (s *Strategy) handleExchangeIndicatorChanged(ctx context.Context, session t
 	log.WithField("indicator", indicator).Info("handle indicator changed")
 
 	messages := indicator.ToPrompts(s.MaxNum)
+
+	for _, msg := range messages {
+		s.stashMsg(ctx, session, msg)
+	}
+}
+
+func (s *Strategy) handleDefaultEvent(ctx context.Context, session ttypes.ISession, evt ttypes.IEvent) {
+	messages := evt.ToPrompts()
+	log.WithField("event", evt.GetType()).WithField("messages", messages).Info("handle_default_event")
 
 	for _, msg := range messages {
 		s.stashMsg(ctx, session, msg)

@@ -56,7 +56,19 @@ exchangeStrategies:
               interval: "5m"
               window_size: "20"
               band_width: "2.0"
+      coze:
+        enabled: true
+        base_url: "https://api.coze.com"
+        timeout: 60s
+        indicators:
+          - name: "news_changed"
+            description: "Sui news score and reasons:"
+            interval: "5m"
+            before: "20s"
+            bot_id: "7372584552936079367"
+            message: "Please obtain the SUI message score and give a brief reason"
       include_events:
+        - news_changed
         - kline_changed
         - indicator_changed
         - position_changed
