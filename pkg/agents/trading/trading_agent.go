@@ -180,10 +180,13 @@ func (a *TradingAgent) GenActions(ctx context.Context, session types.ISession, m
 
 		result.Texts = append(result.Texts, text)
 
+		// extract model
 		extInfo := resp.Choices[0].GenerationInfo
-		model, ok := extInfo["model"]
-		if ok {
-			result.Model = model.(string)
+		if extInfo != nil {
+			model, ok := extInfo["model"]
+			if ok {
+				result.Model = model.(string)
+			}
 		}
 	}
 
