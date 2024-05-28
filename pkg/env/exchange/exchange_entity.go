@@ -254,12 +254,10 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 			}
 		}
 
-		log.Infof("open %s position for signal %v, reason: %s", ent.symbol, side, "")
-
 		opts := make([]interface{}, 0)
 
 		// config stop losss
-		if stopLoss, ok := args["stop_loss_trigger_price"]; ok {
+		if stopLoss, ok := args["stop_loss_trigger_price"]; ok && stopLoss != "" {
 			stopLoss, err := utils.ParseStopLoss(ent.vm, side, closePrice, stopLoss)
 			if err != nil {
 				return errors.Wrapf(err, "the stop loss invalid: %s", stopLoss)
@@ -273,7 +271,7 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 		}
 
 		// config take profix
-		if takeProfix, ok := args["take_profit_trigger_price"]; ok {
+		if takeProfix, ok := args["take_profit_trigger_price"]; ok && takeProfix != "" {
 			takeProfix, err := utils.ParseTakeProfit(ent.vm, side, closePrice, takeProfix)
 			if err != nil {
 				return errors.Wrapf(err, "the take profit invalid: %s", takeProfix)
@@ -285,6 +283,8 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 				})
 			}
 		}
+
+		log.Infof("open %s position for signal %v, options: %v", ent.symbol, side, opts)
 
 		if cmd == "open_long_position" || cmd == "open_short_position" {
 			err := ent.OpenPosition(ctx, side, closePrice, opts...)
