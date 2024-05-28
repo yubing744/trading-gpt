@@ -160,7 +160,7 @@ func (mgr *LLMManager) GenerateContent(ctx context.Context, messages []llms.Mess
 		}
 
 		resp2, err := llm2.GenerateContent(ctx, messages, options...)
-		setModel(resp, mgr.secondly)
+		setModel(resp2, mgr.secondly)
 		return resp2, err
 	}
 
@@ -171,6 +171,10 @@ func (mgr *LLMManager) GenerateContent(ctx context.Context, messages []llms.Mess
 func setModel(resp *llms.ContentResponse, model string) {
 	if resp != nil {
 		for _, choice := range resp.Choices {
+			if choice.GenerationInfo == nil {
+				choice.GenerationInfo = map[string]interface{}{}
+			}
+
 			choice.GenerationInfo["model"] = model
 		}
 	}
