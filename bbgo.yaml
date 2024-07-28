@@ -56,6 +56,7 @@ exchangeStrategies:
               interval: "5m"
               window_size: "20"
               band_width: "2.0"
+        handle_position_close: false
       coze:
         enabled: true
         base_url: "https://api.coze.com"

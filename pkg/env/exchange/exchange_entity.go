@@ -29,7 +29,7 @@ type ExchangeEntity struct {
 	cfg *config.EnvExchangeConfig
 
 	session       *bbgo.ExchangeSession
-	orderExecutor bbgo.OrderExecutor
+	orderExecutor *bbgo.GeneralOrderExecutor
 	position      *PositionX
 
 	Status      types.StrategyStatus
@@ -45,7 +45,7 @@ func NewExchangeEntity(
 	leverage fixedpoint.Value,
 	cfg *config.EnvExchangeConfig,
 	session *bbgo.ExchangeSession,
-	orderExecutor bbgo.OrderExecutor,
+	orderExecutor *bbgo.GeneralOrderExecutor,
 	position *types.Position,
 ) *ExchangeEntity {
 	return &ExchangeEntity{
@@ -366,6 +366,25 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 
 		ent.emitEvent(ch, ttypes.NewEvent("update_finish", nil))
 	}))
+
+	// Handle position update
+	ent.orderExecutor.TradeCollector().OnPositionUpdate(func(position *types.Position) {
+		log.WithField("position", position).Info("ExchangeEntity_OnPositionUpdate")
+
+		if position.IsClosed() {
+			log.WithField("position", position).Info("ExchangeEntity_PositionClose")
+
+			if ent.cfg.HandlePositionClose {
+				go func() {
+					time.Sleep(time.Second * 5)
+					log.WithField("position", position).Info("ExchangeEntity_Handle_PositionClose")
+
+					ent.emitEvent(ch, ttypes.NewEvent("position_changed", ent.position))
+					ent.emitEvent(ch, ttypes.NewEvent("update_finish", nil))
+				}()
+			}
+		}
+	})
 }
 
 // setupIndicators initializes indicators
