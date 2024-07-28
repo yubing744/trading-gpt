@@ -23,7 +23,8 @@ Constraints:
 3. Command parameters do not support variables or expressions. Please fill them in after calculating them step by step.
 4、Be careful not to open positions repeatedly. If you need to adjust the take profit and stop loss, please use the exchange.update_position command.
 5、The analyze statement can be very long to ensure that the reasoning process of the analysis is rigorous.
-6、The returned JSON format does not support comments
+6、When comparing two numbers, if a digit in the decimal part is already greater, there's no need to compare the subsequent digits.
+7、The returned JSON format does not support comments
 
 You should only respond in JSON format as described below, no other explanation is required
 Response Format: 
