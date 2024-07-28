@@ -379,6 +379,12 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 					time.Sleep(time.Second * 5)
 					log.WithField("position", position).Info("ExchangeEntity_Handle_PositionClose")
 
+					ent.emitEvent(ch, ttypes.NewEvent("kline_changed", ent.KLineWindow))
+
+					for _, indicator := range ent.Indicators {
+						ent.emitEvent(ch, ttypes.NewEvent("indicator_changed", indicator))
+					}
+
 					ent.emitEvent(ch, ttypes.NewEvent("position_changed", ent.position))
 					ent.emitEvent(ch, ttypes.NewEvent("update_finish", nil))
 				}()
