@@ -80,23 +80,23 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 	chatMsgs := make([]anthropic.MessagePartRequest, 0)
 	var lastRole llms.ChatMessageType
-	var buffer string
+	var tmpContentBlocks []anthropic.ContentBlock
 
 	for _, mc := range messages {
 		textMsg := joinTextParts(mc.Parts)
 
 		if mc.Role == lastRole && mc.Role == llms.ChatMessageTypeHuman {
-			buffer += "\r\n" + textMsg // Concatenate messages with a space
+			tmpContentBlocks = append(tmpContentBlocks, anthropic.NewTextContentBlock(textMsg))
 			continue
 		}
 
-		if buffer != "" {
+		if len(tmpContentBlocks) > 0 {
 			// Append the buffered message before starting a new one
 			chatMsgs = append(chatMsgs, anthropic.MessagePartRequest{
-				Content: buffer,
+				Content: tmpContentBlocks,
 				Role:    "user",
 			})
-			buffer = ""
+			tmpContentBlocks = make([]anthropic.ContentBlock, 0)
 		}
 
 		switch mc.Role {
@@ -105,12 +105,12 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 			continue
 		case llms.ChatMessageTypeAI:
 			msg := anthropic.MessagePartRequest{
-				Content: textMsg,
+				Content: []anthropic.ContentBlock{anthropic.NewTextContentBlock(textMsg)},
 				Role:    "assistant",
 			}
 			chatMsgs = append(chatMsgs, msg)
 		case llms.ChatMessageTypeHuman:
-			buffer = textMsg // Start buffering user messages
+			tmpContentBlocks = append(tmpContentBlocks, anthropic.NewTextContentBlock(textMsg))
 		default:
 			return nil, fmt.Errorf("role %v not supported", mc.Role)
 		}
@@ -118,9 +118,9 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		lastRole = mc.Role
 	}
 
-	if buffer != "" {
+	if len(tmpContentBlocks) > 0 {
 		chatMsgs = append(chatMsgs, anthropic.MessagePartRequest{
-			Content: buffer,
+			Content: tmpContentBlocks,
 			Role:    "user",
 		})
 	}
