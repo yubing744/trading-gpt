@@ -391,6 +391,52 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 			}
 		}
 	})
+
+	cleanPostionCfg := ent.cfg.CleanPosition
+	if cleanPostionCfg.Enabled {
+		session.MarketDataStream.OnKLineClosed(types.KLineWith(ent.symbol, cleanPostionCfg.Interval, func(kline types.KLine) {
+			ent.handleCleanPosition(ctx, kline)
+		}))
+	}
+}
+
+func (ent *ExchangeEntity) handleCleanPosition(ctx context.Context, kline types.KLine) {
+	exchange := ent.session.Exchange
+	service, implemented := exchange.(types.ExchangePositionUpdateService)
+	if implemented {
+		log.Info("UpdatePositionV2_start")
+
+		newCtx, cancel := context.WithTimeout(ctx, time.Second*20)
+		defer cancel()
+
+		posInfo, err := service.QueryPositionInfo(newCtx, kline.Symbol)
+		if err != nil {
+			log.WithField("kline", kline).
+				WithField("postion", ent.position).
+				WithError(err).
+				Infof("handleCleanPosition_ClosePosition_fail")
+			return
+		}
+
+		if posInfo.SlTriggerPx == nil {
+			log.WithField("kline", kline).
+				WithField("postion", ent.position).
+				Infof("handleCleanPosition_found_no_stop_losss")
+
+			err := ent.ClosePosition(ctx, fixedpoint.One, kline.Close)
+			if err != nil {
+				log.WithField("kline", kline).
+					WithField("postion", ent.position).
+					WithError(err).
+					Infof("handleCleanPosition_ClosePosition_fail")
+				return
+			}
+
+			log.WithField("kline", kline).
+				WithField("postion", ent.position).
+				Infof("handleCleanPosition_ClosePosition_success")
+		}
+	}
 }
 
 // setupIndicators initializes indicators

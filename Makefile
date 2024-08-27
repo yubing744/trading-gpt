@@ -1,7 +1,7 @@
 .PHONY: clean build unit-test run docker-* tag release
 
 NAME=trading-gpt
-VERSION=0.25.2
+VERSION=0.26.0
 
 clean:
 	rm -rf build/*

@@ -36,8 +36,8 @@ exchangeStrategies:
         model: "claude-3-5-sonnet-20240620"
       ollama:
         server_url: "http://localhost:11434"
-        model: "wizardlm2:7b" # Options：wizardlm2:7b, codegemma:7b, llama3:latest, and mistral:latest
-      primary: "anthropic"
+        model: "mistral-nemo:latest" # Options：wizardlm2:7b, codegemma:7b, llama3:latest, and mistral:latest
+      primary: "ollama"
       secondly: "ollama"
     env:
       exchange:
@@ -57,6 +57,9 @@ exchangeStrategies:
               window_size: "20"
               band_width: "2.0"
         handle_position_close: false
+        clean_position:
+          enabled: false
+          interval: 5m
       coze:
         enabled: true
         base_url: "https://api.coze.com"

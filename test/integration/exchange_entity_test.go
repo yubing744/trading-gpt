@@ -41,7 +41,7 @@ func setupTestSession(t *testing.T) (*bbgo.Environment, *bbgo.ExchangeSession) {
 }
 
 func TestExchangeEntityOpenPosition(t *testing.T) {
-	_, session := setupTestSession(t)
+	environ, session := setupTestSession(t)
 
 	symbol := "OPUSDT"
 	market, ok := session.Market(symbol)
@@ -56,6 +56,11 @@ func TestExchangeEntityOpenPosition(t *testing.T) {
 
 	position := types.NewPositionFromMarket(market)
 
+	// Setup order executor
+	orderExecutor := bbgo.NewGeneralOrderExecutor(session, symbol, "bbgo_test", "bbgo_test_1", position)
+	orderExecutor.BindEnvironment(environ)
+	orderExecutor.Bind()
+
 	entity := exchange.NewExchangeEntity(
 		symbol,
 		"5s",
@@ -64,7 +69,7 @@ func TestExchangeEntityOpenPosition(t *testing.T) {
 			KlineNum: 20,
 		},
 		session,
-		session.OrderExecutor,
+		orderExecutor,
 		position,
 	)
 
