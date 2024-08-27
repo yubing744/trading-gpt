@@ -397,6 +397,7 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 		log.WithField("config", cleanPostionCfg).Info("clean position enabled")
 
 		session.MarketDataStream.OnKLineClosed(types.KLineWith(ent.symbol, cleanPostionCfg.Interval, func(kline types.KLine) {
+			log.WithField("kline", kline).Info("clean position triggered")
 			ent.handleCleanPosition(ctx, kline)
 		}))
 	}
