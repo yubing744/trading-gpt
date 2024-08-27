@@ -394,6 +394,8 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 
 	cleanPostionCfg := ent.cfg.CleanPosition
 	if cleanPostionCfg.Enabled {
+		log.WithField("config", cleanPostionCfg).Info("clean position enabled")
+
 		session.MarketDataStream.OnKLineClosed(types.KLineWith(ent.symbol, cleanPostionCfg.Interval, func(kline types.KLine) {
 			ent.handleCleanPosition(ctx, kline)
 		}))
@@ -404,7 +406,7 @@ func (ent *ExchangeEntity) handleCleanPosition(ctx context.Context, kline types.
 	exchange := ent.session.Exchange
 	service, implemented := exchange.(types.ExchangePositionUpdateService)
 	if implemented {
-		log.Info("UpdatePositionV2_start")
+		log.Info("handleCleanPosition_start")
 
 		newCtx, cancel := context.WithTimeout(ctx, time.Second*20)
 		defer cancel()
