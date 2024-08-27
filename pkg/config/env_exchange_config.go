@@ -96,6 +96,7 @@ func (cfg IndicatorConfig) GetInterval(key string, def types.Interval) types.Int
 }
 
 type EnvExchangeConfig struct {
-	KlineNum   int                         `json:"kline_num"`
-	Indicators map[string]*IndicatorConfig `json:"indicators"`
+	KlineNum            int                         `json:"kline_num"`
+	Indicators          map[string]*IndicatorConfig `json:"indicators"`
+	HandlePositionClose bool                        `json:"handle_position_close"`
 }
