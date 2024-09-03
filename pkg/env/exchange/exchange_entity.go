@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"sort"
 	"strings"
 	"time"
@@ -412,7 +413,23 @@ func (ent *ExchangeEntity) handleCleanPosition(ctx context.Context, kline types.
 		newCtx, cancel := context.WithTimeout(ctx, time.Second*20)
 		defer cancel()
 
-		posInfo, err := service.QueryPositionInfo(newCtx, kline.Symbol)
+		var err error
+		var posInfo *types.PositionInfo
+
+		for i := 0; i < 3; i++ {
+			time.Sleep(time.Duration(rand.Intn(10000)) * time.Millisecond)
+
+			posInfo, err = service.QueryPositionInfo(newCtx, kline.Symbol)
+			if err == nil {
+				break
+			}
+
+			log.WithField("kline", kline).
+				WithField("postion", ent.position).
+				WithError(err).
+				Infof("handleCleanPosition_QueryPositionInfo_fail_retrying attempt %d", i+1)
+		}
+
 		if err != nil {
 			log.WithField("kline", kline).
 				WithField("postion", ent.position).
