@@ -410,14 +410,21 @@ func (ent *ExchangeEntity) handleCleanPosition(ctx context.Context, kline types.
 	if implemented {
 		log.Info("handleCleanPosition_start")
 
-		newCtx, cancel := context.WithTimeout(ctx, time.Second*20)
-		defer cancel()
+		if ent.position.IsClosed() {
+			log.Info("handleCleanPosition_skip_for_no_postion")
+			return
+		}
 
 		var err error
 		var posInfo *types.PositionInfo
 
 		for i := 0; i < 3; i++ {
-			time.Sleep(time.Duration(rand.Intn(10000)) * time.Millisecond)
+			duration := time.Duration(rand.Intn(10000)) * time.Millisecond
+			log.WithField("duration", duration).Info("handleCleanPosition_delay")
+			time.Sleep(duration)
+
+			newCtx, cancel := context.WithTimeout(ctx, time.Second*20)
+			defer cancel()
 
 			posInfo, err = service.QueryPositionInfo(newCtx, kline.Symbol)
 			if err == nil {
@@ -434,9 +441,13 @@ func (ent *ExchangeEntity) handleCleanPosition(ctx context.Context, kline types.
 			log.WithField("kline", kline).
 				WithField("postion", ent.position).
 				WithError(err).
-				Infof("handleCleanPosition_ClosePosition_fail")
+				Error("handleCleanPosition_QueryPositionInfo_fail")
 			return
 		}
+
+		log.WithField("kline", kline).
+			WithField("postion", ent.position).
+			Infof("handleCleanPosition_QueryPositionInfo_success")
 
 		if posInfo.SlTriggerPx == nil {
 			log.WithField("kline", kline).
@@ -448,7 +459,7 @@ func (ent *ExchangeEntity) handleCleanPosition(ctx context.Context, kline types.
 				log.WithField("kline", kline).
 					WithField("postion", ent.position).
 					WithError(err).
-					Infof("handleCleanPosition_ClosePosition_fail")
+					Error("handleCleanPosition_ClosePosition_fail")
 				return
 			}
 
