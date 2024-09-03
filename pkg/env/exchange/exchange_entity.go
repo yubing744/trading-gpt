@@ -433,6 +433,7 @@ func (ent *ExchangeEntity) handleCleanPosition(ctx context.Context, kline types.
 
 			log.WithField("kline", kline).
 				WithField("postion", ent.position).
+				WithField("queryPositionInfo", posInfo).
 				WithError(err).
 				Infof("handleCleanPosition_QueryPositionInfo_fail_retrying attempt %d", i+1)
 		}
@@ -440,6 +441,7 @@ func (ent *ExchangeEntity) handleCleanPosition(ctx context.Context, kline types.
 		if err != nil {
 			log.WithField("kline", kline).
 				WithField("postion", ent.position).
+				WithField("queryPositionInfo", posInfo).
 				WithError(err).
 				Error("handleCleanPosition_QueryPositionInfo_fail")
 			return
@@ -447,17 +449,20 @@ func (ent *ExchangeEntity) handleCleanPosition(ctx context.Context, kline types.
 
 		log.WithField("kline", kline).
 			WithField("postion", ent.position).
+			WithField("queryPositionInfo", posInfo).
 			Infof("handleCleanPosition_QueryPositionInfo_success")
 
 		if posInfo.SlTriggerPx == nil {
 			log.WithField("kline", kline).
 				WithField("postion", ent.position).
+				WithField("queryPositionInfo", posInfo).
 				Infof("handleCleanPosition_found_no_stop_losss")
 
 			err := ent.ClosePosition(ctx, fixedpoint.One, kline.Close)
 			if err != nil {
 				log.WithField("kline", kline).
 					WithField("postion", ent.position).
+					WithField("queryPositionInfo", posInfo).
 					WithError(err).
 					Error("handleCleanPosition_ClosePosition_fail")
 				return
@@ -465,6 +470,7 @@ func (ent *ExchangeEntity) handleCleanPosition(ctx context.Context, kline types.
 
 			log.WithField("kline", kline).
 				WithField("postion", ent.position).
+				WithField("queryPositionInfo", posInfo).
 				Infof("handleCleanPosition_ClosePosition_success")
 		}
 	}
