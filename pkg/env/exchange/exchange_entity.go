@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"sort"
 	"strings"
 	"time"
@@ -391,6 +392,88 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 			}
 		}
 	})
+
+	cleanPostionCfg := ent.cfg.CleanPosition
+	if cleanPostionCfg.Enabled {
+		log.WithField("config", cleanPostionCfg).Info("clean position enabled")
+
+		session.MarketDataStream.OnKLineClosed(types.KLineWith(ent.symbol, cleanPostionCfg.Interval, func(kline types.KLine) {
+			log.WithField("kline", kline).Info("clean position triggered")
+			ent.handleCleanPosition(ctx, kline)
+		}))
+	}
+}
+
+func (ent *ExchangeEntity) handleCleanPosition(ctx context.Context, kline types.KLine) {
+	exchange := ent.session.Exchange
+	service, implemented := exchange.(types.ExchangePositionUpdateService)
+	if implemented {
+		log.Info("handleCleanPosition_start")
+
+		if ent.position.IsClosed() {
+			log.Info("handleCleanPosition_skip_for_no_postion")
+			return
+		}
+
+		var err error
+		var posInfo *types.PositionInfo
+
+		for i := 0; i < 3; i++ {
+			duration := time.Duration(rand.Intn(10000)) * time.Millisecond
+			log.WithField("duration", duration).Info("handleCleanPosition_delay")
+			time.Sleep(duration)
+
+			newCtx, cancel := context.WithTimeout(ctx, time.Second*20)
+			defer cancel()
+
+			posInfo, err = service.QueryPositionInfo(newCtx, kline.Symbol)
+			if err == nil {
+				break
+			}
+
+			log.WithField("kline", kline).
+				WithField("postion", ent.position).
+				WithField("queryPositionInfo", posInfo).
+				WithError(err).
+				Infof("handleCleanPosition_QueryPositionInfo_fail_retrying attempt %d", i+1)
+		}
+
+		if err != nil {
+			log.WithField("kline", kline).
+				WithField("postion", ent.position).
+				WithField("queryPositionInfo", posInfo).
+				WithError(err).
+				Error("handleCleanPosition_QueryPositionInfo_fail")
+			return
+		}
+
+		log.WithField("kline", kline).
+			WithField("postion", ent.position).
+			WithField("queryPositionInfo", posInfo).
+			Infof("handleCleanPosition_QueryPositionInfo_success")
+
+		if posInfo.SlTriggerPx == nil {
+			log.WithField("kline", kline).
+				WithField("postion", ent.position).
+				WithField("queryPositionInfo", posInfo).
+				Infof("handleCleanPosition_found_no_stop_losss")
+
+			err := ent.ClosePosition(ctx, fixedpoint.One, kline.Close)
+			if err != nil {
+				log.WithField("kline", kline).
+					WithField("postion", ent.position).
+					WithField("queryPositionInfo", posInfo).
+					WithError(err).
+					Error("handleCleanPosition_ClosePosition_fail")
+				return
+			}
+
+			log.WithField("kline", kline).
+				WithField("postion", ent.position).
+				WithField("queryPositionInfo", posInfo).
+				Infof("handleCleanPosition_ClosePosition_success")
+		}
+	}
 }
 
 // setupIndicators initializes indicators

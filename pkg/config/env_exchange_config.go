@@ -99,4 +99,10 @@ type EnvExchangeConfig struct {
 	KlineNum            int                         `json:"kline_num"`
 	Indicators          map[string]*IndicatorConfig `json:"indicators"`
 	HandlePositionClose bool                        `json:"handle_position_close"`
+	CleanPosition       CleanPositionConfig         `json:"clean_position"`
+}
+
+type CleanPositionConfig struct {
+	Enabled  bool           `json:"enabled"`
+	Interval types.Interval `json:"interval"`
 }
