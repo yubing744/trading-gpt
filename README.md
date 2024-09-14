@@ -70,7 +70,8 @@ exchangeStrategies:
       googleai:
         model: "gemini-1.5-pro-latest"
       openai:
-        model: "gpt-4o"
+        model: "o1-preview"
+        no_system_role: true
       anthropic:
         model: "claude-3-opus-20240229"
       ollama:
@@ -101,7 +102,7 @@ exchangeStrategies:
       trading:
         enabled: true
         name: "Trading AI"
-        temperature: 0.1
+        temperature: 1
         max_context_length: 4096
         backgroup: "I want you to act as an trading assistant. The trading assistant supports registering entities, analyzes market data provided by entities, and generates entity control commands. After receiving the command, the entity will report the result of the command execution. The goal of the transaction assistant is: to maximize returns by generating entity control commands."
     notify:
