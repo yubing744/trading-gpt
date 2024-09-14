@@ -656,9 +656,7 @@ func (s *ExchangeEntity) UpdatePositionV2(ctx context.Context, side types.SideTy
 		err := service.UpdatePosition(ctx, tmpPos)
 		if err != nil {
 			log.WithError(err).Error("UpdatePositionV2_fail")
-
-			log.Info("fallback_to_UpdatePosition")
-			return s.UpdatePosition(ctx, side, closePrice, args...)
+			return errors.Wrap(err, "UpdatePositionV2_UpdatePosition_error")
 		}
 
 		log.Info("UpdatePositionV2_ok")
