@@ -13,6 +13,8 @@ import (
 	"github.com/yubing744/trading-gpt/pkg/config"
 	"github.com/yubing744/trading-gpt/pkg/llms/anthropic"
 	"github.com/yubing744/trading-gpt/pkg/llms/googleai"
+
+	openaix "github.com/yubing744/trading-gpt/pkg/llms/openai"
 )
 
 var log = logrus.WithField("module", "llm_manager")
@@ -53,7 +55,12 @@ func (mgr *LLMManager) Init() error {
 			opts = append(opts, openai.WithBaseURL(openAICfg.BaseURL))
 		}
 
-		llm, err := openai.New(opts...)
+		noSystemRole := false
+		if openAICfg.NoSystemRole != nil {
+			noSystemRole = *openAICfg.NoSystemRole
+		}
+
+		llm, err := openaix.New(noSystemRole, opts...)
 		if err != nil {
 			return errors.Wrap(err, "New openai fail")
 		}
