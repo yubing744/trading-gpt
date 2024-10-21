@@ -1,9 +1,10 @@
 package config
 
 type OpenAIConfig struct {
-	Token   string `json:"token"`
-	Model   string `json:"model"`
-	BaseURL string `json:"base_url"`
+	Token        string `json:"token"`
+	Model        string `json:"model"`
+	BaseURL      string `json:"base_url"`
+	NoSystemRole *bool  `json:"no_system_role"`
 }
 
 type OllamaConfig struct {
