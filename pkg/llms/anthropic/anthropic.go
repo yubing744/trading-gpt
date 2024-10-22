@@ -44,7 +44,8 @@ func New(model string, opts ...Option) (*LLM, error) {
 
 func newClient(opts ...Option) (*native.Client, error) {
 	options := &options{
-		token: os.Getenv(tokenEnvVarName),
+		baseURL: "https://api.anthropic.com",
+		token:   os.Getenv(tokenEnvVarName),
 	}
 
 	for _, opt := range opts {
