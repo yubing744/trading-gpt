@@ -7,10 +7,11 @@ import (
 	"os"
 
 	"github.com/madebywelch/anthropic-go/v3/pkg/anthropic"
-	"github.com/madebywelch/anthropic-go/v3/pkg/anthropic/client/native"
 	"github.com/sirupsen/logrus"
 	"github.com/tmc/langchaingo/callbacks"
 	"github.com/tmc/langchaingo/llms"
+
+	"github.com/yubing744/trading-gpt/pkg/llms/anthropic/native"
 )
 
 const MaxTokenSample = 4000
