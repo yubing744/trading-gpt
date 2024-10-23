@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/madebywelch/anthropic-go/v2/pkg/anthropic"
+	"github.com/madebywelch/anthropic-go/v3/pkg/anthropic"
 	"github.com/sirupsen/logrus"
 	"github.com/tmc/langchaingo/callbacks"
 	"github.com/tmc/langchaingo/llms"
+
+	"github.com/yubing744/trading-gpt/pkg/llms/anthropic/native"
 )
 
 const MaxTokenSample = 4000
@@ -25,7 +27,7 @@ var log = logrus.WithField("llm", "anthropic")
 
 type LLM struct {
 	CallbacksHandler callbacks.Handler
-	client           *anthropic.Client
+	client           *native.Client
 	model            string
 }
 
@@ -41,9 +43,10 @@ func New(model string, opts ...Option) (*LLM, error) {
 	}, err
 }
 
-func newClient(opts ...Option) (*anthropic.Client, error) {
+func newClient(opts ...Option) (*native.Client, error) {
 	options := &options{
-		token: os.Getenv(tokenEnvVarName),
+		baseURL: "https://api.anthropic.com",
+		token:   os.Getenv(tokenEnvVarName),
 	}
 
 	for _, opt := range opts {
@@ -56,7 +59,10 @@ func newClient(opts ...Option) (*anthropic.Client, error) {
 
 	log.WithField("token", options.token).Info("anthropic_new")
 
-	return anthropic.NewClient(options.token)
+	return native.MakeClient(native.Config{
+		BaseURL: options.baseURL,
+		APIKey:  options.token,
+	})
 }
 
 // Call requests a completion for the given prompt.
@@ -151,7 +157,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		anthropicOpts...,
 	)
 
-	response, err := o.client.Message(req)
+	response, err := o.client.Message(ctx, req)
 	if err != nil {
 		if o.CallbacksHandler != nil {
 			o.CallbacksHandler.HandleLLMError(ctx, err)

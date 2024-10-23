@@ -33,11 +33,11 @@ exchangeStrategies:
         base_url: "https://api.deepseek.com"
         model: "deepseek-coder"
       anthropic:
-        model: "claude-3-5-sonnet-20240620"
+        model: "claude-3-5-sonnet-20241022"
       ollama:
         server_url: "http://localhost:11434"
         model: "mistral-nemo:latest" # Options：wizardlm2:7b, codegemma:7b, llama3:latest, and mistral:latest
-      primary: "ollama"
+      primary: "anthropic"
       secondly: "ollama"
     env:
       exchange:
