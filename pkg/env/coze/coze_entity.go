@@ -2,6 +2,7 @@ package coze
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,7 +23,7 @@ type CozeEntity struct {
 
 // NewCozeEntity creates a new instance of CozeEntity with the given ID, Coze client, and configuration.
 func NewCozeEntity(config *config.CozeEntityConfig) *CozeEntity {
-	client := coze.NewClient(config.BaseURL, config.APIKey, config.Timeout.Duration())
+	client := coze.NewClient(config.BaseURL, config.APIKey, coze.WithTimeout(config.Timeout.Duration()))
 
 	return &CozeEntity{
 		id:         "coze",
@@ -61,7 +62,7 @@ func (e *CozeEntity) Run(ctx context.Context, ch chan types.IEvent) {
 		initialDelay := time.Until(nextTick) - item.Before.Duration()
 
 		time.AfterFunc(initialDelay, func() {
-			e.communicateWithCoze(ctx, ch, item)
+			e.communicateWithCozeBot(ctx, ch, item)
 			ticker := time.NewTicker(interval)
 			e.timers[item.Name] = ticker
 
@@ -72,7 +73,33 @@ func (e *CozeEntity) Run(ctx context.Context, ch chan types.IEvent) {
 						ticker.Stop()
 						return
 					case <-ticker.C:
-						e.communicateWithCoze(ctx, ch, item)
+						e.communicateWithCozeBot(ctx, ch, item)
+					}
+				}
+			}(item, ticker)
+		})
+	}
+
+	for _, item := range e.config.WorkflowIndicatorItems {
+		log.WithField("item", item).Info("coze_run_workflow_item")
+
+		interval := item.Interval.Duration()
+		nextTick := time.Now().Truncate(interval).Add(interval)
+		initialDelay := time.Until(nextTick) - item.Before.Duration()
+
+		time.AfterFunc(initialDelay, func() {
+			e.communicateWithCozeWorkflow(ctx, ch, item)
+			ticker := time.NewTicker(interval)
+			e.timers[item.Name] = ticker
+
+			go func(item *config.WorkflowIndicatorItem, ticker *time.Ticker) {
+				for {
+					select {
+					case <-ctx.Done():
+						ticker.Stop()
+						return
+					case <-ticker.C:
+						e.communicateWithCozeWorkflow(ctx, ch, item)
 					}
 				}
 			}(item, ticker)
@@ -82,9 +109,8 @@ func (e *CozeEntity) Run(ctx context.Context, ch chan types.IEvent) {
 	<-ctx.Done() // Wait for cancellation
 }
 
-// communicateWithCoze handles the communication with the Coze platform for a given scheduled task and sends events to the channel.
-func (e *CozeEntity) communicateWithCoze(ctx context.Context, ch chan types.IEvent, item *config.IndicatorItem) {
-
+// communicateWithCozeBot handles the communication with the Coze platform for a given scheduled task and sends events to the channel.
+func (e *CozeEntity) communicateWithCozeBot(ctx context.Context, ch chan types.IEvent, item *config.IndicatorItem) {
 	req := &coze.ChatRequest{
 		ConversationID: uuid.NewString(),
 		BotID:          item.BotID,
@@ -93,21 +119,55 @@ func (e *CozeEntity) communicateWithCoze(ctx context.Context, ch chan types.IEve
 		Stream:         false,
 	}
 
-	log.WithField("item", item).WithField("req", req).Info("communicateWithCoze_start")
+	log.WithField("item", item).WithField("req", req).Info("communicateWithCozeBot_start")
 
 	response, err := e.cozeClient.Chat(ctx, req)
 	if err != nil {
-		log.WithField("item", item).WithField("req", req).WithError(err).Error("communicateWithCoze_error")
+		log.WithField("item", item).WithField("req", req).WithError(err).Error("communicateWithCozeBot_error")
 		return
 	}
 
-	log.WithField("item", item).WithField("req", req).WithField("response", response).Info("communicateWithCoze_end")
+	log.WithField("item", item).WithField("req", req).WithField("response", response).Info("communicateWithCozeBot_end")
 
 	if response.Code != 0 {
 		log.WithField("errorMsg", response.Msg).Error("response_error")
 		return
 	}
 
-	event := NewCozeEvent(item, response)
+	sb := strings.Builder{}
+
+	for _, msg := range response.Messages {
+		if msg.Role == "assistant" && msg.Type == "answer" {
+			sb.WriteString(msg.Content)
+		}
+	}
+
+	event := NewCozeEvent(item.Name, item.Description, sb.String())
+	ch <- event
+}
+
+// communicateWithCoze handles the communication with the Coze platform for a given scheduled task and sends events to the channel.
+func (e *CozeEntity) communicateWithCozeWorkflow(ctx context.Context, ch chan types.IEvent, item *config.WorkflowIndicatorItem) {
+	req := &coze.WorkflowRequest{
+		WorkflowID: item.WorkflowID,
+		Parameters: item.Params,
+	}
+
+	log.WithField("item", item).WithField("req", req).Info("communicateWithCozeWorkflow_start")
+
+	resp, err := e.cozeClient.RunWorkflow(ctx, req)
+	if err != nil {
+		log.WithField("item", item).WithField("req", req).WithError(err).Error("communicateWithCozeWorkflow_error")
+		return
+	}
+
+	log.WithField("item", item).WithField("req", req).WithField("resp", resp).Info("communicateWithCozeWorkflow_end")
+
+	if resp.Code != 0 {
+		log.WithField("errorCode", resp.Code).WithField("errorMsg", resp.Msg).Error("response_error")
+		return
+	}
+
+	event := NewCozeEvent(item.Name, item.Description, resp.Data)
 	ch <- event
 }
