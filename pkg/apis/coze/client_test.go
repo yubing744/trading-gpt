@@ -16,7 +16,7 @@ func TestNewClient(t *testing.T) {
 	apiKey := "test-api-key"
 	timeout := 10 * time.Second
 
-	client := NewClient(baseURL, apiKey, timeout).(*Client)
+	client := NewClient(baseURL, apiKey, WithTimeout(timeout)).(*Client)
 
 	assert.Equal(t, baseURL, client.BaseURL)
 	assert.Equal(t, apiKey, client.APIKey)
@@ -46,7 +46,7 @@ func TestChatSuccess(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(mockChatHandler))
 	defer server.Close()
 
-	client := NewClient(server.URL, "test-api-key", 10*time.Second).(*Client)
+	client := NewClient(server.URL, "test-api-key", WithTimeout(time.Second*10)).(*Client)
 
 	req := &ChatRequest{
 		BotID:          "bot-id",
@@ -80,7 +80,7 @@ func TestChatFailure(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(mockChatHandlerFail))
 	defer server.Close()
 
-	client := NewClient(server.URL, "test-api-key", 10*time.Second).(*Client)
+	client := NewClient(server.URL, "test-api-key", WithTimeout(time.Second*10)).(*Client)
 
 	req := &ChatRequest{
 		// Simulated request data
@@ -102,7 +102,7 @@ func TestChatTimeout(t *testing.T) {
 
 	defer server.Close()
 
-	client := NewClient(server.URL, "test-api-key", 1*time.Second).(*Client)
+	client := NewClient(server.URL, "test-api-key", WithTimeout(time.Second*1)).(*Client)
 
 	req := &ChatRequest{
 		// Simulated request data
@@ -110,6 +110,76 @@ func TestChatTimeout(t *testing.T) {
 
 	ctx := context.Background()
 	resp, err := client.Chat(ctx, req)
+
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+}
+
+// Mock server response for a successful workflow request
+func mockWorkflowHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	response := WorkflowResponse{
+		Data:     `{"output":"Test workflow output"}`,
+		DebugURL: "https://www.coze.com/work_flow?execute_id=123&space_id=456&workflow_id=789",
+	}
+	json.NewEncoder(w).Encode(response)
+}
+
+func TestRunWorkflowSuccess(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(mockWorkflowHandler))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-api-key", WithTimeout(time.Second*10)).(*Client)
+
+	req := &WorkflowRequest{
+		WorkflowID: "test-workflow-id",
+		BotID:      "test-bot-id",
+		Parameters: map[string]string{
+			"input": "test input",
+		},
+	}
+
+	ctx := context.Background()
+	resp, err := client.RunWorkflow(ctx, req)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Contains(t, resp.Data, "Test workflow output")
+	assert.Contains(t, resp.DebugURL, "work_flow")
+}
+
+func TestRunWorkflowTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusGatewayTimeout)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-api-key", WithTimeout(time.Second*1)).(*Client)
+
+	req := &WorkflowRequest{
+		WorkflowID: "test-workflow-id",
+	}
+
+	ctx := context.Background()
+	resp, err := client.RunWorkflow(ctx, req)
+
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "workflow execution timed out")
+}
+
+func TestRunWorkflowFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(mockChatHandlerFail))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-api-key", WithTimeout(time.Second*10)).(*Client)
+
+	req := &WorkflowRequest{
+		WorkflowID: "test-workflow-id",
+	}
+
+	ctx := context.Background()
+	resp, err := client.RunWorkflow(ctx, req)
 
 	assert.Error(t, err)
 	assert.Nil(t, resp)

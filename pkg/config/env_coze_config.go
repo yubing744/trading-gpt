@@ -14,11 +14,21 @@ type IndicatorItem struct {
 	Message     string         `json:"message"`     // The message content to send to the bot
 }
 
+type WorkflowIndicatorItem struct {
+	Name        string            `json:"name"`        // A unique name for the scheduled task
+	Description string            `json:"description"` // A description of what the task does
+	Interval    types.Interval    `json:"interval"`    // How often to run the task
+	Before      types.Interval    `json:"before"`      // How often to run the task
+	WorkflowID  string            `json:"workflow_id"` // The ID of the bot to interact with
+	Params      map[string]string `json:"params"`      // The message content to send to the bot
+}
+
 // CozeEntityConfig holds the configuration for a CozeEntity.
 type CozeEntityConfig struct {
-	Enabled        bool             `json:"enabled"`
-	BaseURL        string           `json:"base_url"`
-	APIKey         string           `json:"api_key"`
-	Timeout        types.Interval   `json:"timeout"`
-	IndicatorItems []*IndicatorItem `json:"indicators"` // A list of scheduled tasks
+	Enabled                bool                     `json:"enabled"`
+	BaseURL                string                   `json:"base_url"`
+	APIKey                 string                   `json:"api_key"`
+	Timeout                types.Interval           `json:"timeout"`
+	IndicatorItems         []*IndicatorItem         `json:"indicators"`          // A list of scheduled tasks
+	WorkflowIndicatorItems []*WorkflowIndicatorItem `json:"workflow_indicators"` // A list of scheduled tasks
 }

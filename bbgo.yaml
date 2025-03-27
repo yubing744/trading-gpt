@@ -64,13 +64,14 @@ exchangeStrategies:
         enabled: true
         base_url: "https://api.coze.com"
         timeout: 60s
-        indicators:
+        workflow_indicators:
           - name: "news_changed"
             description: "Sui news score and reasons:"
             interval: "5m"
             before: "20s"
-            bot_id: "7372584552936079367"
-            message: "Please obtain the SUI message score and give a brief reason"
+            workflow_id: "7372569763169533960"
+            params:
+              symbol: "SUI"
       include_events:
         - news_changed
         - kline_changed
