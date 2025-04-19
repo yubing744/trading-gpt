@@ -49,11 +49,12 @@ Templates are used for generating prompts and structuring LLM interactions:
 ## Key Implementation Paths
 
 ### Strategy Execution Flow
-1. User provides natural language strategy description
-2. Trading Agent processes description using LLM
-3. Trading Agent generates trading actions
-4. Actions are executed on the exchange through Environment system
-5. Results are reported back through Notification system
+1. Environment system detects market changes and generates events.
+2. Events trigger evaluation within the Trading Logic/Strategy.
+3. Trading Logic requests decisions from the Trading Agent when necessary.
+4. Trading Agent processes context and events, potentially using LLM, to generate trading actions.
+5. Actions are sent to the Environment system for execution on the exchange.
+6. Results and system status are reported back through the Notification system.
 
 ### Risk Management Flow
 1. Strategy includes stop loss and take profit parameters

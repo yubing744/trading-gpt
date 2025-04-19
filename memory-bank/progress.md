@@ -1,7 +1,7 @@
 # Progress: Trading-AI
 
 ## Current Status
-The Trading-AI project is a functional trading system with LLM integration that allows users to express trading strategies in natural language. The Memory Bank documentation has been established to maintain comprehensive project knowledge.
+The Trading-AI project is a functional trading system with LLM integration that allows users to express trading strategies in natural language. The Memory Bank documentation has been established to maintain comprehensive project knowledge. Currently, significant progress has been made on the technical specification document, with the conceptual design section now complete and featuring a simplified system architecture.
 
 ## What Works
 - Integration with bbgo trading engine
@@ -11,6 +11,7 @@ The Trading-AI project is a functional trading system with LLM integration that 
 - Chat interface for strategy interaction
 - Notification system for trading updates
 - Agent system with trading and keeper agents
+- Event-driven architecture for market data processing and decision making
 
 ## What's Left to Build/Improve
 - Enhanced error handling and recovery mechanisms

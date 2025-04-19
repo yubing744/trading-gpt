@@ -41,12 +41,18 @@ All diagrams must be created using Mermaid syntax, and each section should be co
 - Documented primary system architecture and design patterns
 - Shifted to creating technical specification document (tech_spec.md)
 - Added detailed requirements for the technical specification document
+- Simplified system architecture diagram to better reflect the event-driven nature of the system
+- Rewrote the conceptual design section of the technical specification
+- Replaced the Domain Class Diagram with a more abstract Domain Model in `tech_spec.md`
+- Added detailed explanations for the Domain Model and Module Diagram in `tech_spec.md`
+- Updated `systemPatterns.md` to align Strategy Execution Flow with the new Domain Model
 
 ## Next Steps
-1. Complete Memory Bank setup with all required files
-2. Review existing implementation against documented patterns
-3. Identify any gaps in documentation or implementation
-4. Prioritize development tasks based on documentation insights
+1. Complete the detailed design section of the technical specification
+2. Develop test cases section in the technical specification
+3. Review existing implementation against updated system architecture
+4. Identify any implementation adjustments needed based on new design
+5. Finalize the technical specification document
 
 ## Active Decisions and Considerations
 - **Documentation Approach**: Using structured Markdown files organized in a clear hierarchy to maintain project knowledge
