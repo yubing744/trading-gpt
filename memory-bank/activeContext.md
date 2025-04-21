@@ -46,18 +46,22 @@ All diagrams must be created using Mermaid syntax, and each section should be co
 - Replaced the Domain Class Diagram with a more abstract Domain Model in `tech_spec.md`
 - Added detailed explanations for the Domain Model and Module Diagram in `tech_spec.md`
 - Updated `systemPatterns.md` to align Strategy Execution Flow with the new Domain Model
+- Added initial detailed design for "Trading Reflection and Memory" feature in `tech_spec.md`.
+- **Revised the "Trading Reflection and Memory" feature design in `tech_spec.md` to correctly place core orchestration logic in `pkg/jarvis.go` based on review feedback.**
 
 ## Next Steps
-1. Complete the detailed design section of the technical specification
-2. Develop test cases section in the technical specification
-3. Review existing implementation against updated system architecture
-4. Identify any implementation adjustments needed based on new design
-5. Finalize the technical specification document
+1.  **Implement Trading Reflection and Memory Feature**: Start implementing the feature based on the revised detailed design in `tech_spec.md`, focusing on changes in `pkg/jarvis.go`, `pkg/env/exchange/exchange_entity.go`, `pkg/types/event.go`, and necessary adjustments in `pkg/agents/trading/trading_agent.go`.
+2.  Complete the remaining detailed design sections of the technical specification (if any).
+3.  Develop test cases section in the technical specification.
+4.  Review existing implementation against updated system architecture.
+5.  Identify any implementation adjustments needed based on new design.
+6.  Finalize the technical specification document.
 
 ## Active Decisions and Considerations
-- **Documentation Approach**: Using structured Markdown files organized in a clear hierarchy to maintain project knowledge
-- **Documentation Scope**: Focus on both technical implementation details and higher-level product/project context
-- **Documentation Maintenance**: Regular updates to keep documentation in sync with implementation
+- **Documentation Approach**: Using structured Markdown files organized in a clear hierarchy to maintain project knowledge.
+- **Documentation Scope**: Focus on both technical implementation details and higher-level product/project context.
+- **Documentation Maintenance**: Regular updates to keep documentation in sync with implementation.
+- **Memory Feature Implementation**: The core logic for reflection and memory management will reside in `pkg/jarvis.go` to maintain central control, interacting with the `Trading Agent` as needed for context or decision execution.
 
 ## Important Patterns and Preferences
 - **Code Organization**: Modular structure with clear separation of concerns
