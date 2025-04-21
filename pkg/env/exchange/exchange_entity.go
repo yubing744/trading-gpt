@@ -567,6 +567,10 @@ func (s *ExchangeEntity) ClosePosition(ctx context.Context, percentage fixedpoin
 		return fmt.Errorf("no opened %s position", s.position.Symbol)
 	}
 
+	// Capture position info before closing for reflection event
+	posBeforeClose := *s.position
+	isFullClose := percentage.Compare(fixedpoint.One) == 0
+
 	// make it negative
 	quantity := s.position.GetBase().Mul(percentage).Abs()
 	side := types.SideTypeBuy
@@ -582,7 +586,7 @@ func (s *ExchangeEntity) ClosePosition(ctx context.Context, percentage fixedpoin
 	}
 
 	orderForm := s.generateOrderForm(side, quantity, types.SideEffectTypeAutoRepay)
-	if percentage.Compare(fixedpoint.One) == 0 {
+	if isFullClose {
 		orderForm.ClosePosition = true // Full close position
 	}
 
@@ -592,6 +596,59 @@ func (s *ExchangeEntity) ClosePosition(ctx context.Context, percentage fixedpoin
 	if err != nil {
 		log.WithError(err).Errorf("can not place %s position close order", s.symbol)
 		bbgo.Notify("can not place %s position close order", s.symbol)
+		return err
+	}
+
+	// Only emit position closed event for full closures
+	if isFullClose {
+		// Get the strategy ID from context
+		strategyID := "unknown"
+		if val, exists := ctx.Value("strategyID").(string); exists {
+			strategyID = val
+		}
+
+		// Determine close reason - default to Manual, but could be enhanced to detect actual reason
+		closeReason := "Manual"
+		if val, exists := ctx.Value("closeReason").(string); exists {
+			closeReason = val
+		}
+
+		// Create the position closed event data
+		positionData := ttypes.PositionClosedEventData{
+			StrategyID:    strategyID,
+			Symbol:        s.symbol,
+			EntryPrice:    posBeforeClose.AverageCost.Float64(),
+			ExitPrice:     closePrice.Float64(),
+			Quantity:      posBeforeClose.GetBase().Float64(),
+			ProfitAndLoss: posBeforeClose.AccumulatedProfit.Float64(),
+			CloseReason:   closeReason,
+			Timestamp:     time.Now(),
+		}
+
+		// Get recent market data as context if available
+		if s.KLineWindow != nil && s.KLineWindow.Len() > 0 {
+			lastIdx := s.KLineWindow.Len() - 1
+			kline := (*s.KLineWindow)[lastIdx]
+			positionData.RelatedMarketData = map[string]interface{}{
+				"lastKline": map[string]interface{}{
+					"open":      kline.Open.Float64(),
+					"high":      kline.High.Float64(),
+					"low":       kline.Low.Float64(),
+					"close":     kline.Close.Float64(),
+					"volume":    kline.Volume.Float64(),
+					"startTime": kline.StartTime.Time(),
+					"endTime":   kline.EndTime.Time(),
+				},
+			}
+		}
+
+		// Emit the position closed event if we can access a channel
+		log.WithField("positionData", positionData).Info("Position fully closed, emitting PositionClosedEvent")
+
+		// Extract event channel from context if available
+		if eventCh, exists := ctx.Value("eventChannel").(chan ttypes.IEvent); exists {
+			eventCh <- ttypes.NewPositionClosedEvent(positionData)
+		}
 	}
 
 	return err

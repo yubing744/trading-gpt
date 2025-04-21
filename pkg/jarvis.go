@@ -514,6 +514,13 @@ func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, 
 		} else {
 			log.WithField("eventType", evt.GetType()).Warn("event data Type not match")
 		}
+	case ttypes.EventPositionClosed:
+		positionData, ok := evt.GetData().(ttypes.PositionClosedEventData)
+		if ok {
+			s.handlePositionClosed(ctx, session, positionData)
+		} else {
+			log.WithField("eventType", evt.GetType()).Warn("event data Type not match")
+		}
 	case "update_finish":
 		s.handleUpdateFinish(ctx, session)
 	default:
@@ -676,4 +683,170 @@ func (s *Strategy) getPositionMsg(session ttypes.ISession) (*ttypes.Message, boo
 	}
 
 	return nil, false
+}
+
+// handlePositionClosed processes position closed events and generates trading reflections
+func (s *Strategy) handlePositionClosed(ctx context.Context, session ttypes.ISession, posData ttypes.PositionClosedEventData) {
+	log.WithField("positionData", posData).Info("Handling position closed event")
+
+	// Notify users about position closure
+	pnlStr := "loss"
+	if posData.ProfitAndLoss >= 0 {
+		pnlStr = "profit"
+	}
+
+	// Format notification message
+	message := fmt.Sprintf("Position closed for %s:\n"+
+		"Strategy: %s\n"+
+		"Symbol: %s\n"+
+		"Entry Price: %.2f\n"+
+		"Exit Price: %.2f\n"+
+		"Quantity: %.6f\n"+
+		"%s: %.2f\n"+
+		"Close Reason: %s\n"+
+		"Close Time: %s",
+		posData.Symbol,
+		posData.StrategyID,
+		posData.Symbol,
+		posData.EntryPrice,
+		posData.ExitPrice,
+		posData.Quantity,
+		pnlStr,
+		posData.ProfitAndLoss,
+		posData.CloseReason,
+		posData.Timestamp.Format(time.RFC3339))
+
+	// Use bbgo's Notify function for notification
+	bbgo.Notify(message)
+
+	// Store this in session for later use
+	session.SetAttribute("last_closed_position", posData)
+
+	// Add a message to the chat
+	s.stashMsg(ctx, session, fmt.Sprintf("📊 Position closed for %s with %s: %.2f",
+		posData.Symbol, pnlStr, posData.ProfitAndLoss))
+
+	// Generate reflection if agent is available
+	if s.agent != nil {
+		s.stashMsg(ctx, session, "Generating trade reflection... This will be saved to memory-bank/reflections/")
+		s.generateAndSaveReflection(ctx, session, posData)
+	} else {
+		log.Warn("No agent available to generate trade reflection")
+	}
+}
+
+// generateAndSaveReflection generates a reflection on the closed trade and saves it to a file
+func (s *Strategy) generateAndSaveReflection(ctx context.Context, session ttypes.ISession, posData ttypes.PositionClosedEventData) {
+	// If no agent is initialized, we can't generate a reflection
+	if s.agent == nil {
+		log.Warn("No agent available to generate trade reflection")
+		return
+	}
+
+	// Create a message with the trade data for reflection
+	pnlStr := "loss"
+	if posData.ProfitAndLoss >= 0 {
+		pnlStr = "profit"
+	}
+
+	promptText := fmt.Sprintf(`Please analyze this closed trading position and provide a detailed reflection:
+
+Trading position details:
+- Symbol: %s
+- Strategy ID: %s
+- Entry Price: %.4f
+- Exit Price: %.4f
+- Quantity: %.6f
+- %s: %.2f
+- Close Reason: %s
+- Close Time: %s
+
+Focus on:
+1. Analysis of entry and exit points
+2. Performance evaluation
+3. What went well
+4. What could have been improved
+5. Lessons learned for future trades
+
+Format your response as a structured markdown document with headings and bullet points.`,
+		posData.Symbol,
+		posData.StrategyID,
+		posData.EntryPrice,
+		posData.ExitPrice,
+		posData.Quantity,
+		pnlStr,
+		posData.ProfitAndLoss,
+		posData.CloseReason,
+		posData.Timestamp.Format(time.RFC3339))
+
+	// Use the agent to generate reflection
+	msg := &ttypes.Message{
+		Text: promptText,
+	}
+
+	result, err := s.agent.GenActions(ctx, session, []*ttypes.Message{msg})
+	if err != nil {
+		log.WithError(err).Error("Failed to generate trade reflection")
+		return
+	}
+
+	if result == nil || len(result.Texts) == 0 {
+		log.Error("No reflection text generated")
+		return
+	}
+
+	// Extract the reflection text from the result
+	reflectionText := result.Texts[0]
+
+	// Save the reflection to a file
+	timestamp := posData.Timestamp.Unix()
+	strategyID := strings.ReplaceAll(posData.StrategyID, " ", "_")
+	strategyID = strings.ReplaceAll(strategyID, "/", "_") // Sanitize for filename
+
+	filename := fmt.Sprintf("%s_%d.md", strategyID, timestamp)
+	filepath := fmt.Sprintf("memory-bank/reflections/%s", filename)
+
+	// Create reflection file content with front matter
+	headerContent := fmt.Sprintf(`---
+symbol: %s
+strategyId: %s
+entryPrice: %.4f
+exitPrice: %.4f
+quantity: %.6f
+profitAndLoss: %.2f
+closeReason: %s
+timestamp: %s
+---
+
+# Trade Reflection: %s (%s)
+
+`,
+		posData.Symbol,
+		posData.StrategyID,
+		posData.EntryPrice,
+		posData.ExitPrice,
+		posData.Quantity,
+		posData.ProfitAndLoss,
+		posData.CloseReason,
+		posData.Timestamp.Format(time.RFC3339),
+		posData.Symbol,
+		posData.StrategyID)
+
+	content := headerContent + reflectionText
+
+	// Write to file
+	err = os.WriteFile(filepath, []byte(content), 0644)
+	if err != nil {
+		log.WithError(err).Error("Failed to write reflection file")
+		return
+	}
+
+	log.WithField("filepath", filepath).Info("Trade reflection saved")
+
+	// Store the reflection in session attributes for future reference
+	session.SetAttribute(fmt.Sprintf("reflection_%s", strategyID), reflectionText)
+
+	// Send a confirmation message to the chat session
+	summaryMsg := fmt.Sprintf("📝 Trade reflection generated for %s and saved to memory bank", posData.StrategyID)
+	s.stashMsg(ctx, session, summaryMsg)
 }

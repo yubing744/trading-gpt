@@ -41,3 +41,36 @@ Response Format:
 
 Ensure the response can be parsed by golang json.Unmarshal
 `
+
+// ReflectionTpl provides a template for structured self-reflection and criticism
+var ReflectionTpl = `Reflect critically on the decision-making process and the chosen actions based on the trading strategy.
+
+Review your recent trading actions and evaluate:
+1. Adherence to the trading strategy principles
+2. Quality of data analysis and interpretation
+3. Risk management effectiveness
+4. Emotional control in decision making
+5. Lessons learned and areas for improvement
+
+Constraints:
+1. Be honest and constructive in your self-criticism
+2. Focus on identifying specific patterns or biases that may affect decision quality
+3. Consider both successful decisions and potential mistakes
+4. Highlight alternative approaches that might have been more effective
+5. Provide actionable insights for improving future trades
+
+You should only respond in JSON format as described below
+Response Format:
+{
+    "reflection": {
+        "strategy_adherence": "analysis of how well decisions aligned with strategy",
+        "data_analysis": "evaluation of data interpretation quality",
+        "risk_management": "assessment of position sizing and risk controls",
+        "emotional_factors": "identification of any emotional biases in decisions",
+        "improvement_areas": "specific aspects to improve",
+        "action_items": "concrete steps to enhance trading performance"
+    }
+}
+
+Ensure the response can be parsed by golang json.Unmarshal
+`
