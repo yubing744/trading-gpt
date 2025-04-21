@@ -452,26 +452,73 @@ func (ent *ExchangeEntity) handleCleanPosition(ctx context.Context, kline types.
 			WithField("queryPositionInfo", posInfo).
 			Infof("handleCleanPosition_QueryPositionInfo_success")
 
-		if posInfo.SlTriggerPx == nil {
-			log.WithField("kline", kline).
-				WithField("postion", ent.position).
-				WithField("queryPositionInfo", posInfo).
-				Infof("handleCleanPosition_found_no_stop_losss")
+		// Check for take profit trigger
+		if posInfo.TpTriggerPx != nil {
+			currentPrice := kline.Close
 
-			err := ent.ClosePosition(ctx, fixedpoint.One, kline.Close)
-			if err != nil {
+			// For long positions: close if price >= take profit
+			// For short positions: close if price <= take profit
+			if (ent.position.IsLong() && currentPrice.Compare(*posInfo.TpTriggerPx) >= 0) ||
+				(ent.position.IsShort() && currentPrice.Compare(*posInfo.TpTriggerPx) <= 0) {
+
 				log.WithField("kline", kline).
 					WithField("postion", ent.position).
-					WithField("queryPositionInfo", posInfo).
-					WithError(err).
-					Error("handleCleanPosition_ClosePosition_fail")
+					WithField("tpTriggerPx", *posInfo.TpTriggerPx).
+					WithField("currentPrice", currentPrice).
+					Infof("handleCleanPosition_take_profit_triggered")
+
+				// Create context with take profit close reason
+				tpCtx := context.WithValue(ctx, "closeReason", CloseReasonTakeProfit)
+
+				err := ent.ClosePosition(tpCtx, fixedpoint.One, currentPrice)
+				if err != nil {
+					log.WithError(err).Error("handleCleanPosition_take_profit_ClosePosition_fail")
+					return
+				}
+
+				log.Info("handleCleanPosition_take_profit_ClosePosition_success")
 				return
 			}
+		}
 
+		// Check for stop loss trigger
+		if posInfo.SlTriggerPx != nil {
+			currentPrice := kline.Close
+
+			// For long positions: close if price <= stop loss
+			// For short positions: close if price >= stop loss
+			if (ent.position.IsLong() && currentPrice.Compare(*posInfo.SlTriggerPx) <= 0) ||
+				(ent.position.IsShort() && currentPrice.Compare(*posInfo.SlTriggerPx) >= 0) {
+
+				log.WithField("kline", kline).
+					WithField("postion", ent.position).
+					WithField("slTriggerPx", *posInfo.SlTriggerPx).
+					WithField("currentPrice", currentPrice).
+					Infof("handleCleanPosition_stop_loss_triggered")
+
+				// Create context with stop loss close reason
+				slCtx := context.WithValue(ctx, "closeReason", CloseReasonStopLoss)
+
+				err := ent.ClosePosition(slCtx, fixedpoint.One, currentPrice)
+				if err != nil {
+					log.WithError(err).Error("handleCleanPosition_stop_loss_ClosePosition_fail")
+					return
+				}
+
+				log.Info("handleCleanPosition_stop_loss_ClosePosition_success")
+				return
+			}
+		}
+
+		// If we get here and there's no stop loss configured, this might be a manual position without SL/TP
+		if posInfo.SlTriggerPx == nil && posInfo.TpTriggerPx == nil {
 			log.WithField("kline", kline).
 				WithField("postion", ent.position).
 				WithField("queryPositionInfo", posInfo).
-				Infof("handleCleanPosition_ClosePosition_success")
+				Infof("handleCleanPosition_found_no_stop_loss_or_take_profit")
+
+			// Positions without stop loss or take profit might need other handling
+			// For now just logging, but you could add other logic here
 		}
 	}
 }
@@ -607,8 +654,11 @@ func (s *ExchangeEntity) ClosePosition(ctx context.Context, percentage fixedpoin
 			strategyID = val
 		}
 
-		// Determine close reason - default to Manual, but could be enhanced to detect actual reason
-		closeReason := "Manual"
+		// Determine close reason based on available context
+		closeReason := CloseReasonManual // Default to Manual
+		if val, exists := ctx.Value("closeReason").(string); exists {
+			closeReason = val
+		}
 		if val, exists := ctx.Value("closeReason").(string); exists {
 			closeReason = val
 		}
