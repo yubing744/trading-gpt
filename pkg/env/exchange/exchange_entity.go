@@ -664,7 +664,7 @@ func (s *ExchangeEntity) ClosePosition(ctx context.Context, percentage fixedpoin
 		}
 
 		// Create the position closed event data
-		positionData := ttypes.PositionClosedEventData{
+		positionData := PositionClosedEventData{
 			StrategyID:    strategyID,
 			Symbol:        s.symbol,
 			EntryPrice:    posBeforeClose.AverageCost.Float64(),
@@ -697,7 +697,7 @@ func (s *ExchangeEntity) ClosePosition(ctx context.Context, percentage fixedpoin
 
 		// Extract event channel from context if available
 		if eventCh, exists := ctx.Value("eventChannel").(chan ttypes.IEvent); exists {
-			eventCh <- ttypes.NewPositionClosedEvent(positionData)
+			eventCh <- NewPositionClosedEvent(positionData)
 		}
 	}
 
