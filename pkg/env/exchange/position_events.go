@@ -1,4 +1,3 @@
-// filepath: /Users/elliot/Develop/quant/trading-gpt/pkg/env/exchange/position_events.go
 package exchange
 
 import (

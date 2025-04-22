@@ -514,8 +514,8 @@ func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, 
 		} else {
 			log.WithField("eventType", evt.GetType()).Warn("event data Type not match")
 		}
-	case ttypes.EventPositionClosed:
-		positionData, ok := evt.GetData().(ttypes.PositionClosedEventData)
+	case exchange.EventPositionClosed:
+		positionData, ok := evt.GetData().(exchange.PositionClosedEventData)
 		if ok {
 			s.handlePositionClosed(ctx, session, positionData)
 		} else {
@@ -686,7 +686,7 @@ func (s *Strategy) getPositionMsg(session ttypes.ISession) (*ttypes.Message, boo
 }
 
 // handlePositionClosed processes position closed events and generates trading reflections
-func (s *Strategy) handlePositionClosed(ctx context.Context, session ttypes.ISession, posData ttypes.PositionClosedEventData) {
+func (s *Strategy) handlePositionClosed(ctx context.Context, session ttypes.ISession, posData exchange.PositionClosedEventData) {
 	log.WithField("positionData", posData).Info("Handling position closed event")
 
 	// Notify users about position closure
@@ -736,48 +736,31 @@ func (s *Strategy) handlePositionClosed(ctx context.Context, session ttypes.ISes
 }
 
 // generateAndSaveReflection generates a reflection on the closed trade and saves it to a file
-func (s *Strategy) generateAndSaveReflection(ctx context.Context, session ttypes.ISession, posData ttypes.PositionClosedEventData) {
+func (s *Strategy) generateAndSaveReflection(ctx context.Context, session ttypes.ISession, posData exchange.PositionClosedEventData) {
 	// If no agent is initialized, we can't generate a reflection
 	if s.agent == nil {
 		log.Warn("No agent available to generate trade reflection")
 		return
 	}
 
-	// Create a message with the trade data for reflection
-	pnlStr := "loss"
-	if posData.ProfitAndLoss >= 0 {
-		pnlStr = "profit"
+	// Create template data for the reflection
+	data := map[string]interface{}{
+		"Symbol":        posData.Symbol,
+		"StrategyID":    posData.StrategyID,
+		"EntryPrice":    posData.EntryPrice,
+		"ExitPrice":     posData.ExitPrice,
+		"Quantity":      posData.Quantity,
+		"ProfitAndLoss": posData.ProfitAndLoss,
+		"CloseReason":   posData.CloseReason,
+		"Timestamp":     posData.Timestamp.Format(time.RFC3339),
 	}
 
-	promptText := fmt.Sprintf(`Please analyze this closed trading position and provide a detailed reflection:
-
-Trading position details:
-- Symbol: %s
-- Strategy ID: %s
-- Entry Price: %.4f
-- Exit Price: %.4f
-- Quantity: %.6f
-- %s: %.2f
-- Close Reason: %s
-- Close Time: %s
-
-Focus on:
-1. Analysis of entry and exit points
-2. Performance evaluation
-3. What went well
-4. What could have been improved
-5. Lessons learned for future trades
-
-Format your response as a structured markdown document with headings and bullet points.`,
-		posData.Symbol,
-		posData.StrategyID,
-		posData.EntryPrice,
-		posData.ExitPrice,
-		posData.Quantity,
-		pnlStr,
-		posData.ProfitAndLoss,
-		posData.CloseReason,
-		posData.Timestamp.Format(time.RFC3339))
+	// Use the trade reflection template from prompt.go
+	promptText, err := xtemplate.Render(prompt.TradeReflectionTpl, data)
+	if err != nil {
+		log.WithError(err).Error("Failed to generate reflection prompt from template")
+		return
+	}
 
 	// Use the agent to generate reflection
 	msg := &ttypes.Message{
