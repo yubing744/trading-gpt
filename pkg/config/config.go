@@ -20,4 +20,8 @@ type Config struct {
 
 	Strategy                string   `json:"strategy"`
 	StrategyAttentionPoints []string `json:"strategy_attention_points"`
+
+	// ReflectionPath specifies the directory path where trade reflections will be stored
+	// If not specified, defaults to "memory-bank/reflections/"
+	ReflectionPath string `json:"reflection_path"`
 }

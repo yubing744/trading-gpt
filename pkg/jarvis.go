@@ -716,8 +716,8 @@ func (s *Strategy) handlePositionClosed(ctx context.Context, session ttypes.ISes
 		posData.CloseReason,
 		posData.Timestamp.Format(time.RFC3339))
 
-	// Use bbgo's Notify function for notification
-	bbgo.Notify(message)
+	// Use Strategy's own reply mechanism for notification
+	s.replyMsg(ctx, session, message)
 
 	// Store this in session for later use
 	session.SetAttribute("last_closed_position", posData)
@@ -726,9 +726,15 @@ func (s *Strategy) handlePositionClosed(ctx context.Context, session ttypes.ISes
 	s.stashMsg(ctx, session, fmt.Sprintf("📊 Position closed for %s with %s: %.2f",
 		posData.Symbol, pnlStr, posData.ProfitAndLoss))
 
+	// Get reflection path from config (with default if not set)
+	reflectionPath := "memory-bank/reflections/"
+	if s.ReflectionPath != "" {
+		reflectionPath = s.ReflectionPath
+	}
+
 	// Generate reflection if agent is available
 	if s.agent != nil {
-		s.stashMsg(ctx, session, "Generating trade reflection... This will be saved to memory-bank/reflections/")
+		s.stashMsg(ctx, session, fmt.Sprintf("Generating trade reflection... This will be saved to %s", reflectionPath))
 		s.generateAndSaveReflection(ctx, session, posData)
 	} else {
 		log.Warn("No agent available to generate trade reflection")
@@ -786,8 +792,21 @@ func (s *Strategy) generateAndSaveReflection(ctx context.Context, session ttypes
 	strategyID := strings.ReplaceAll(posData.StrategyID, " ", "_")
 	strategyID = strings.ReplaceAll(strategyID, "/", "_") // Sanitize for filename
 
+	// Get reflection path from config (with default if not set)
+	reflectionPath := "memory-bank/reflections/"
+	if s.ReflectionPath != "" {
+		reflectionPath = s.ReflectionPath
+	}
+
+	// Ensure the reflection directory exists
+	err = os.MkdirAll(reflectionPath, 0755)
+	if err != nil {
+		log.WithError(err).Error("Failed to create reflection directory")
+		return
+	}
+
 	filename := fmt.Sprintf("%s_%d.md", strategyID, timestamp)
-	filepath := fmt.Sprintf("memory-bank/reflections/%s", filename)
+	filepath := fmt.Sprintf("%s/%s", reflectionPath, filename)
 
 	// Create reflection file content with front matter
 	headerContent := fmt.Sprintf(`---
@@ -829,7 +848,7 @@ timestamp: %s
 	// Store the reflection in session attributes for future reference
 	session.SetAttribute(fmt.Sprintf("reflection_%s", strategyID), reflectionText)
 
-	// Send a confirmation message to the chat session
-	summaryMsg := fmt.Sprintf("📝 Trade reflection generated for %s and saved to memory bank", posData.StrategyID)
+	// Send a confirmation message to the chat session with the actual path
+	summaryMsg := fmt.Sprintf("📝 Trade reflection generated for %s and saved to %s", posData.StrategyID, reflectionPath)
 	s.stashMsg(ctx, session, summaryMsg)
 }
