@@ -375,6 +375,48 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 		if position.IsClosed() {
 			log.WithField("position", position).Info("ExchangeEntity_PositionClose")
 
+			// Get the latest close price from KLineWindow
+			var exitPrice float64
+			if ent.KLineWindow != nil && ent.KLineWindow.Len() > 0 {
+				lastIdx := ent.KLineWindow.Len() - 1
+				exitPrice = (*ent.KLineWindow)[lastIdx].Close.Float64()
+			} else {
+				exitPrice = position.AverageCost.Float64() // Fallback if no kline data
+			}
+
+			// Determine position data for closed position event
+			positionData := PositionClosedEventData{
+				StrategyID:    position.StrategyInstanceID,
+				Symbol:        ent.symbol,
+				EntryPrice:    position.AverageCost.Float64(),
+				ExitPrice:     exitPrice,
+				Quantity:      position.Base.Float64(),
+				ProfitAndLoss: ent.position.AccumulatedProfit.Float64(),
+				CloseReason:   CloseReasonManual, // Default to Manual (will be overridden by the context in ClosePosition if available)
+				Timestamp:     time.Now(),
+			}
+
+			// Get recent market data as context if available
+			if ent.KLineWindow != nil && ent.KLineWindow.Len() > 0 {
+				lastIdx := ent.KLineWindow.Len() - 1
+				kline := (*ent.KLineWindow)[lastIdx]
+				positionData.RelatedMarketData = map[string]interface{}{
+					"lastKline": map[string]interface{}{
+						"open":      kline.Open.Float64(),
+						"high":      kline.High.Float64(),
+						"low":       kline.Low.Float64(),
+						"close":     kline.Close.Float64(),
+						"volume":    kline.Volume.Float64(),
+						"startTime": kline.StartTime.Time(),
+						"endTime":   kline.EndTime.Time(),
+					},
+				}
+			}
+
+			// Emit the position closed event
+			log.WithField("positionData", positionData).Info("Emitting position_closed event")
+			ent.emitEvent(ch, NewPositionClosedEvent(positionData))
+
 			if ent.cfg.HandlePositionClose {
 				go func() {
 					time.Sleep(time.Second * 5)

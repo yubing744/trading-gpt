@@ -726,6 +726,17 @@ func (s *Strategy) handlePositionClosed(ctx context.Context, session ttypes.ISes
 	s.stashMsg(ctx, session, fmt.Sprintf("📊 Position closed for %s with %s: %.2f",
 		posData.Symbol, pnlStr, posData.ProfitAndLoss))
 
+	// Check if reflection generation is enabled (defaults to true if not specified)
+	reflectionEnabled := true
+	if s.ReflectionEnabled != nil {
+		reflectionEnabled = *s.ReflectionEnabled
+	}
+
+	if !reflectionEnabled {
+		log.Info("Trade reflection generation is disabled in configuration")
+		return
+	}
+
 	// Get reflection path from config (with default if not set)
 	reflectionPath := "memory-bank/reflections/"
 	if s.ReflectionPath != "" {
