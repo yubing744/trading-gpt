@@ -414,8 +414,10 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 			}
 
 			// Emit the position closed event
-			log.WithField("positionData", positionData).Info("Emitting position_closed event")
-			ent.emitEvent(ch, NewPositionClosedEvent(positionData))
+			go func() {
+				log.WithField("positionData", positionData).Info("Emitting position_closed event")
+				ent.emitEvent(ch, NewPositionClosedEvent(positionData))
+			}()
 
 			if ent.cfg.HandlePositionClose {
 				go func() {

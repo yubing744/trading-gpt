@@ -515,6 +515,8 @@ func (s *Strategy) handleEnvEvent(ctx context.Context, session ttypes.ISession, 
 			log.WithField("eventType", evt.GetType()).Warn("event data Type not match")
 		}
 	case exchange.EventPositionClosed:
+		s.replyMsg(ctx, session, "Position closed event received")
+
 		positionData, ok := evt.GetData().(exchange.PositionClosedEventData)
 		if ok {
 			s.handlePositionClosed(ctx, session, positionData)
