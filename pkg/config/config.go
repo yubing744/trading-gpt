@@ -20,4 +20,16 @@ type Config struct {
 
 	Strategy                string   `json:"strategy"`
 	StrategyAttentionPoints []string `json:"strategy_attention_points"`
+
+	// ReflectionPath specifies the directory path where trade reflections will be stored
+	// If not specified, defaults to "memory-bank/reflections/"
+	ReflectionPath string `json:"reflection_path"`
+
+	// ReflectionEnabled controls whether trade reflections are generated and saved
+	// If not specified, defaults to true
+	ReflectionEnabled *bool `json:"reflection_enabled,omitempty"`
+
+	// ReadMemoryEnabled controls whether the system reads from memory bank reflections
+	// If not specified, defaults to true
+	ReadMemoryEnabled *bool `json:"read_memory_enabled,omitempty"`
 }

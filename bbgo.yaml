@@ -94,6 +94,13 @@ exchangeStrategies:
     subscribe_intervals: ["15m"]
     leverage: 3
     max_num: 50
+    # Trading Reflection and Memory feature configuration
+    # Path where trade reflections will be stored (default: memory-bank/reflections/)
+    reflection_path: "memory-bank/reflections/"
+    # Enable or disable trade reflection generation (default: true)
+    reflection_enabled: true
+    # Enable or disable reading from memory bank for decision making (default: true)
+    read_memory_enabled: true
     strategy: |
       1. Identify Key Support and Resistance Levels
       - *Support Level*: A price level where a downtrend can be expected to pause due to a concentration of demand.

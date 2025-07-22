@@ -1,0 +1,41 @@
+{
+    "inputs": [
+        {
+            "type": "promptString",
+            "id": "openai-key",
+            "description": "Perplexity API Key",
+            "password": true
+        }
+    ],
+    "servers": {
+        "mcp-browser-use": {
+            "type": "stdio",
+            "command": "/home/yubing/.local/bin/uv",
+            "args": [
+                "--directory",
+                "/home/yubing/MCP/mcp-browser-use",
+                "run",
+                "mcp-server-browser-use"
+            ],
+            "env": {
+                "OPENAI_ENDPOINT": "https://copilot-api.freepai.org/v1",
+                "OPENAI_API_KEY": "${input:openai-key}",
+                "MCP_MODEL_PROVIDER": "openai", // Use OpenRouter as provider
+                "MCP_MODEL_NAME": "gpt-4o", // Example OpenRouter model
+
+                "MCP_USE_VISION": "false", // Set to true if you want to use vision
+                "BROWSER_HEADLESS": "false",    // Default: run browser without UI
+                "BROWSER_USE_LOGGING_LEVEL": "INFO",
+
+                // --- Example for connecting to your own browser ---
+                "MCP_USE_OWN_BROWSER": "true",
+                "CHROME_CDP": "http://localhost:9222",
+
+                // Ensure Python uses UTF-8
+                "PYTHONIOENCODING": "utf-8",
+                "PYTHONUNBUFFERED": "1",
+                "PYTHONUTF8": "1"
+            }
+        }
+    }
+}

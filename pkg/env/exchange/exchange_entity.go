@@ -375,6 +375,50 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 		if position.IsClosed() {
 			log.WithField("position", position).Info("ExchangeEntity_PositionClose")
 
+			// Get the latest close price from KLineWindow
+			var exitPrice float64
+			if ent.KLineWindow != nil && ent.KLineWindow.Len() > 0 {
+				lastIdx := ent.KLineWindow.Len() - 1
+				exitPrice = (*ent.KLineWindow)[lastIdx].Close.Float64()
+			} else {
+				exitPrice = position.AverageCost.Float64() // Fallback if no kline data
+			}
+
+			// Determine position data for closed position event
+			positionData := PositionClosedEventData{
+				StrategyID:    position.StrategyInstanceID,
+				Symbol:        ent.symbol,
+				EntryPrice:    position.AverageCost.Float64(),
+				ExitPrice:     exitPrice,
+				Quantity:      position.Base.Float64(),
+				ProfitAndLoss: ent.position.AccumulatedProfit.Float64(),
+				CloseReason:   CloseReasonManual, // Default to Manual (will be overridden by the context in ClosePosition if available)
+				Timestamp:     time.Now(),
+			}
+
+			// Get recent market data as context if available
+			if ent.KLineWindow != nil && ent.KLineWindow.Len() > 0 {
+				lastIdx := ent.KLineWindow.Len() - 1
+				kline := (*ent.KLineWindow)[lastIdx]
+				positionData.RelatedMarketData = map[string]interface{}{
+					"lastKline": map[string]interface{}{
+						"open":      kline.Open.Float64(),
+						"high":      kline.High.Float64(),
+						"low":       kline.Low.Float64(),
+						"close":     kline.Close.Float64(),
+						"volume":    kline.Volume.Float64(),
+						"startTime": kline.StartTime.Time(),
+						"endTime":   kline.EndTime.Time(),
+					},
+				}
+			}
+
+			// Emit the position closed event
+			go func() {
+				log.WithField("positionData", positionData).Info("Emitting position_closed event")
+				ent.emitEvent(ch, NewPositionClosedEvent(positionData))
+			}()
+
 			if ent.cfg.HandlePositionClose {
 				go func() {
 					time.Sleep(time.Second * 5)
@@ -452,26 +496,73 @@ func (ent *ExchangeEntity) handleCleanPosition(ctx context.Context, kline types.
 			WithField("queryPositionInfo", posInfo).
 			Infof("handleCleanPosition_QueryPositionInfo_success")
 
-		if posInfo.SlTriggerPx == nil {
-			log.WithField("kline", kline).
-				WithField("postion", ent.position).
-				WithField("queryPositionInfo", posInfo).
-				Infof("handleCleanPosition_found_no_stop_losss")
+		// Check for take profit trigger
+		if posInfo.TpTriggerPx != nil {
+			currentPrice := kline.Close
 
-			err := ent.ClosePosition(ctx, fixedpoint.One, kline.Close)
-			if err != nil {
+			// For long positions: close if price >= take profit
+			// For short positions: close if price <= take profit
+			if (ent.position.IsLong() && currentPrice.Compare(*posInfo.TpTriggerPx) >= 0) ||
+				(ent.position.IsShort() && currentPrice.Compare(*posInfo.TpTriggerPx) <= 0) {
+
 				log.WithField("kline", kline).
 					WithField("postion", ent.position).
-					WithField("queryPositionInfo", posInfo).
-					WithError(err).
-					Error("handleCleanPosition_ClosePosition_fail")
+					WithField("tpTriggerPx", *posInfo.TpTriggerPx).
+					WithField("currentPrice", currentPrice).
+					Infof("handleCleanPosition_take_profit_triggered")
+
+				// Create context with take profit close reason
+				tpCtx := context.WithValue(ctx, "closeReason", CloseReasonTakeProfit)
+
+				err := ent.ClosePosition(tpCtx, fixedpoint.One, currentPrice)
+				if err != nil {
+					log.WithError(err).Error("handleCleanPosition_take_profit_ClosePosition_fail")
+					return
+				}
+
+				log.Info("handleCleanPosition_take_profit_ClosePosition_success")
 				return
 			}
+		}
 
+		// Check for stop loss trigger
+		if posInfo.SlTriggerPx != nil {
+			currentPrice := kline.Close
+
+			// For long positions: close if price <= stop loss
+			// For short positions: close if price >= stop loss
+			if (ent.position.IsLong() && currentPrice.Compare(*posInfo.SlTriggerPx) <= 0) ||
+				(ent.position.IsShort() && currentPrice.Compare(*posInfo.SlTriggerPx) >= 0) {
+
+				log.WithField("kline", kline).
+					WithField("postion", ent.position).
+					WithField("slTriggerPx", *posInfo.SlTriggerPx).
+					WithField("currentPrice", currentPrice).
+					Infof("handleCleanPosition_stop_loss_triggered")
+
+				// Create context with stop loss close reason
+				slCtx := context.WithValue(ctx, "closeReason", CloseReasonStopLoss)
+
+				err := ent.ClosePosition(slCtx, fixedpoint.One, currentPrice)
+				if err != nil {
+					log.WithError(err).Error("handleCleanPosition_stop_loss_ClosePosition_fail")
+					return
+				}
+
+				log.Info("handleCleanPosition_stop_loss_ClosePosition_success")
+				return
+			}
+		}
+
+		// If we get here and there's no stop loss configured, this might be a manual position without SL/TP
+		if posInfo.SlTriggerPx == nil && posInfo.TpTriggerPx == nil {
 			log.WithField("kline", kline).
 				WithField("postion", ent.position).
 				WithField("queryPositionInfo", posInfo).
-				Infof("handleCleanPosition_ClosePosition_success")
+				Infof("handleCleanPosition_found_no_stop_loss_or_take_profit")
+
+			// Positions without stop loss or take profit might need other handling
+			// For now just logging, but you could add other logic here
 		}
 	}
 }
@@ -567,6 +658,10 @@ func (s *ExchangeEntity) ClosePosition(ctx context.Context, percentage fixedpoin
 		return fmt.Errorf("no opened %s position", s.position.Symbol)
 	}
 
+	// Capture position info before closing for reflection event
+	posBeforeClose := *s.position
+	isFullClose := percentage.Compare(fixedpoint.One) == 0
+
 	// make it negative
 	quantity := s.position.GetBase().Mul(percentage).Abs()
 	side := types.SideTypeBuy
@@ -582,7 +677,7 @@ func (s *ExchangeEntity) ClosePosition(ctx context.Context, percentage fixedpoin
 	}
 
 	orderForm := s.generateOrderForm(side, quantity, types.SideEffectTypeAutoRepay)
-	if percentage.Compare(fixedpoint.One) == 0 {
+	if isFullClose {
 		orderForm.ClosePosition = true // Full close position
 	}
 
@@ -592,6 +687,62 @@ func (s *ExchangeEntity) ClosePosition(ctx context.Context, percentage fixedpoin
 	if err != nil {
 		log.WithError(err).Errorf("can not place %s position close order", s.symbol)
 		bbgo.Notify("can not place %s position close order", s.symbol)
+		return err
+	}
+
+	// Only emit position closed event for full closures
+	if isFullClose {
+		// Get the strategy ID from context
+		strategyID := "unknown"
+		if val, exists := ctx.Value("strategyID").(string); exists {
+			strategyID = val
+		}
+
+		// Determine close reason based on available context
+		closeReason := CloseReasonManual // Default to Manual
+		if val, exists := ctx.Value("closeReason").(string); exists {
+			closeReason = val
+		}
+		if val, exists := ctx.Value("closeReason").(string); exists {
+			closeReason = val
+		}
+
+		// Create the position closed event data
+		positionData := PositionClosedEventData{
+			StrategyID:    strategyID,
+			Symbol:        s.symbol,
+			EntryPrice:    posBeforeClose.AverageCost.Float64(),
+			ExitPrice:     closePrice.Float64(),
+			Quantity:      posBeforeClose.GetBase().Float64(),
+			ProfitAndLoss: posBeforeClose.AccumulatedProfit.Float64(),
+			CloseReason:   closeReason,
+			Timestamp:     time.Now(),
+		}
+
+		// Get recent market data as context if available
+		if s.KLineWindow != nil && s.KLineWindow.Len() > 0 {
+			lastIdx := s.KLineWindow.Len() - 1
+			kline := (*s.KLineWindow)[lastIdx]
+			positionData.RelatedMarketData = map[string]interface{}{
+				"lastKline": map[string]interface{}{
+					"open":      kline.Open.Float64(),
+					"high":      kline.High.Float64(),
+					"low":       kline.Low.Float64(),
+					"close":     kline.Close.Float64(),
+					"volume":    kline.Volume.Float64(),
+					"startTime": kline.StartTime.Time(),
+					"endTime":   kline.EndTime.Time(),
+				},
+			}
+		}
+
+		// Emit the position closed event if we can access a channel
+		log.WithField("positionData", positionData).Info("Position fully closed, emitting PositionClosedEvent")
+
+		// Extract event channel from context if available
+		if eventCh, exists := ctx.Value("eventChannel").(chan ttypes.IEvent); exists {
+			eventCh <- NewPositionClosedEvent(positionData)
+		}
 	}
 
 	return err

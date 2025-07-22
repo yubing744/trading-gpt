@@ -41,3 +41,24 @@ Response Format:
 
 Ensure the response can be parsed by golang json.Unmarshal
 `
+
+// TradeReflectionTpl is a template for generating reflections on closed trading positions
+var TradeReflectionTpl = `You are an expert trading advisor analyzing a closed trading position. Please provide a thoughtful reflection on this trade, focusing on:
+1. Analysis of the entry and exit points
+2. Performance evaluation (profit/loss analysis)
+3. What went well in this trade
+4. What could have been improved
+5. Lessons learned and recommendations for future similar trades
+
+Trade details:
+- Symbol: {{.Symbol}}
+- Strategy ID: {{.StrategyID}}
+- Entry Price: {{.EntryPrice}}
+- Exit Price: {{.ExitPrice}}
+- Quantity: {{.Quantity}}
+- Profit/Loss: {{.ProfitAndLoss}}
+- Close Reason: {{.CloseReason}}
+- Close Time: {{.Timestamp}}
+
+Please format your response as a structured markdown document with clear headings and bullet points. This reflection will be saved to the memory bank for future reference in trading decisions.
+`
