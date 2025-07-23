@@ -14,10 +14,11 @@ type OllamaConfig struct {
 }
 
 type AnthropicConfig struct {
-	Token           string `json:"token"`
-	Model           string `json:"model"`
-	BaseURL         string `json:"base_url"`
+	Token            string `json:"token"`
+	Model            string `json:"model"`
+	BaseURL          string `json:"base_url"`
 	ExtendedThinking bool   `json:"extended_thinking"`
+	ThinkingBudget   int64  `json:"thinking_budget"`
 }
 
 type GoogleAIConfig struct {

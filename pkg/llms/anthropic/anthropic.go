@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/sirupsen/logrus"
 	"github.com/tmc/langchaingo/callbacks"
 	"github.com/tmc/langchaingo/llms"
-
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
 )
 
 const MaxTokenSample = 4000
@@ -27,6 +26,8 @@ type LLM struct {
 	CallbacksHandler callbacks.Handler
 	client           *anthropic.Client
 	model            string
+	thinkingBudget   int64
+	enableThinking   bool
 }
 
 var _ llms.Model = (*LLM)(nil)
@@ -38,9 +39,16 @@ func New(model string, opts ...Option) (*LLM, error) {
 		return nil, err
 	}
 
+	options := &options{}
+	for _, opt := range opts {
+		opt(options)
+	}
+
 	return &LLM{
-		model:  model,
-		client: c,
+		model:          model,
+		client:         c,
+		thinkingBudget: options.thinkingBudget,
+		enableThinking: options.enableThinking,
 	}, nil
 }
 
@@ -126,6 +134,11 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		}
 	}
 
+	// Add extended thinking configuration
+	if o.enableThinking && o.thinkingBudget > 0 {
+		req.Thinking = anthropic.ThinkingConfigParamOfEnabled(o.thinkingBudget)
+	}
+
 	// Call the API
 	response, err := o.client.Messages.New(ctx, req)
 	if err != nil {
@@ -138,7 +151,13 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	// Extract content from response
 	content := ""
 	if len(response.Content) > 0 {
-		content = response.Content[0].Text
+		for _, c := range response.Content {
+			if c.Type == "thinking" {
+				content += "<thinking>" + c.Thinking + "</thinking>"
+			} else if c.Type == "text" {
+				content += c.Text
+			}
+		}
 	}
 
 	resp := &llms.ContentResponse{
