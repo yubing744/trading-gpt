@@ -22,3 +22,4 @@ build/
 otp.png
 
 data/
+vendor/
