@@ -224,6 +224,34 @@ func TestExtractThinkingFull(t *testing.T) {
 			expectedThinking:  "thinking\ncontent",
 			expectedRemaining: "Line 1 Line 2",
 		},
+		{
+			name:              "thinking at start with no before content",
+			input:             "<thinking>thinking content</thinking> After content",
+			expectedHas:       true,
+			expectedThinking:  "thinking content",
+			expectedRemaining: "After content",
+		},
+		{
+			name:              "thinking at end with no after content",
+			input:             "Before content <thinking>thinking content</thinking>",
+			expectedHas:       true,
+			expectedThinking:  "thinking content",
+			expectedRemaining: "Before content",
+		},
+		{
+			name:              "thinking with empty before content and whitespace",
+			input:             "   <thinking>thinking</thinking> after",
+			expectedHas:       true,
+			expectedThinking:  "thinking",
+			expectedRemaining: "after",
+		},
+		{
+			name:              "thinking with empty after content and whitespace",
+			input:             "before <thinking>thinking</thinking>   ",
+			expectedHas:       true,
+			expectedThinking:  "thinking",
+			expectedRemaining: "before",
+		},
 	}
 
 	for _, tt := range tests {

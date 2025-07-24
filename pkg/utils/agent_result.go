@@ -9,6 +9,10 @@ import (
 	"github.com/yubing744/trading-gpt/pkg/types"
 )
 
+func extractThinking(text string) string {
+	return ""
+}
+
 func ParseResult(text string) (*types.Result, error) {
 	text = trimJSON(trimMarkdownJSON(strings.ReplaceAll(text, "\\", "")))
 	jsonBytes := removeJSONComments([]byte(text))
