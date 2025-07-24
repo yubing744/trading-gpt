@@ -153,7 +153,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	if len(response.Content) > 0 {
 		for _, c := range response.Content {
 			if c.Type == "thinking" {
-				content += "<thinking>" + c.Thinking + "</thinking>\n"
+				content += "<thinking>" + c.Thinking + "</thinking>"
 			} else if c.Type == "text" {
 				content += c.Text
 			}

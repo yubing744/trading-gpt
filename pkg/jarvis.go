@@ -389,7 +389,7 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 	if len(resp.Texts) > 0 {
 		resultText := strings.TrimSpace(strings.Join(resp.Texts, ""))
 
-		hasThinking, thinkingText := utils.ExtractThinking(resultText)
+		hasThinking, thinkingText, resultText := utils.ExtractThinkingFull(resultText)
 		if hasThinking {
 			s.replyMsg(ctx, chatSession, fmt.Sprintf("Thinking: %s", thinkingText))
 		}

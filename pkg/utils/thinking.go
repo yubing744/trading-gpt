@@ -43,7 +43,14 @@ func ExtractThinkingFull(text string) (bool, string, string) {
 	afterThinking := strings.TrimSpace(text[endIdx+len(ThinkingEndMarker):])
 
 	// Combine remaining content
-	remainingContent := strings.TrimSpace(beforeThinking + " " + afterThinking)
+	var remainingContent string
+	if beforeThinking == "" {
+		remainingContent = afterThinking
+	} else if afterThinking == "" {
+		remainingContent = beforeThinking
+	} else {
+		remainingContent = beforeThinking + " " + afterThinking
+	}
 
 	return true, thinkingText, remainingContent
 }
