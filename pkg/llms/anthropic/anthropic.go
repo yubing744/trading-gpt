@@ -13,7 +13,7 @@ import (
 	"github.com/tmc/langchaingo/llms"
 )
 
-const MaxTokenSample = 4000
+const DefaultTokenSample = 4000
 
 var (
 	ErrEmptyResponse = errors.New("no response")
@@ -113,8 +113,8 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 	// Prepare request parameters
 	maxTokens := opts.MaxTokens
-	if maxTokens > MaxTokenSample {
-		maxTokens = MaxTokenSample
+	if maxTokens <= 0 {
+		maxTokens = DefaultTokenSample
 	}
 
 	if opts.Model == "" {
@@ -153,7 +153,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	if len(response.Content) > 0 {
 		for _, c := range response.Content {
 			if c.Type == "thinking" {
-				content += "<thinking>" + c.Thinking + "</thinking>"
+				content += "<thinking>" + c.Thinking + "</thinking>\n"
 			} else if c.Type == "text" {
 				content += c.Text
 			}
