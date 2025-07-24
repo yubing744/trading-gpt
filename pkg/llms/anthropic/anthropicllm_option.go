@@ -5,8 +5,10 @@ const (
 )
 
 type options struct {
-	token   string
-	baseURL string
+	token          string
+	baseURL        string
+	thinkingBudget int64
+	enableThinking bool
 }
 
 type Option func(*options)
@@ -24,5 +26,25 @@ func WithToken(token string) Option {
 func WithBaseURL(baseURL string) Option {
 	return func(opts *options) {
 		opts.baseURL = baseURL
+	}
+}
+
+// WithThinkingBudget sets the thinking budget in tokens for Claude's extended thinking.
+// This enables extended thinking mode when budget > 0.
+func WithThinkingBudget(budget int64) Option {
+	return func(opts *options) {
+		opts.thinkingBudget = budget
+		opts.enableThinking = budget > 0
+	}
+}
+
+// WithThinking enables or disables Claude's extended thinking mode.
+// When enabled, uses the default thinking budget (1024 tokens).
+func WithThinking(enabled bool) Option {
+	return func(opts *options) {
+		opts.enableThinking = enabled
+		if enabled && opts.thinkingBudget == 0 {
+			opts.thinkingBudget = 1024 // Default thinking budget
+		}
 	}
 }

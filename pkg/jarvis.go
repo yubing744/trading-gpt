@@ -389,6 +389,11 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 	if len(resp.Texts) > 0 {
 		resultText := strings.TrimSpace(strings.Join(resp.Texts, ""))
 
+		hasThinking, thinkingText := utils.ExtractThinking(resultText)
+		if hasThinking {
+			s.replyMsg(ctx, chatSession, fmt.Sprintf("Thinking: %s", thinkingText))
+		}
+
 		if strings.HasPrefix(resultText, "{") || strings.Contains(resultText, "```json") {
 			result, err := utils.ParseResult(resultText)
 			if err != nil {

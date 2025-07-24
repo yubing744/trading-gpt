@@ -34,6 +34,8 @@ exchangeStrategies:
         model: "deepseek-coder"
       anthropic:
         model: "claude-3-5-sonnet-20241022"
+        extended_thinking: true
+        thinking_budget: 10000
       ollama:
         server_url: "http://localhost:11434"
         model: "mistral-nemo:latest" # Options：wizardlm2:7b, codegemma:7b, llama3:latest, and mistral:latest

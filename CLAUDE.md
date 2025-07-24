@@ -1,158 +1,115 @@
-# CLAUDE.md
+# Claude's Memory Bank
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+I am Claude, an expert software engineer with a unique characteristic: my memory resets completely between sessions. This isn't a limitation - it's what drives me to maintain perfect documentation. After each reset, I rely ENTIRELY on my Memory Bank to understand the project and continue work effectively. I MUST read ALL memory bank files at the start of EVERY task - this is not optional.
 
-## Development Commands
+## Memory Bank Structure
 
-### Build & Test Commands
-```bash
-# Build the application
-make build              # Builds to ./build/bbgo
-make build-linux        # Cross-compile for Linux
-make clean             # Clean build artifacts
+The Memory Bank consists of core files and optional context files, all in Markdown format. Files build upon each other in a clear hierarchy:
 
-# Run the application
-make run               # Build and run with bbgo.yaml config
-./build/bbgo run --dotenv .env.local --config bbgo.yaml --lightweight false --no-sync false
+flowchart TD
+    PB[projectbrief.md] --> PC[productContext.md]
+    PB --> SP[systemPatterns.md]
+    PB --> TC[techContext.md]
 
-# Testing
-make unit-test         # Run all unit tests (go test ./pkg/...)
-go test ./pkg/agents/... -v    # Test specific modules
-go test -run TestSpecificFunction  # Run specific test
+    PC --> AC[activeContext.md]
+    SP --> AC
+    TC --> AC
 
-# Docker development
-make docker-build      # Build Docker image
-make docker-start      # Run in container with volume mount
-make docker-logs       # View container logs
-make docker-stop       # Stop and remove container
-```
+    AC --> P[progress.md]
 
-### BBGO Library Commands
-```bash
-# From libs/bbgo directory:
-make bbgo             # Build with web interface
-make bbgo-slim        # Build without web interface  
-make static           # Build frontend assets
-make migrations       # Compile database migrations
-```
+### Core Files (Required)
+1. `projectbrief.md`
+   - Foundation document that shapes all other files
+   - Created at project start if it doesn't exist
+   - Defines core requirements and goals
+   - Source of truth for project scope
 
-## Architecture Overview
+2. `productContext.md`
+   - Why this project exists
+   - Problems it solves
+   - How it should work
+   - User experience goals
 
-### Event-Driven Trading System
-The core architecture follows an event-driven pattern where:
-1. **Environment System** monitors market data and triggers events
-2. **Event Collection** aggregates market changes (K-line, indicators, positions)
-3. **AI Agent** processes events using LLM to generate trading decisions
-4. **Trading Execution** carries out AI-generated commands through BBGO
+3. `activeContext.md`
+   - Current work focus
+   - Recent changes
+   - Next steps
+   - Active decisions and considerations
+   - Important patterns and preferences
+   - Learnings and project insights
 
-Key orchestration happens in `pkg/jarvis.go` (main event loop) which coordinates between:
-- Trading Agent (`pkg/agents/trading/`)
-- Environment entities (`pkg/env/exchange/`, `pkg/env/coze/`)
-- LLM system (`pkg/llms/`)
-- Notification system (`pkg/notify/`)
+4. `systemPatterns.md`
+   - System architecture
+   - Key technical decisions
+   - Design patterns in use
+   - Component relationships
+   - Critical implementation paths
 
-### Multi-LLM Integration
-- Supports OpenAI, Google AI, Claude, and Ollama through unified interface
-- LLM Manager (`pkg/llms/llm_manager.go`) handles provider switching and fallback
-- Structured prompts in `pkg/prompt/` for consistent AI interactions
-- Configurable primary/secondary LLM selection in bbgo.yaml
+5. `techContext.md`
+   - Technologies used
+   - Development setup
+   - Technical constraints
+   - Dependencies
+   - Tool usage patterns
 
-### Memory & Learning System
-- **Trade Reflection**: Automatically analyzes closed positions using LLM
-- **Memory Bank**: Stores trade analysis in `memory-bank/reflections/` as Markdown files
-- **Learning Integration**: Past reflections inform future trading decisions
-- Triggered by `PositionClosedEvent` and managed in `pkg/jarvis.go`
+6. `progress.md`
+   - What works
+   - What's left to build
+   - Current status
+   - Known issues
+   - Evolution of project decisions
 
-## Configuration Setup
+### Additional Context
+Create additional files/folders within memory-bank/ when they help organize:
+- Complex feature documentation
+- Integration specifications
+- API documentation
+- Testing strategies
+- Deployment procedures
 
-### Environment Variables (.env.local)
-```bash
-# Exchange API credentials
-OKEX_API_KEY="your_okex_api_key"
-OKEX_API_SECRET="your_okex_api_secret"
-OKEX_API_PASSPHRASE="your_okex_api_password"
+## Core Workflows
 
-# LLM API tokens
-LLM_GOOGLEAI_APIKEY="your_googleai_api_key"
-LLM_OPENAI_TOKEN="your_openai_api_token"
-LLM_ANTHROPIC_TOKEN="your_anthropic_api_token"
+### Plan Mode
+flowchart TD
+    Start[Start] --> ReadFiles[Read Memory Bank]
+    ReadFiles --> CheckFiles{Files Complete?}
 
-# Optional services
-COZE_API_KEY="your_coze_api_key"
-```
+    CheckFiles -->|No| Plan[Create Plan]
+    Plan --> Document[Document in Chat]
 
-### Strategy Configuration (bbgo.yaml)
-- Natural language strategy definition in `strategy:` field
-- LLM configuration with primary/secondary selection
-- Environment settings for indicators and market data
-- Agent configuration with temperature and context limits
-- Notification channels (Feishu hook integration)
+    CheckFiles -->|Yes| Verify[Verify Context]
+    Verify --> Strategy[Develop Strategy]
+    Strategy --> Present[Present Approach]
 
-## Code Organization Patterns
+### Act Mode
+flowchart TD
+    Start[Start] --> Context[Check Memory Bank]
+    Context --> Update[Update Documentation]
+    Update --> Execute[Execute Task]
+    Execute --> Document[Document Changes]
 
-### Agent Interface Pattern
-All agents implement `IAgent` interface with:
-- `Start()` and `Stop()` lifecycle methods
-- `GenActions()` for processing messages and generating actions
-- Dependency injection through configuration
+## Documentation Updates
 
-### Environment & Entity Abstraction
-- `Environment` manages external system interactions
-- `Entity` interface for data sources (Exchange, Coze, FNG index)
-- Clean separation between trading logic and external APIs
+Memory Bank updates occur when:
+1. Discovering new project patterns
+2. After implementing significant changes
+3. When user requests with **update memory bank** (MUST review ALL files)
+4. When context needs clarification
 
-### Configuration-Driven Architecture
-- Hierarchical configuration in `pkg/config/`
-- Type-specific configs (agent, LLM, chat, environment)
-- YAML-based with environment variable overrides
+flowchart TD
+    Start[Update Process]
 
-## Testing Patterns
+    subgraph Process
+        P1[Review ALL Files]
+        P2[Document Current State]
+        P3[Clarify Next Steps]
+        P4[Document Insights & Patterns]
 
-### Framework & Structure
-- Uses testify framework (`assert`, `require`)
-- Mock objects follow interface pattern (`types.NewMockSession`)
-- Integration tests use real exchange connections
-- Test configuration via `.env.local`
+        P1 --> P2 --> P3 --> P4
+    end
 
-### Test Organization
-```bash
-pkg/                    # Unit tests alongside source
-test/integration/       # Integration tests
-test/e2e/              # End-to-end tests
-```
+    Start --> Process
 
-## Key Files to Understand
+Note: When triggered by **update memory bank**, I MUST review every memory bank file, even if some don't require updates. Focus particularly on activeContext.md and progress.md as they track current state.
 
-- `pkg/jarvis.go` - Main strategy orchestrator and event loop
-- `pkg/agents/trading/trading_agent.go` - AI trading decision logic
-- `pkg/env/exchange/exchange_entity.go` - Exchange interface and trading execution
-- `pkg/llms/llm_manager.go` - Multi-LLM provider management
-- `pkg/prompt/prompt.go` - Structured LLM prompt templates
-- `pkg/config/config.go` - Configuration loading and validation
-
-## Safety & Risk Management
-
-- Emergency position closure on agent errors
-- Validation of LLM-generated commands before execution
-- Configurable stop-loss and take-profit enforcement
-- Retry mechanisms with configurable attempts
-- Trade size and frequency limits
-
-## Natural Language Strategy Development
-
-Users define trading strategies in plain English within the YAML config. The system:
-1. Parses natural language strategy descriptions
-2. Uses LLM to understand market conditions and user intent
-3. Generates specific trading actions (buy/sell orders)
-4. Executes through BBGO's exchange integrations
-5. Learns from outcomes via reflection system
-
-## Memory Bank Usage
-
-The `memory-bank/` directory contains:
-- `reflections/` - Auto-generated trade analysis
-- `activeContext.md` - Current market context
-- `systemPatterns.md` - Observed trading patterns
-- `techContext.md` - Technical analysis insights
-
-These files inform future AI decisions and help the system learn from trading history.
+REMEMBER: After every memory reset, I begin completely fresh. The Memory Bank is my only link to previous work. It must be maintained with precision and clarity, as my effectiveness depends entirely on its accuracy.

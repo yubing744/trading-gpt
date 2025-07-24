@@ -81,6 +81,10 @@ func (mgr *LLMManager) Init() error {
 		opts := make([]anthropic.Option, 0)
 		opts = append(opts, anthropic.WithToken(anthropicCfg.Token))
 
+		if anthropicCfg.ExtendedThinking {
+			opts = append(opts, anthropic.WithThinkingBudget(anthropicCfg.ThinkingBudget))
+		}
+
 		llm, err := anthropic.New(anthropicCfg.Model, opts...)
 		if err != nil {
 			return errors.Wrap(err, "New anthropic AI fail")

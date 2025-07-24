@@ -1,7 +1,7 @@
 .PHONY: clean build unit-test run docker-* tag release
 
 NAME=trading-gpt
-VERSION=0.30.3
+VERSION=0.31.1
 
 clean:
 	rm -rf build/*
@@ -19,7 +19,7 @@ run: build
 	./build/bbgo run --dotenv .env.local --config bbgo.yaml --lightweight false --no-sync false
 
 docker-build: build-linux
-	docker build --tag yubing744/${NAME}:${VERSION} .
+	docker build --platform linux/amd64 --build-arg http_proxy="${HTTP_PROXY}" --tag yubing744/${NAME}:${VERSION} .
 	docker tag yubing744/${NAME}:${VERSION} yubing744/${NAME}:latest
 
 docker-push:
