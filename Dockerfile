@@ -1,7 +1,7 @@
 # Second stage container
 FROM alpine:3.16
 
-ENV TZ Asia/Shanghai
+ENV TZ=Asia/Shanghai
 RUN apk add tzdata && cp /usr/share/zoneinfo/${TZ} /etc/localtime \
     && echo ${TZ} > /etc/timezone
 
