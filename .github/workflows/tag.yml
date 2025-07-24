@@ -1,0 +1,87 @@
+name: Create Tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to tag (e.g., 0.31.2)'
+        required: true
+        type: string
+      update_makefile:
+        description: 'Update Makefile VERSION'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate version format
+        run: |
+          if [[ ! "${{ github.event.inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Error: Version must be in format x.y.z (e.g., 0.31.2)"
+            exit 1
+          fi
+
+      - name: Check if tag already exists
+        run: |
+          if git tag | grep -q "^v${{ github.event.inputs.version }}$"; then
+            echo "Error: Tag v${{ github.event.inputs.version }} already exists"
+            exit 1
+          fi
+
+      - name: Update Makefile VERSION
+        if: ${{ github.event.inputs.update_makefile == 'true' }}
+        run: |
+          sed -i 's/^VERSION=.*/VERSION=${{ github.event.inputs.version }}/' Makefile
+          echo "Updated Makefile VERSION to ${{ github.event.inputs.version }}"
+
+      - name: Commit version update
+        if: ${{ github.event.inputs.update_makefile == 'true' }}
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          if git diff --quiet; then
+            echo "No changes to commit"
+          else
+            git add Makefile
+            git commit -m "chore: bump version to ${{ github.event.inputs.version }}"
+            git push
+          fi
+
+      - name: Create and push tag
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          git tag -a "v${{ github.event.inputs.version }}" -m "release v${{ github.event.inputs.version }}"
+          git push origin "v${{ github.event.inputs.version }}"
+          
+          echo "✅ Created and pushed tag v${{ github.event.inputs.version }}"
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          release_name: Release v${{ github.event.inputs.version }}
+          body: |
+            ## What's Changed
+            
+            Release v${{ github.event.inputs.version }}
+            
+            **Full Changelog**: https://github.com/${{ github.repository }}/compare/v${{ github.event.inputs.version }}...v${{ github.event.inputs.version }}
+          draft: false
+          prerelease: false
