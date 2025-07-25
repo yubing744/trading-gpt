@@ -86,7 +86,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          # For workflow_dispatch, we need to checkout the newly created tag
+          fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', github.event.inputs.version) || '' }}
 
       - name: Set up Go
@@ -113,9 +113,9 @@ jobs:
           images: ${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=tag
-            type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            ${{ github.event_name == 'workflow_dispatch' && format('type=raw,value=v{0}', github.event.inputs.version) || '' }}
 
       - name: Debug - Show generated tags
         run: |
