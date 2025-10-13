@@ -62,18 +62,18 @@ exchangeStrategies:
         clean_position:
           enabled: false
           interval: 5m
-      coze:
+      twitterapi:
         enabled: true
-        base_url: "https://api.coze.com"
+        base_url: "https://api.twitterapi.io"
         timeout: 60s
-        workflow_indicators:
+        search_items:
           - name: "news_changed"
-            description: "Sui news score and reasons:"
+            description: "SUI trending news and discussions:"
+            query: "SUI crypto"
+            query_type: "Top"
             interval: "5m"
             before: "20s"
-            workflow_id: "7372569763169533960"
-            params:
-              symbol: "SUI"
+            max_results: 10
       include_events:
         - news_changed
         - kline_changed
