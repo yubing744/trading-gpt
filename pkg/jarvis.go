@@ -27,6 +27,7 @@ import (
 	"github.com/yubing744/trading-gpt/pkg/env/coze"
 	"github.com/yubing744/trading-gpt/pkg/env/exchange"
 	"github.com/yubing744/trading-gpt/pkg/env/fng"
+	"github.com/yubing744/trading-gpt/pkg/env/twitterapi"
 	"github.com/yubing744/trading-gpt/pkg/utils"
 
 	nfeishu "github.com/yubing744/trading-gpt/pkg/notify/feishu"
@@ -216,6 +217,18 @@ func (s *Strategy) setupWorld(ctx context.Context) error {
 		s.Env.Coze.APIKey = cozeAPIKey
 
 		world.RegisterEntity(coze.NewCozeEntity(s.Env.Coze))
+	}
+
+	if s.Env.TwitterAPI != nil && s.Env.TwitterAPI.Enabled {
+		log.Info("twitterapi_enabled")
+
+		twitterAPIKey := os.Getenv("TWITTER_API_KEY")
+		if twitterAPIKey == "" {
+			return errors.New("TWITTER_API_KEY not set in .env.local")
+		}
+		s.Env.TwitterAPI.APIKey = twitterAPIKey
+
+		world.RegisterEntity(twitterapi.NewTwitterAPIEntity(s.Env.TwitterAPI))
 	}
 
 	err := world.Start(ctx)
