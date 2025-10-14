@@ -115,17 +115,27 @@ func (e *TwitterAPIEntity) formatTweets(tweets []twitterapi.Tweet, maxResults in
 		count = maxResults
 	}
 
+	now := time.Now()
+
 	for i := 0; i < count; i++ {
 		tweet := tweets[i]
 		sb.WriteString(fmt.Sprintf("Tweet %d:\n", i+1))
-		sb.WriteString(fmt.Sprintf("Author: @%s (%s)\n", tweet.Author.Username, tweet.Author.Name))
+		sb.WriteString(fmt.Sprintf("Author: @%s (%s)\n", tweet.Author.UserName, tweet.Author.Name))
 		sb.WriteString(fmt.Sprintf("Text: %s\n", tweet.Text))
 		sb.WriteString(fmt.Sprintf("Engagement: %d likes, %d retweets, %d replies\n", tweet.LikeCount, tweet.RetweetCount, tweet.ReplyCount))
-		sb.WriteString(fmt.Sprintf("Created: %s\n", tweet.CreatedAt))
+
+		// Parse and format creation time with relative time
+		relativeTime := e.formatRelativeTime(tweet.CreatedAt, now)
+		sb.WriteString(fmt.Sprintf("Created: %s (%s)\n", tweet.CreatedAt, relativeTime))
+
 		sb.WriteString(fmt.Sprintf("URL: %s\n", tweet.URL))
 
-		if len(tweet.Hashtags) > 0 {
-			sb.WriteString(fmt.Sprintf("Hashtags: %s\n", strings.Join(tweet.Hashtags, ", ")))
+		if len(tweet.Entities.Hashtags) > 0 {
+			hashtags := make([]string, len(tweet.Entities.Hashtags))
+			for i, h := range tweet.Entities.Hashtags {
+				hashtags[i] = h.Text
+			}
+			sb.WriteString(fmt.Sprintf("Hashtags: %s\n", strings.Join(hashtags, ", ")))
 		}
 
 		sb.WriteString("\n---\n\n")
@@ -136,4 +146,65 @@ func (e *TwitterAPIEntity) formatTweets(tweets []twitterapi.Tweet, maxResults in
 	}
 
 	return sb.String()
+}
+
+// formatRelativeTime converts a timestamp to relative time (e.g., "5 minutes ago", "2 hours ago")
+func (e *TwitterAPIEntity) formatRelativeTime(createdAt string, now time.Time) string {
+	// Parse the created time (assuming RFC3339 format)
+	t, err := time.Parse(time.RFC3339, createdAt)
+	if err != nil {
+		// Try alternative formats if RFC3339 fails
+		t, err = time.Parse("2006-01-02T15:04:05Z", createdAt)
+		if err != nil {
+			return "unknown"
+		}
+	}
+
+	duration := now.Sub(t)
+
+	// Format based on duration
+	switch {
+	case duration < time.Minute:
+		seconds := int(duration.Seconds())
+		if seconds <= 1 {
+			return "just now"
+		}
+		return fmt.Sprintf("%d seconds ago", seconds)
+	case duration < time.Hour:
+		minutes := int(duration.Minutes())
+		if minutes == 1 {
+			return "1 minute ago"
+		}
+		return fmt.Sprintf("%d minutes ago", minutes)
+	case duration < 24*time.Hour:
+		hours := int(duration.Hours())
+		if hours == 1 {
+			return "1 hour ago"
+		}
+		return fmt.Sprintf("%d hours ago", hours)
+	case duration < 7*24*time.Hour:
+		days := int(duration.Hours() / 24)
+		if days == 1 {
+			return "1 day ago"
+		}
+		return fmt.Sprintf("%d days ago", days)
+	case duration < 30*24*time.Hour:
+		weeks := int(duration.Hours() / 24 / 7)
+		if weeks == 1 {
+			return "1 week ago"
+		}
+		return fmt.Sprintf("%d weeks ago", weeks)
+	case duration < 365*24*time.Hour:
+		months := int(duration.Hours() / 24 / 30)
+		if months == 1 {
+			return "1 month ago"
+		}
+		return fmt.Sprintf("%d months ago", months)
+	default:
+		years := int(duration.Hours() / 24 / 365)
+		if years == 1 {
+			return "1 year ago"
+		}
+		return fmt.Sprintf("%d years ago", years)
+	}
 }

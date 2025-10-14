@@ -41,7 +41,7 @@ func TestSearchTweets_Integration(t *testing.T) {
 			break
 		}
 		t.Logf("\nTweet %d:", i+1)
-		t.Logf("  Author: @%s (%s)", tweet.Author.Username, tweet.Author.Name)
+		t.Logf("  Author: @%s (%s)", tweet.Author.UserName, tweet.Author.Name)
 		t.Logf("  Text: %s", tweet.Text)
 		t.Logf("  Likes: %d, Retweets: %d, Replies: %d", tweet.LikeCount, tweet.RetweetCount, tweet.ReplyCount)
 		t.Logf("  Created: %s", tweet.CreatedAt)
