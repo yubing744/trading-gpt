@@ -48,15 +48,28 @@ func TestSearchTweets_Success(t *testing.T) {
 		w.Write([]byte(`{
 			"tweets": [
 				{
+					"type": "tweet",
 					"id": "123",
 					"text": "Test tweet about bitcoin",
 					"author": {
-						"username": "testuser",
-						"name": "Test User"
+						"type": "user",
+						"userName": "testuser",
+						"name": "Test User",
+						"id": "456",
+						"followers": 100,
+						"following": 50
 					},
-					"like_count": 10,
-					"retweet_count": 5,
-					"created_at": "2025-01-01T00:00:00Z"
+					"likeCount": 10,
+					"retweetCount": 5,
+					"replyCount": 2,
+					"viewCount": 100,
+					"createdAt": "2025-01-01T00:00:00Z",
+					"lang": "en",
+					"entities": {
+						"hashtags": [],
+						"urls": [],
+						"user_mentions": []
+					}
 				}
 			],
 			"has_next_page": false,
