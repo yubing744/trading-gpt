@@ -150,13 +150,19 @@ func (e *TwitterAPIEntity) formatTweets(tweets []twitterapi.Tweet, maxResults in
 
 // formatRelativeTime converts a timestamp to relative time (e.g., "5 minutes ago", "2 hours ago")
 func (e *TwitterAPIEntity) formatRelativeTime(createdAt string, now time.Time) string {
-	// Parse the created time (assuming RFC3339 format)
-	t, err := time.Parse(time.RFC3339, createdAt)
+	// Twitter time format: "Mon Jan 02 15:04:05 -0700 2006"
+	const twitterTimeFormat = "Mon Jan 02 15:04:05 -0700 2006"
+
+	t, err := time.Parse(twitterTimeFormat, createdAt)
 	if err != nil {
-		// Try alternative formats if RFC3339 fails
-		t, err = time.Parse("2006-01-02T15:04:05Z", createdAt)
+		// Try RFC3339 format as fallback
+		t, err = time.Parse(time.RFC3339, createdAt)
 		if err != nil {
-			return "unknown"
+			// Try alternative format
+			t, err = time.Parse("2006-01-02T15:04:05Z", createdAt)
+			if err != nil {
+				return "unknown"
+			}
 		}
 	}
 
