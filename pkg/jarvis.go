@@ -579,7 +579,13 @@ func (s *Strategy) handleDefaultEvent(ctx context.Context, session ttypes.ISessi
 func (s *Strategy) handleFngChanged(ctx context.Context, session ttypes.ISession, fng *string) {
 	log.WithField("fng", fng).Info("handle FNG values changed")
 
-	msg := fmt.Sprintf("The current Fear and Greed Index value is: %s", *fng)
+	msg := fmt.Sprintf(
+		"The current Crypto Market Fear & Greed Index (global, not asset-specific) is: %s. "+
+			"This reflects overall sentiment across the entire cryptocurrency market: "+
+			"0–24=Extreme Fear, 25–49=Fear, 50=Neutral, 51–74=Greed, 75–100=Extreme Greed. "+
+			"Use this as a macro risk filter, not as a signal for the specific asset.",
+		*fng,
+	)
 	session.SetAttribute("fng_msg", &ttypes.Message{
 		Text: msg,
 	})
