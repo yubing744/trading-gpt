@@ -31,7 +31,7 @@ type FeishuChatProvider struct {
 }
 
 func NewFeishuChatProvider(cfg *config.ChatFeishuConfig) *FeishuChatProvider {
-	// 创建 API Client
+	// Create API Client
 	opts := []lark.ClientOptionFunc{}
 	debugMock := os.Getenv("DEBUG")
 	if debugMock == "true" {
@@ -66,7 +66,7 @@ func (feishu *FeishuChatProvider) Listen(cb chat.ListenCallback) error {
 			receiveId = *event.Event.Message.ChatId
 		}
 
-		// create channel
+		// Create channel
 		channelKey := fmt.Sprintf("%s:%s:%s", tenantKey, receiveIdType, receiveId)
 		channel, ok := feishu.channels[channelKey]
 		if !ok {
@@ -84,14 +84,14 @@ func (feishu *FeishuChatProvider) Listen(cb chat.ListenCallback) error {
 
 	mux := http.NewServeMux()
 
-	// 注册 http 路由
+	// Register HTTP routes
 	mux.HandleFunc("/ping", func(w http.ResponseWriter, req *http.Request) {
 		io.WriteString(w, "ok")
 	})
 
 	mux.HandleFunc("/webhook/event", httpserverext.NewEventHandlerFunc(handler, larkevent.WithLogLevel(larkcore.LogLevelDebug)))
 
-	// 启动 http 服务
+	// Start HTTP service
 	port := fmt.Sprintf(":%d", feishu.serverPort)
 	log.Infof("start chat feishu at %s ok", port)
 	err := http.ListenAndServe(port, mux)

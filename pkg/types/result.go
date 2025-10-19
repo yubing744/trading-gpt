@@ -50,4 +50,18 @@ func interfaceToString(i interface{}) string {
 type Result struct {
 	Thoughts *Thoughts `json:"thoughts"`
 	Action   *Action   `json:"action"`
+	Memory   *Memory   `json:"memory,omitempty"` // New memory field
+}
+
+// Memory represents memory content for AI learning
+type Memory struct {
+	Content string `json:"content"` // Memory content
+}
+
+// ToHumanText converts Memory to human-readable string
+func (m *Memory) ToHumanText() string {
+	if m == nil {
+		return ""
+	}
+	return m.Content
 }

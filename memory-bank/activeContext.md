@@ -1,10 +1,10 @@
 # Active Context: Trading-AI
 
 ## Current Focus
-The current focus is on creating a comprehensive technical specification document for the Trading-AI project. This document will serve as a blueprint for the project's implementation, providing detailed design information and ensuring alignment between requirements and code.
+The current focus is on implementing the file-based memory function for trading-gpt. This feature allows the AI to learn from trading experiences and maintain persistent memory across sessions, enabling continuous improvement in trading decisions.
 
 ## Current Mode
-**Act Mode** - Executing the task of creating a technical specification document.
+**Act Mode** - Successfully implemented the file-based memory system as requested in GitHub issue #40.
 
 ## Technical Documentation Requirements
 The technical specification document (tech_spec.md) must include:
@@ -36,26 +36,28 @@ The technical specification document (tech_spec.md) must include:
 All diagrams must be created using Mermaid syntax, and each section should be concise and clear.
 
 ## Recent Changes
-- Created initial Memory Bank structure with core documentation files
-- Established documentation hierarchy and relationships between files
-- Documented primary system architecture and design patterns
-- Shifted to creating technical specification document (tech_spec.md)
-- Added detailed requirements for the technical specification document
-- Simplified system architecture diagram to better reflect the event-driven nature of the system
-- Rewrote the conceptual design section of the technical specification
-- Replaced the Domain Class Diagram with a more abstract Domain Model in `tech_spec.md`
-- Added detailed explanations for the Domain Model and Module Diagram in `tech_spec.md`
-- Updated `systemPatterns.md` to align Strategy Execution Flow with the new Domain Model
-- Added initial detailed design for "Trading Reflection and Memory" feature in `tech_spec.md`.
-- **Revised the "Trading Reflection and Memory" feature design in `tech_spec.md` to correctly place core orchestration logic in `pkg/jarvis.go` based on review feedback.**
+- **Successfully implemented file-based memory system** for trading-gpt as requested in GitHub issue #40
+- Extended `pkg/types/result.go` to include Memory field in Result structure
+- Modified `pkg/prompt/prompt.go` to integrate memory prompts with conditional rendering and cycle reset information
+- Added memory configuration in `pkg/config/config.go` with MemoryConfig struct
+- **Created independent memory package** `pkg/memory/memory_manager.go` for better code organization
+- Integrated memory functionality into `pkg/jarvis.go` using the independent memory package
+- Implemented word limit enforcement with AI feedback for memory truncation
+- **Added strategy cycle reset information** to AI prompts to explain memory behavior
+- **Updated all comments to English** for consistency, including `pkg/types/result.go` and `pkg/chat/feishu/feishu_chat_provider.go`
+- **Fixed directory creation issue** in `pkg/memory/memory_manager.go` - now automatically creates directories if they don't exist
+- **Fixed memory processing logic** in `pkg/jarvis.go` - AI outputs complete memory content, so we now replace instead of merge
+- Created example configuration file `bbgo-memory-example.yaml`
+- Created sample memory file `memory-bank/trading-memory.md`
+- Updated progress documentation to reflect memory system implementation
 
 ## Next Steps
-1.  **Implement Trading Reflection and Memory Feature**: Start implementing the feature based on the revised detailed design in `tech_spec.md`, focusing on changes in `pkg/jarvis.go`, `pkg/env/exchange/exchange_entity.go`, `pkg/types/event.go`, and necessary adjustments in `pkg/agents/trading/trading_agent.go`.
-2.  Complete the remaining detailed design sections of the technical specification (if any).
-3.  Develop test cases section in the technical specification.
-4.  Review existing implementation against updated system architecture.
-5.  Identify any implementation adjustments needed based on new design.
-6.  Finalize the technical specification document.
+1. **Test the memory system** with real trading scenarios to ensure proper functionality
+2. **Monitor memory file growth** and adjust word limits as needed
+3. **Enhance memory content quality** by refining AI prompts for better memory generation
+4. **Add memory analytics** to track learning effectiveness over time
+5. **Consider memory backup and versioning** for important trading insights
+6. **Document memory system usage** and best practices for users
 
 ## Active Decisions and Considerations
 - **Documentation Approach**: Using structured Markdown files organized in a clear hierarchy to maintain project knowledge.

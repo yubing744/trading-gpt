@@ -23,3 +23,9 @@ otp.png
 
 data/
 vendor/
+
+# cursor
+.cursor/
+
+# Claude
+.claude/
