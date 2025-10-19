@@ -952,16 +952,9 @@ func (s *Strategy) processMemoryOutput(ctx context.Context, chatSession ttypes.I
 		return
 	}
 
-	// Build new memory content with timestamp
-	newMemoryContent := fmt.Sprintf("\n\n## %s\n%s",
-		time.Now().Format("2006-01-02 15:04:05"),
-		memory.Content)
-
-	// Combine existing memory with new memory
-	combinedMemory := s.currentMemory + newMemoryContent
-
+	// AI outputs complete memory content, so we replace the entire memory
 	// Save memory and get truncation information
-	savedMemory, wasTruncated, err := s.memoryManager.SaveMemory(combinedMemory)
+	savedMemory, wasTruncated, err := s.memoryManager.SaveMemory(memory.Content)
 	if err != nil {
 		log.WithError(err).Error("Failed to save memory")
 		s.replyMsg(ctx, chatSession, fmt.Sprintf("Memory save failed: %s", err.Error()))
