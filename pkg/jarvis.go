@@ -711,14 +711,25 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 		// Add memory data if memory is enabled
 		if s.memoryEnabled && s.memoryManager != nil {
 			templateData["MemoryEnabled"] = true
-			templateData["MaxWords"] = s.memoryManager.GetMaxWords()
+			maxWords := s.memoryManager.GetMaxWords()
+			templateData["MaxWords"] = maxWords
 
 			memory, err := s.memoryManager.LoadMemory()
 			if err != nil {
 				log.WithError(err).Warn("Failed to load memory")
 				templateData["Memory"] = ""
+				templateData["CurrentWords"] = 0
+				templateData["MemoryUsagePercent"] = 0
 			} else {
 				templateData["Memory"] = memory
+				// Calculate memory usage
+				currentWords := len(strings.Fields(memory))
+				usagePercent := 0
+				if maxWords > 0 {
+					usagePercent = (currentWords * 100) / maxWords
+				}
+				templateData["CurrentWords"] = currentWords
+				templateData["MemoryUsagePercent"] = usagePercent
 			}
 		} else {
 			templateData["MemoryEnabled"] = false
