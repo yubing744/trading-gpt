@@ -1,8 +1,8 @@
 package prompt
 
-var ThoughtTpl = `{{if .Memory}}
+var ThoughtTpl = `{{if .MemoryEnabled}}
 === Trading Memory ===
-{{.Memory}}
+{{if .Memory}}{{.Memory}}{{else}}No previous memory available.{{end}}
 
 === Memory Management ===
 Memory word limit: {{.MaxWords}} words
@@ -36,8 +36,8 @@ Constraints:
 5、The analyze statement can be very long to ensure that the reasoning process of the analysis is rigorous.
 6、When comparing two numbers, if a digit in the decimal part is already greater, there's no need to compare the subsequent digits.
 7、The returned JSON format does not support comments
-{{if .Memory}}
-At the end of your response, please add a memory field with the following format:
+{{if .MemoryEnabled}}
+8、At the end of your response, please add a memory field with the following format:
 {
     "thoughts": {
         "plan": "analysis steps",

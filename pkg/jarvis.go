@@ -710,13 +710,18 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 
 		// Add memory data if memory is enabled
 		if s.memoryEnabled && s.memoryManager != nil {
+			templateData["MemoryEnabled"] = true
+			templateData["MaxWords"] = s.memoryManager.GetMaxWords()
+
 			memory, err := s.memoryManager.LoadMemory()
 			if err != nil {
 				log.WithError(err).Warn("Failed to load memory")
+				templateData["Memory"] = ""
 			} else {
 				templateData["Memory"] = memory
-				templateData["MaxWords"] = s.memoryManager.GetMaxWords()
 			}
+		} else {
+			templateData["MemoryEnabled"] = false
 		}
 
 		prompt, err := xtemplate.Render(prompt.ThoughtTpl, templateData)
