@@ -1,6 +1,17 @@
 package prompt
 
-var ThoughtTpl = `Analyze the data provided above, and step-by-step consider the only executable trade command based on the trading strategy provided below to maximize user profit.
+var ThoughtTpl = `{{if .Memory}}
+=== Trading Memory ===
+{{.Memory}}
+
+=== Memory Management ===
+Memory word limit: {{.MaxWords}} words
+Please keep memory content concise to avoid exceeding the word limit.
+
+IMPORTANT: The strategy runs in cycles, and your memory resets at the beginning of each cycle. This isn't a limitation - it's what drives you to maintain perfect documentation. After each reset, you rely ENTIRELY on your Memory Part to understand the project and continue work effectively. Each cycle, you must output complete memory within the word limit to maintain continuity.
+
+{{end}}
+Analyze the data provided above, and step-by-step consider the only executable trade command based on the trading strategy provided below to maximize user profit.
 
 Commands:
 {{- range $index, $item := .ActionTips}}
@@ -25,7 +36,20 @@ Constraints:
 5、The analyze statement can be very long to ensure that the reasoning process of the analysis is rigorous.
 6、When comparing two numbers, if a digit in the decimal part is already greater, there's no need to compare the subsequent digits.
 7、The returned JSON format does not support comments
-
+{{if .Memory}}
+At the end of your response, please add a memory field with the following format:
+{
+    "thoughts": {
+        "plan": "analysis steps",
+        "analyze": "step-by-step analysis", 
+        "detail": "output detailed calculation process",
+        "reflection": "constructive self-criticism",
+        "speak": "thoughts summary to say to user"
+    },
+    "action": {"name": "command name", "args": {"arg name": "value"}},
+    "memory": {"content": "memory content to save, keep concise and within reasonable word limit"}
+}
+{{else}}
 You should only respond in JSON format as described below, no other explanation is required
 Response Format: 
 {
@@ -38,6 +62,7 @@ Response Format:
     },
     "action": {"name": "command name", "args": {"arg name": "value"}}
 }
+{{end}}
 
 Ensure the response can be parsed by golang json.Unmarshal
 `

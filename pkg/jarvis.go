@@ -28,6 +28,7 @@ import (
 	"github.com/yubing744/trading-gpt/pkg/env/exchange"
 	"github.com/yubing744/trading-gpt/pkg/env/fng"
 	"github.com/yubing744/trading-gpt/pkg/env/twitterapi"
+	"github.com/yubing744/trading-gpt/pkg/memory"
 	"github.com/yubing744/trading-gpt/pkg/utils"
 
 	nfeishu "github.com/yubing744/trading-gpt/pkg/notify/feishu"
@@ -75,6 +76,11 @@ type Strategy struct {
 	world        *env.Environment
 	agent        agents.IAgent
 	chatSessions *chat.ChatSessions
+
+	// memory system
+	memoryManager *memory.MemoryManager
+	memoryEnabled bool
+	currentMemory string
 }
 
 // ID should return the identity of this strategy
@@ -159,6 +165,12 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 
 	// Setup Agent
 	err = s.setupAgent(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Setup Memory
+	err = s.setupMemory(ctx)
 	if err != nil {
 		return err
 	}
@@ -267,6 +279,37 @@ func (s *Strategy) setupAgent(ctx context.Context) error {
 	err := s.agent.Start()
 	if err != nil {
 		return errors.Wrap(err, "Error in init agent")
+	}
+
+	return nil
+}
+
+func (s *Strategy) setupMemory(ctx context.Context) error {
+	// Initialize memory manager if memory is enabled
+	if s.Memory.Enabled {
+		// Set default values if not configured
+		if s.Memory.MemoryPath == "" {
+			s.Memory.MemoryPath = "memory-bank/trading-memory.md"
+		}
+		if s.Memory.MaxWords == 0 {
+			s.Memory.MaxWords = 1000
+		}
+
+		s.memoryManager = memory.NewMemoryManager(s.Memory.MemoryPath, s.Memory.MaxWords)
+		s.memoryEnabled = true
+
+		// Load existing memory
+		memoryContent, err := s.memoryManager.LoadMemory()
+		if err != nil {
+			log.WithError(err).Warn("Failed to load existing memory")
+		} else {
+			s.currentMemory = memoryContent
+		}
+
+		log.Info("Memory system enabled")
+	} else {
+		s.memoryEnabled = false
+		log.Info("Memory system disabled")
 	}
 
 	return nil
@@ -442,6 +485,11 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 				if result.Action.Name != "" {
 					actions = append(actions, result.Action)
 				}
+			}
+
+			// Process memory output if memory is enabled
+			if s.memoryEnabled && s.memoryManager != nil && result.Memory != nil {
+				s.processMemoryOutput(ctx, chatSession, result.Memory)
 			}
 		} else {
 			s.replyMsg(ctx, chatSession, resultText)
@@ -647,11 +695,25 @@ func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISessi
 			actionTips = append(actionTips, ac.String())
 		}
 
-		prompt, err := xtemplate.Render(prompt.ThoughtTpl, map[string]interface{}{
+		// Build template data
+		templateData := map[string]interface{}{
 			"ActionTips":              actionTips,
 			"Strategy":                s.Strategy,
 			"StrategyAttentionPoints": s.StrategyAttentionPoints,
-		})
+		}
+
+		// Add memory data if memory is enabled
+		if s.memoryEnabled && s.memoryManager != nil {
+			memory, err := s.memoryManager.LoadMemory()
+			if err != nil {
+				log.WithError(err).Warn("Failed to load memory")
+			} else {
+				templateData["Memory"] = memory
+				templateData["MaxWords"] = s.memoryManager.GetMaxWords()
+			}
+		}
+
+		prompt, err := xtemplate.Render(prompt.ThoughtTpl, templateData)
 		if err != nil {
 			s.replyMsg(ctx, session, fmt.Sprintf("Render prompt error: %s", err.Error()))
 			return
@@ -882,4 +944,53 @@ timestamp: %s
 	// Send a confirmation message to the chat session with the actual path
 	summaryMsg := fmt.Sprintf("📝 Trade reflection generated for %s and saved to %s", posData.StrategyID, reflectionPath)
 	s.stashMsg(ctx, session, summaryMsg)
+}
+
+// processMemoryOutput processes memory output from AI and saves it
+func (s *Strategy) processMemoryOutput(ctx context.Context, chatSession ttypes.ISession, memory *ttypes.Memory) {
+	if memory == nil || memory.Content == "" {
+		return
+	}
+
+	// Build new memory content with timestamp
+	newMemoryContent := fmt.Sprintf("\n\n## %s\n%s",
+		time.Now().Format("2006-01-02 15:04:05"),
+		memory.Content)
+
+	// Combine existing memory with new memory
+	combinedMemory := s.currentMemory + newMemoryContent
+
+	// Save memory and get truncation information
+	savedMemory, wasTruncated, err := s.memoryManager.SaveMemory(combinedMemory)
+	if err != nil {
+		log.WithError(err).Error("Failed to save memory")
+		s.replyMsg(ctx, chatSession, fmt.Sprintf("Memory save failed: %s", err.Error()))
+		return
+	}
+
+	// Update current memory
+	s.currentMemory = savedMemory
+
+	// Provide different feedback based on whether content was truncated
+	if wasTruncated {
+		// Truncated case: provide warning and word limit information
+		wordCount := len(strings.Fields(memory.Content))
+		limitInfo := s.memoryManager.GetWordLimitInfo()
+
+		warningMsg := fmt.Sprintf("⚠️ Memory saved but truncated!\n"+
+			"Current memory word count: %d words\n"+
+			"%s\n"+
+			"Please keep memory content concise in future outputs.\n"+
+			"Memory content: %s",
+			wordCount, limitInfo, memory.Content)
+
+		s.replyMsg(ctx, chatSession, warningMsg)
+
+		// Store word limit info in session for next AI decision reference
+		s.stashMsg(ctx, chatSession, fmt.Sprintf("Memory word limit reminder: %s", limitInfo))
+
+	} else {
+		// Normal save case
+		s.replyMsg(ctx, chatSession, fmt.Sprintf("💾 Memory saved: %s", memory.Content))
+	}
 }

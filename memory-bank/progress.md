@@ -12,6 +12,7 @@ The Trading-AI project is a functional trading system with LLM integration that 
 - Notification system for trading updates
 - Agent system with trading and keeper agents
 - Event-driven architecture for market data processing and decision making
+- **File-based memory system** - AI can now learn from trading experiences and maintain persistent memory
 
 ## What's Left to Build/Improve
 - Enhanced error handling and recovery mechanisms
@@ -40,3 +41,4 @@ The Trading-AI project is a functional trading system with LLM integration that 
 - Development of environment abstractions for external systems
 - Implementation of risk management features
 - Establishment of Memory Bank documentation system
+- **Implementation of file-based memory system** - AI can now learn from trading experiences and maintain persistent memory across sessions
