@@ -6,7 +6,16 @@ var ThoughtTpl = `{{if .MemoryEnabled}}
 
 === Memory Management ===
 Memory word limit: {{.MaxWords}} words
-Please keep memory content concise to avoid exceeding the word limit.
+Current memory usage: {{.CurrentWords}} words ({{.MemoryUsagePercent}}% of limit)
+{{if .MemoryUsagePercent | lt 50}}
+💡 Memory has plenty of space - you can add new insights and experiences to expand your knowledge base.
+{{else if .MemoryUsagePercent | lt 80}}
+⚠️ Memory is getting full - focus on adding only the most important new insights while keeping content concise.
+{{else if .MemoryUsagePercent | lt 95}}
+🚨 Memory is nearly full - prioritize consolidating and summarizing existing knowledge rather than adding new content.
+{{else}}
+🔥 Memory is at critical capacity - you MUST consolidate, summarize, and remove less critical information to make room for essential new insights.
+{{end}}
 
 IMPORTANT: The strategy runs in cycles, and your memory resets at the beginning of each cycle. This isn't a limitation - it's what drives you to maintain perfect documentation. After each reset, you rely ENTIRELY on your Memory Part to understand the project and continue work effectively. Each cycle, you must output complete memory within the word limit to maintain continuity.
 
@@ -36,14 +45,16 @@ Constraints:
 5、The analyze statement can be very long to ensure that the reasoning process of the analysis is rigorous.
 6、When comparing two numbers, if a digit in the decimal part is already greater, there's no need to compare the subsequent digits.
 7、The returned JSON format does not support comments
+
 {{if .MemoryEnabled}}
-8、At the end of your response, please add a memory field with the following format:
+You should only respond in JSON format as described below, no other explanation is required
+Response Format: 
 {
     "thoughts": {
         "plan": "analysis steps",
         "analyze": "step-by-step analysis", 
         "detail": "output detailed calculation process",
-        "reflection": "constructive self-criticism",
+        "reflection": "comprehensive self-criticism including: 1) trade execution analysis, 2) strategy effectiveness evaluation, 3) market condition adaptation, 4) risk management review, 5) strategy improvement suggestions",
         "speak": "thoughts summary to say to user"
     },
     "action": {"name": "command name", "args": {"arg name": "value"}},
@@ -57,7 +68,7 @@ Response Format:
         "plan": "analysis steps",
         "analyze": "step-by-step analysis",
         "detail": "output detailed calculation process",
-        "reflection": "constructive self-criticism",
+        "reflection": "comprehensive self-criticism including: 1) trade execution analysis, 2) strategy effectiveness evaluation, 3) market condition adaptation, 4) risk management review, 5) strategy improvement suggestions",
         "speak": "thoughts summary to say to user"
     },
     "action": {"name": "command name", "args": {"arg name": "value"}}

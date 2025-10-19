@@ -48,6 +48,7 @@ All diagrams must be created using Mermaid syntax, and each section should be co
 - **Fixed directory creation issue** in `pkg/memory/memory_manager.go` - now automatically creates directories if they don't exist
 - **Fixed memory processing logic** in `pkg/jarvis.go` - AI outputs complete memory content, so we now replace instead of merge
 - **Fixed memory prompt logic** in `pkg/prompt/prompt.go` - now uses `MemoryEnabled` instead of `.Memory` to control memory prompts, ensuring AI outputs memory even on first run
+- **Enhanced memory usage feedback** in `pkg/prompt/prompt.go` - added current word count, usage percentage, and intelligent suggestions to help AI decide whether to expand or consolidate memory
 - Created example configuration file `bbgo-memory-example.yaml`
 - Created sample memory file `memory-bank/trading-memory.md`
 - Updated progress documentation to reflect memory system implementation
