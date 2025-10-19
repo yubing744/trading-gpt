@@ -54,7 +54,7 @@ Response Format:
         "plan": "analysis steps",
         "analyze": "step-by-step analysis", 
         "detail": "output detailed calculation process",
-        "reflection": "constructive self-criticism",
+        "reflection": "comprehensive self-criticism including: 1) trade execution analysis, 2) strategy effectiveness evaluation, 3) market condition adaptation, 4) risk management review, 5) strategy improvement suggestions",
         "speak": "thoughts summary to say to user"
     },
     "action": {"name": "command name", "args": {"arg name": "value"}},
@@ -68,7 +68,7 @@ Response Format:
         "plan": "analysis steps",
         "analyze": "step-by-step analysis",
         "detail": "output detailed calculation process",
-        "reflection": "constructive self-criticism",
+        "reflection": "comprehensive self-criticism including: 1) trade execution analysis, 2) strategy effectiveness evaluation, 3) market condition adaptation, 4) risk management review, 5) strategy improvement suggestions",
         "speak": "thoughts summary to say to user"
     },
     "action": {"name": "command name", "args": {"arg name": "value"}}
