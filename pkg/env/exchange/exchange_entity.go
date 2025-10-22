@@ -69,7 +69,7 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 	return []*ttypes.ActionDesc{
 		{
 			Name:        "open_long_position",
-			Description: "open long position",
+			Description: "Open long position (supports market and limit orders; unfilled limit orders auto-cancel at next cycle)",
 			Args: []ttypes.ArgmentDesc{
 				{
 					Name:        "stop_loss_trigger_price",
@@ -112,7 +112,7 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 		},
 		{
 			Name:        "open_short_position",
-			Description: "open short position",
+			Description: "Open short position (supports market and limit orders; unfilled limit orders auto-cancel at next cycle)",
 			Args: []ttypes.ArgmentDesc{
 				{
 					Name:        "stop_loss_trigger_price",
@@ -155,7 +155,7 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 		},
 		{
 			Name:        "update_position",
-			Description: "update position",
+			Description: "Update position stop-loss/take-profit (supports market and limit orders; unfilled limit orders auto-cancel at next cycle)",
 			Args: []ttypes.ArgmentDesc{
 				{
 					Name:        "stop_loss_trigger_price",
