@@ -1,10 +1,10 @@
 # Active Context: Trading-AI
 
 ## Current Focus
-The current focus is on implementing the file-based memory function for trading-gpt. This feature allows the AI to learn from trading experiences and maintain persistent memory across sessions, enabling continuous improvement in trading decisions.
+Successfully completed implementation of limit order support with automatic cleanup mechanism (Issue #58). The system now supports both market and limit orders with price expression capabilities while maintaining AI decision simplicity through automatic cleanup.
 
 ## Current Mode
-**Act Mode** - Successfully implemented the file-based memory system as requested in GitHub issue #40.
+**Act Mode** - Successfully implemented limit order feature with auto-cleanup as requested in GitHub issue #58.
 
 ## Technical Documentation Requirements
 The technical specification document (tech_spec.md) must include:
@@ -36,7 +36,18 @@ The technical specification document (tech_spec.md) must include:
 All diagrams must be created using Mermaid syntax, and each section should be concise and clear.
 
 ## Recent Changes
-- **Successfully implemented file-based memory system** for trading-gpt as requested in GitHub issue #40
+
+### Limit Order Feature (Issue #58) - 2025-01-22
+- **Implemented limit order support** with price expression parsing
+- **Added automatic cleanup mechanism** - unfilled limit orders are canceled at each decision cycle
+- **Created price expression parser** (`pkg/utils/price.go`) supporting variables like `last_close`, `last_high`, etc.
+- **Extended trading commands** with 4 new parameters: order_type, limit_price, time_in_force, post_only
+- **Comprehensive testing** - 9 unit tests all passing
+- **Developer documentation** - Created `docs/limit-order-feature.md` with usage guide and technical details
+- **Key design decision**: Auto-cleanup approach keeps AI decision-making simple while preventing order accumulation
+
+### Memory System Implementation (Issue #40)
+- **Successfully implemented file-based memory system** for trading-gpt
 - Extended `pkg/types/result.go` to include Memory field in Result structure
 - Modified `pkg/prompt/prompt.go` to integrate memory prompts with conditional rendering and cycle reset information
 - Added memory configuration in `pkg/config/config.go` with MemoryConfig struct
@@ -54,12 +65,12 @@ All diagrams must be created using Mermaid syntax, and each section should be co
 - Updated progress documentation to reflect memory system implementation
 
 ## Next Steps
-1. **Test the memory system** with real trading scenarios to ensure proper functionality
-2. **Monitor memory file growth** and adjust word limits as needed
-3. **Enhance memory content quality** by refining AI prompts for better memory generation
-4. **Add memory analytics** to track learning effectiveness over time
-5. **Consider memory backup and versioning** for important trading insights
-6. **Document memory system usage** and best practices for users
+1. **Test limit order feature** in real trading scenarios to validate functionality
+2. **Monitor limit order cleanup** effectiveness and AI adaptation
+3. **Observe price expression usage** by AI to refine available variables if needed
+4. **Consider adding reduce_only support** if exchange APIs support it
+5. **Test the memory system** with real trading scenarios to ensure proper functionality
+6. **Monitor memory file growth** and adjust word limits as needed
 
 ## Active Decisions and Considerations
 - **Documentation Approach**: Using structured Markdown files organized in a clear hierarchy to maintain project knowledge.
@@ -79,3 +90,6 @@ All diagrams must be created using Mermaid syntax, and each section should be co
 - Natural language interfaces can significantly reduce the barrier to entry for algorithmic trading
 - Careful consideration of risk management is essential for any trading system
 - The modular architecture facilitates extension and maintenance
+- **Simplicity in AI decision-making is crucial** - Auto-cleanup approach for limit orders prevents AI from needing to manage order state, keeping decision complexity low
+- **Expression-based parameters provide flexibility** - Price expressions like "last_close * 0.995" allow dynamic pricing without complex AI logic
+- **Cycle-based cleanup aligns with decision patterns** - Periodic cleanup matches the natural rhythm of strategy evaluation cycles

@@ -63,6 +63,13 @@ Templates are used for generating prompts and structuring LLM interactions:
 4. Positions are monitored for trigger conditions
 5. Actions are taken when conditions are met
 
+### Order Type Selection Flow
+1. Strategy specifies order type (market or limit)
+2. If limit order, price expression is evaluated
+3. Price variables (last_close, last_high, etc.) are provided to expression engine
+4. Calculated limit price is applied to order
+5. At next decision cycle, unfilled limit orders are automatically cleaned up
+
 ### Communication Flow
 1. User inputs come through Chat system
 2. Inputs are processed by appropriate Agent
@@ -75,3 +82,4 @@ Templates are used for generating prompts and structuring LLM interactions:
 3. Supporting multiple LLM providers for flexibility
 4. Implementing a modular architecture for extensibility
 5. Using natural language as the primary interface
+6. **Auto-cleanup approach for limit orders** - Automatically cancel unfilled limit orders at each decision cycle to keep AI decision-making simple and prevent order accumulation

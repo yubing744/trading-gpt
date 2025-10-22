@@ -10,6 +10,8 @@ To democratize algorithmic trading by allowing users to express trading strategi
 - Writing trading strategies using natural language
 - Support for multiple LLMs: Google AI, Open AI, Claude AI, and Ollama
 - Setting take profit and stop loss parameters in strategies
+- **Limit order support with price expressions** (e.g., "last_close * 0.995")
+- **Automatic limit order cleanup** to maintain clean decision state
 - Chatting with strategies to adjust or understand their behavior
 - Support for various technical indicators (MACD, RSI, Bollinger Bands, etc.)
 
