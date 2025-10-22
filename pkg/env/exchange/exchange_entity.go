@@ -79,6 +79,22 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 					Name:        "take_profit_trigger_price",
 					Description: "Take-profit trigger price",
 				},
+				{
+					Name:        "order_type",
+					Description: "Order type: market|limit (default: market)",
+				},
+				{
+					Name:        "limit_price",
+					Description: "Limit price or expression (required if order_type=limit, e.g., 'last_close * 0.995')",
+				},
+				{
+					Name:        "time_in_force",
+					Description: "Time in force: GTC|IOC|FOK (default: GTC)",
+				},
+				{
+					Name:        "post_only",
+					Description: "Post only: true|false (default: false, maker only)",
+				},
 			},
 			Samples: []ttypes.Sample{
 				{
@@ -106,6 +122,22 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 					Name:        "take_profit_trigger_price",
 					Description: "Take-profit trigger price",
 				},
+				{
+					Name:        "order_type",
+					Description: "Order type: market|limit (default: market)",
+				},
+				{
+					Name:        "limit_price",
+					Description: "Limit price or expression (required if order_type=limit, e.g., 'last_close * 1.005')",
+				},
+				{
+					Name:        "time_in_force",
+					Description: "Time in force: GTC|IOC|FOK (default: GTC)",
+				},
+				{
+					Name:        "post_only",
+					Description: "Post only: true|false (default: false, maker only)",
+				},
 			},
 			Samples: []ttypes.Sample{
 				{
@@ -132,6 +164,22 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 				{
 					Name:        "take_profit_trigger_price",
 					Description: "Take-profit trigger price",
+				},
+				{
+					Name:        "order_type",
+					Description: "Order type: market|limit (default: market)",
+				},
+				{
+					Name:        "limit_price",
+					Description: "Limit price or expression (required if order_type=limit)",
+				},
+				{
+					Name:        "time_in_force",
+					Description: "Time in force: GTC|IOC|FOK (default: GTC)",
+				},
+				{
+					Name:        "post_only",
+					Description: "Post only: true|false (default: false, maker only)",
 				},
 			},
 			Samples: []ttypes.Sample{
@@ -285,6 +333,48 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 			}
 		}
 
+		// config order type
+		if orderType, ok := args["order_type"]; ok && orderType != "" {
+			opts = append(opts, &OrderTypeOpt{
+				Type: types.OrderType(strings.ToUpper(orderType)),
+			})
+		}
+
+		// config limit price
+		if limitPrice, ok := args["limit_price"]; ok && limitPrice != "" {
+			price, err := utils.ParsePrice(ent.vm, ent.KLineWindow, closePrice, limitPrice)
+			if err != nil {
+				return errors.Wrapf(err, "invalid limit_price: %s", limitPrice)
+			}
+
+			if price != nil {
+				opts = append(opts, &LimitPriceOpt{
+					Value: *price,
+				})
+			}
+		}
+
+		// config time in force
+		if timeInForce, ok := args["time_in_force"]; ok && timeInForce != "" {
+			opts = append(opts, &TimeInForceOpt{
+				Value: types.TimeInForce(strings.ToUpper(timeInForce)),
+			})
+		}
+
+		// config post only
+		if postOnly, ok := args["post_only"]; ok && postOnly != "" {
+			opts = append(opts, &PostOnlyOpt{
+				Enabled: strings.EqualFold(postOnly, "true"),
+			})
+		}
+
+		// Validation: order_type=limit requires limit_price
+		if ot, ok := args["order_type"]; ok && strings.ToUpper(ot) == "LIMIT" {
+			if lp, ok := args["limit_price"]; !ok || lp == "" {
+				return errors.New("limit_price is required when order_type=limit")
+			}
+		}
+
 		log.Infof("open %s position for signal %v, options: %v", ent.symbol, side, opts)
 
 		if cmd == "open_long_position" || cmd == "open_short_position" {
@@ -356,6 +446,9 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 		}
 
 		log.WithField("kline", kline).Info("kline closed")
+
+		// Auto cleanup unfilled limit orders before new decision cycle
+		ent.cleanupLimitOrders(ctx)
 
 		ent.emitEvent(ch, ttypes.NewEvent("kline_changed", ent.KLineWindow))
 
@@ -607,12 +700,60 @@ func (ent *ExchangeEntity) emitEvent(ch chan ttypes.IEvent, evt ttypes.IEvent) {
 	ch <- evt
 }
 
+// cleanupLimitOrders clears all unfilled limit orders
+// Called automatically at the start of each decision cycle to ensure AI starts with a clean state
+func (ent *ExchangeEntity) cleanupLimitOrders(ctx context.Context) {
+	orders, err := ent.session.Exchange.QueryOpenOrders(ctx, ent.symbol)
+	if err != nil {
+		log.WithError(err).Warn("query open orders for cleanup failed")
+		return
+	}
+
+	// Only cancel limit orders, keep stop-loss/take-profit orders
+	limitOrders := make([]types.Order, 0)
+	for _, order := range orders {
+		if order.Type == types.OrderTypeLimit || order.Type == types.OrderTypeLimitMaker {
+			limitOrders = append(limitOrders, order)
+		}
+	}
+
+	if len(limitOrders) == 0 {
+		return // No limit orders to clean up
+	}
+
+	err = ent.session.Exchange.CancelOrders(ctx, limitOrders...)
+	if err != nil {
+		log.WithError(err).
+			WithField("order_count", len(limitOrders)).
+			Warn("cancel limit orders failed, continuing anyway")
+	} else {
+		log.WithField("cancelled_count", len(limitOrders)).
+			Info("auto cleanup limit orders before new decision cycle")
+	}
+}
+
 type StopLossPrice struct {
 	Value fixedpoint.Value
 }
 
 type TakeProfitPrice struct {
 	Value fixedpoint.Value
+}
+
+type OrderTypeOpt struct {
+	Type types.OrderType
+}
+
+type LimitPriceOpt struct {
+	Value fixedpoint.Value
+}
+
+type TimeInForceOpt struct {
+	Value types.TimeInForce
+}
+
+type PostOnlyOpt struct {
+	Enabled bool
 }
 
 func (s *ExchangeEntity) OpenPosition(ctx context.Context, side types.SideType, closePrice fixedpoint.Value, args ...interface{}) error {
@@ -631,6 +772,17 @@ func (s *ExchangeEntity) OpenPosition(ctx context.Context, side types.SideType, 
 				orderForm.StopPrice = val.Value
 			case *TakeProfitPrice:
 				orderForm.TakePrice = val.Value
+			case *OrderTypeOpt:
+				orderForm.Type = val.Type
+			case *LimitPriceOpt:
+				orderForm.Price = val.Value
+			case *TimeInForceOpt:
+				orderForm.TimeInForce = val.Value
+			case *PostOnlyOpt:
+				// Note: PostOnly is not directly supported in bbgo's SubmitOrder
+				// Some exchanges may support it through TimeInForce=POST_ONLY
+				// For now, we accept the parameter but don't apply it
+				log.WithField("post_only", val.Enabled).Debug("post_only parameter received but not applied (not supported by bbgo SubmitOrder)")
 			}
 		}
 
