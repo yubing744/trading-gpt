@@ -9,6 +9,7 @@
 - [bbgo](https://github.com/c9s/bbgo) - Foundation trading engine and exchange integrations
 - [langchaingo](https://github.com/tmc/langchaingo) - Go-based LLM integration framework
 - [logrus](https://github.com/sirupsen/logrus) - Structured logging
+- [goja](https://github.com/dop251/goja) - JavaScript VM for price expression evaluation
 
 ### LLM Integration
 - **OpenAI** - GPT models integration
@@ -100,4 +101,19 @@ strategy := trading.NewTradingAgent(cfg.Trading, llmModel)
 
 // Execute trading actions
 result, err := strategy.GenActions(ctx, session, messages)
+```
+
+### Price Expression Pattern
+```go
+// Parse price expression with dynamic variables
+price, err := utils.ParsePrice(vm, klineWindow, closePrice, "last_close * 0.995")
+
+// Variables available: last_close, last_high, last_low, last_open, prev_close, last_volume
+```
+
+### Limit Order Cleanup Pattern
+```go
+// Automatically cleanup unfilled limit orders at each decision cycle
+// Called in Run() before emitting update_finish event
+ent.cleanupLimitOrders(ctx)
 ```
