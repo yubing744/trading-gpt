@@ -652,7 +652,13 @@ func (s *Strategy) handlePositionChanged(_ctx context.Context, session ttypes.IS
 				side = "long"
 			}
 
-			msg = fmt.Sprintf("The current position is %s with %dx leverage, average cost: %.3f, and accumulated profit: %.3f%s.", side, s.Leverage.Int(), position.AverageCost.Float64(), position.AccumulatedProfit.Float64(), "%")
+			msg = fmt.Sprintf("The current position is %s with %dx leverage, average cost: %.3f, and accumulated profit: %.3f%% (%.3f %s).",
+				side,
+				s.Leverage.Int(),
+				position.AverageCost.Float64(),
+				position.AccumulatedProfit.Float64(),
+				position.AccumulatedProfitValue.Float64(),
+				position.Market.QuoteCurrency)
 
 			if position.TpTriggerPx != nil {
 				msg += fmt.Sprintf("\nThe current position's take-profit trigger price is %s.", position.Market.FormatPrice(*position.TpTriggerPx))
@@ -806,7 +812,7 @@ func (s *Strategy) handlePositionClosed(ctx context.Context, session ttypes.ISes
 		"Entry Price: %.2f\n"+
 		"Exit Price: %.2f\n"+
 		"Quantity: %.6f\n"+
-		"%s: %.2f\n"+
+		"%s: %.2f (%.2f%%)\n"+
 		"Close Reason: %s\n"+
 		"Close Time: %s",
 		posData.Symbol,
@@ -817,6 +823,7 @@ func (s *Strategy) handlePositionClosed(ctx context.Context, session ttypes.ISes
 		posData.Quantity,
 		pnlStr,
 		posData.ProfitAndLoss,
+		posData.ProfitAndLossPercent,
 		posData.CloseReason,
 		posData.Timestamp.Format(time.RFC3339))
 
@@ -827,8 +834,8 @@ func (s *Strategy) handlePositionClosed(ctx context.Context, session ttypes.ISes
 	session.SetAttribute("last_closed_position", posData)
 
 	// Add a message to the chat
-	s.stashMsg(ctx, session, fmt.Sprintf("📊 Position closed for %s with %s: %.2f",
-		posData.Symbol, pnlStr, posData.ProfitAndLoss))
+	s.stashMsg(ctx, session, fmt.Sprintf("📊 Position closed for %s with %s: %.2f (%.2f%%)",
+		posData.Symbol, pnlStr, posData.ProfitAndLoss, posData.ProfitAndLossPercent))
 
 	// Check if reflection generation is enabled (defaults to true if not specified)
 	reflectionEnabled := true
@@ -872,6 +879,7 @@ func (s *Strategy) generateAndSaveReflection(ctx context.Context, session ttypes
 		"ExitPrice":     posData.ExitPrice,
 		"Quantity":      posData.Quantity,
 		"ProfitAndLoss": posData.ProfitAndLoss,
+		"ProfitPercent": posData.ProfitAndLossPercent,
 		"CloseReason":   posData.CloseReason,
 		"Timestamp":     posData.Timestamp.Format(time.RFC3339),
 	}

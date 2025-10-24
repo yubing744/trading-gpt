@@ -150,6 +150,20 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 		{
 			Name:        "close_position",
 			Description: "close position",
+			Args: []ttypes.ArgmentDesc{
+				{
+					Name:        "percentage",
+					Description: "Optional close ratio (0-1 or percentage like 50%)",
+				},
+				{
+					Name:        "quantity",
+					Description: "Optional base quantity to close",
+				},
+				{
+					Name:        "profit_amount",
+					Description: "Optional profit amount in quote currency to realize",
+				},
+			},
 			Samples: []ttypes.Sample{
 				{
 					Input: []string{
@@ -160,6 +174,15 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 					},
 					Output: []string{
 						"Execute cmd: /close_position",
+					},
+				},
+				{
+					Input: []string{
+						"The current position is long, average cost: 2.736, base quantity: 10, accumulated profit value: 120.5",
+						"Analyze data, generate trading cmd to lock part of the profit",
+					},
+					Output: []string{
+						"Execute cmd: /close_position percentage=50%",
 					},
 				},
 			},
@@ -222,7 +245,82 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 			if ent.position.IsShort() || ent.position.IsLong() {
 				log.Infof("close existing %s position", ent.symbol)
 
-				err := ent.ClosePosition(ctx, fixedpoint.One, closePrice)
+				closePercentage := fixedpoint.One
+
+				if percentageArg, ok := args["percentage"]; ok && strings.TrimSpace(percentageArg) != "" {
+					val, err := fixedpoint.NewFromString(strings.TrimSuffix(strings.TrimSpace(percentageArg), "%"))
+					if err != nil {
+						return errors.Wrap(err, "invalid close percentage")
+					}
+
+					if strings.Contains(percentageArg, "%") || val.Compare(fixedpoint.One) > 0 {
+						val = val.Div(fixedpoint.NewFromInt(100))
+					}
+
+					if val.Compare(fixedpoint.Zero) <= 0 {
+						return errors.New("close percentage must be greater than zero")
+					}
+
+					closePercentage = val
+				} else if quantityArg, ok := args["quantity"]; ok && strings.TrimSpace(quantityArg) != "" {
+					if ent.position == nil {
+						return errors.New("no position data available")
+					}
+
+					targetQty, err := fixedpoint.NewFromString(strings.TrimSpace(quantityArg))
+					if err != nil {
+						return errors.Wrap(err, "invalid close quantity")
+					}
+
+					baseQty := ent.position.GetBase().Abs()
+					if baseQty.IsZero() {
+						return errors.New("no base quantity available for partial close")
+					}
+
+					if targetQty.Compare(fixedpoint.Zero) <= 0 {
+						return errors.New("close quantity must be greater than zero")
+					}
+
+					if targetQty.Compare(baseQty) >= 0 {
+						closePercentage = fixedpoint.One
+					} else {
+						closePercentage = targetQty.Div(baseQty)
+					}
+				} else if profitArg, ok := args["profit_amount"]; ok && strings.TrimSpace(profitArg) != "" {
+					if ent.position == nil {
+						return errors.New("no position data available")
+					}
+
+					targetProfit, err := fixedpoint.NewFromString(strings.TrimSpace(profitArg))
+					if err != nil {
+						return errors.Wrap(err, "invalid profit amount")
+					}
+
+					if targetProfit.Compare(fixedpoint.Zero) <= 0 {
+						return errors.New("profit amount must be greater than zero")
+					}
+
+					currentProfit := ent.position.AccumulatedProfitValue.Abs()
+					if currentProfit.IsZero() {
+						return errors.New("current profit amount unavailable for partial close")
+					}
+
+					if targetProfit.Compare(currentProfit) >= 0 {
+						closePercentage = fixedpoint.One
+					} else {
+						closePercentage = targetProfit.Div(currentProfit)
+					}
+				}
+
+				if closePercentage.Compare(fixedpoint.One) > 0 {
+					closePercentage = fixedpoint.One
+				}
+
+				log.WithField("percentage", closePercentage.Float64()).
+					WithField("modeArgs", args).
+					Info("executing close_position command")
+
+				err := ent.ClosePosition(ctx, closePercentage, closePrice)
 				if err != nil {
 					return errors.Wrap(err, "close position error")
 				}
@@ -342,7 +440,7 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 			}
 		}
 
-		// Update postion accumulated Profit
+		// Update position accumulated profit metrics
 		if ent.position != nil {
 			log.WithField("position", ent.position).Info("update_position")
 
@@ -351,7 +449,20 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 				accumulatedProfit = accumulatedProfit.Mul(fixedpoint.NewFromInt(-1))
 			}
 
-			ent.position.AddProfit(accumulatedProfit)
+			baseQty := ent.position.GetBase().Abs()
+			profitValue := fixedpoint.Zero
+
+			if !baseQty.IsZero() {
+				if ent.position.IsLong() {
+					profitValue = kline.GetClose().Sub(ent.position.AverageCost).Mul(baseQty)
+				} else if ent.position.IsShort() {
+					profitValue = ent.position.AverageCost.Sub(kline.GetClose()).Mul(baseQty)
+				}
+
+				profitValue = profitValue.Mul(ent.leverage)
+			}
+
+			ent.position.UpdateProfit(accumulatedProfit, profitValue)
 			ent.position.Dust = ent.position.IsDust(kline.GetClose())
 		}
 
@@ -386,14 +497,15 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 
 			// Determine position data for closed position event
 			positionData := PositionClosedEventData{
-				StrategyID:    position.StrategyInstanceID,
-				Symbol:        ent.symbol,
-				EntryPrice:    position.AverageCost.Float64(),
-				ExitPrice:     exitPrice,
-				Quantity:      position.Base.Float64(),
-				ProfitAndLoss: ent.position.AccumulatedProfit.Float64(),
-				CloseReason:   CloseReasonManual, // Default to Manual (will be overridden by the context in ClosePosition if available)
-				Timestamp:     time.Now(),
+				StrategyID:           position.StrategyInstanceID,
+				Symbol:               ent.symbol,
+				EntryPrice:           position.AverageCost.Float64(),
+				ExitPrice:            exitPrice,
+				Quantity:             position.Base.Float64(),
+				ProfitAndLoss:        ent.position.AccumulatedProfitValue.Float64(),
+				ProfitAndLossPercent: ent.position.AccumulatedProfit.Float64(),
+				CloseReason:          CloseReasonManual, // Default to Manual (will be overridden by the context in ClosePosition if available)
+				Timestamp:            time.Now(),
 			}
 
 			// Get recent market data as context if available
@@ -709,14 +821,15 @@ func (s *ExchangeEntity) ClosePosition(ctx context.Context, percentage fixedpoin
 
 		// Create the position closed event data
 		positionData := PositionClosedEventData{
-			StrategyID:    strategyID,
-			Symbol:        s.symbol,
-			EntryPrice:    posBeforeClose.AverageCost.Float64(),
-			ExitPrice:     closePrice.Float64(),
-			Quantity:      posBeforeClose.GetBase().Float64(),
-			ProfitAndLoss: posBeforeClose.AccumulatedProfit.Float64(),
-			CloseReason:   closeReason,
-			Timestamp:     time.Now(),
+			StrategyID:           strategyID,
+			Symbol:               s.symbol,
+			EntryPrice:           posBeforeClose.AverageCost.Float64(),
+			ExitPrice:            closePrice.Float64(),
+			Quantity:             posBeforeClose.GetBase().Float64(),
+			ProfitAndLoss:        posBeforeClose.AccumulatedProfitValue.Float64(),
+			ProfitAndLossPercent: posBeforeClose.AccumulatedProfit.Float64(),
+			CloseReason:          closeReason,
+			Timestamp:            time.Now(),
 		}
 
 		// Get recent market data as context if available
