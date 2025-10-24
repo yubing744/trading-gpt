@@ -8,6 +8,9 @@ The Trading-AI project is a functional trading system with LLM integration that 
 - Multiple LLM provider support (OpenAI, Google AI, Claude AI, Ollama)
 - Natural language strategy interpretation
 - Basic trading functionality with risk management (stop loss, take profit)
+- **Limit order support** - Create limit orders with price expressions (e.g., "last_close * 0.995")
+- **Automatic limit order cleanup** - Unfilled orders are canceled at each decision cycle
+- **Price expression engine** - Dynamic price calculation using market data variables
 - Chat interface for strategy interaction
 - Notification system for trading updates
 - Agent system with trading and keeper agents
@@ -42,3 +45,4 @@ The Trading-AI project is a functional trading system with LLM integration that 
 - Implementation of risk management features
 - Establishment of Memory Bank documentation system
 - **Implementation of file-based memory system** - AI can now learn from trading experiences and maintain persistent memory across sessions
+- **Implementation of limit order system** - Support for limit orders with price expressions and automatic cleanup mechanism (Issue #58, 2025-01-22)
