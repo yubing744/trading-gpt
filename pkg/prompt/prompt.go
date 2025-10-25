@@ -92,7 +92,7 @@ Trade details:
 - Entry Price: {{.EntryPrice}}
 - Exit Price: {{.ExitPrice}}
 - Quantity: {{.Quantity}}
-- Profit/Loss: {{.ProfitAndLoss}}
+- Profit/Loss: {{.ProfitAndLoss}} ({{.ProfitPercent}}%)
 - Close Reason: {{.CloseReason}}
 - Close Time: {{.Timestamp}}
 

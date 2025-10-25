@@ -29,3 +29,8 @@ vendor/
 
 # Claude
 .claude/
+CLAUDE.md
+
+# Codex
+.codex/
+AGENTS.md

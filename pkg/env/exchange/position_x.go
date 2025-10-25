@@ -9,8 +9,9 @@ import (
 type PositionX struct {
 	*types.Position
 
-	Dust           bool
-	historyProfits []fixedpoint.Value
+	Dust                   bool
+	historyProfits         []fixedpoint.Value
+	AccumulatedProfitValue fixedpoint.Value
 }
 
 func NewPositionX(pos *types.Position) *PositionX {
@@ -28,9 +29,10 @@ func NewPositionX(pos *types.Position) *PositionX {
 	return x
 }
 
-func (pos *PositionX) AddProfit(val fixedpoint.Value) {
-	pos.AccumulatedProfit = val
-	pos.historyProfits = append(pos.historyProfits, val)
+func (pos *PositionX) UpdateProfit(percent fixedpoint.Value, profitValue fixedpoint.Value) {
+	pos.AccumulatedProfit = percent
+	pos.AccumulatedProfitValue = profitValue
+	pos.historyProfits = append(pos.historyProfits, percent)
 }
 
 func (pos *PositionX) GetProfitValues() floats.Slice {

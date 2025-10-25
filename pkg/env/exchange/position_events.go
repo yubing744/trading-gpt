@@ -22,15 +22,16 @@ const (
 
 // PositionClosedEventData contains all the information about a closed position
 type PositionClosedEventData struct {
-	StrategyID        string      // ID of the strategy that managed this position
-	Symbol            string      // Trading pair symbol
-	EntryPrice        float64     // Price at which the position was opened
-	ExitPrice         float64     // Price at which the position was closed
-	Quantity          float64     // Position size
-	ProfitAndLoss     float64     // Profit or loss amount
-	CloseReason       string      // Reason for closing: "TakeProfit", "StopLoss", "Manual", "Liquidation", etc.
-	Timestamp         time.Time   // Time when the position was closed
-	RelatedMarketData interface{} // Optional market data snapshot around close time
+	StrategyID           string      // ID of the strategy that managed this position
+	Symbol               string      // Trading pair symbol
+	EntryPrice           float64     // Price at which the position was opened
+	ExitPrice            float64     // Price at which the position was closed
+	Quantity             float64     // Position size
+	ProfitAndLoss        float64     // Profit or loss amount (quote currency)
+	ProfitAndLossPercent float64     // Profit or loss percentage
+	CloseReason          string      // Reason for closing: "TakeProfit", "StopLoss", "Manual", "Liquidation", etc.
+	Timestamp            time.Time   // Time when the position was closed
+	RelatedMarketData    interface{} // Optional market data snapshot around close time
 }
 
 // NewPositionClosedEvent creates a new position closed event
@@ -51,7 +52,7 @@ func (data PositionClosedEventData) ToPrompts() []string {
 		"Entry Price: %.2f\n"+
 		"Exit Price: %.2f\n"+
 		"Quantity: %.6f\n"+
-		"%s: %.2f\n"+
+		"%s: %.2f (%.2f%%)\n"+
 		"Close Reason: %s\n"+
 		"Close Time: %s",
 		data.Symbol,
@@ -62,6 +63,7 @@ func (data PositionClosedEventData) ToPrompts() []string {
 		data.Quantity,
 		pnlStr,
 		data.ProfitAndLoss,
+		data.ProfitAndLossPercent,
 		data.CloseReason,
 		data.Timestamp.Format(time.RFC3339),
 	)
