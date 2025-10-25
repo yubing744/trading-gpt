@@ -592,6 +592,8 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 			ent.position.Dust = ent.position.IsDust(kline.GetClose())
 		}
 
+		ent.updatePositionFundRatios(ctx, kline.GetClose())
+
 		log.WithField("kline", kline).Info("kline closed")
 
 		// Auto cleanup unfilled limit orders before new decision cycle
@@ -654,6 +656,8 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 				}
 			}
 
+			ent.updatePositionFundRatios(ctx, fixedpoint.NewFromFloat(exitPrice))
+
 			// Emit the position closed event
 			go func() {
 				log.WithField("positionData", positionData).Info("Emitting position_closed event")
@@ -664,6 +668,15 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 				go func() {
 					time.Sleep(time.Second * 5)
 					log.WithField("position", position).Info("ExchangeEntity_Handle_PositionClose")
+
+					refPrice := fixedpoint.Zero
+					if ent.KLineWindow != nil && ent.KLineWindow.Len() > 0 {
+						refPrice = ent.KLineWindow.GetClose()
+					} else {
+						refPrice = fixedpoint.NewFromFloat(exitPrice)
+					}
+
+					ent.updatePositionFundRatios(ctx, refPrice)
 
 					ent.emitEvent(ch, ttypes.NewEvent("kline_changed", ent.KLineWindow))
 
@@ -846,6 +859,67 @@ func (ent *ExchangeEntity) setupIndicators() {
 
 func (ent *ExchangeEntity) emitEvent(ch chan ttypes.IEvent, evt ttypes.IEvent) {
 	ch <- evt
+}
+
+func clampRatio(val fixedpoint.Value) fixedpoint.Value {
+	if val.Compare(fixedpoint.One) > 0 {
+		return fixedpoint.One
+	}
+
+	if val.Compare(fixedpoint.Zero) < 0 {
+		return fixedpoint.Zero
+	}
+
+	return val
+}
+
+func (ent *ExchangeEntity) updatePositionFundRatios(ctx context.Context, referencePrice fixedpoint.Value) {
+	if ent.position == nil {
+		return
+	}
+
+	quoteCurrency := ent.position.QuoteCurrency
+	if quoteCurrency == "" {
+		ent.position.UpdateFundRatios(fixedpoint.Zero, fixedpoint.Zero)
+		return
+	}
+
+	calculator := bbgo.NewAccountValueCalculator(ent.session, quoteCurrency)
+
+	netValue, err := calculator.NetValue(ctx)
+	if err != nil {
+		log.WithError(err).Warn("failed to calculate account net value for ratios")
+		ent.position.UpdateFundRatios(fixedpoint.Zero, fixedpoint.Zero)
+		return
+	}
+
+	if netValue.IsZero() {
+		ent.position.UpdateFundRatios(fixedpoint.Zero, fixedpoint.Zero)
+		return
+	}
+
+	availableQuote, err := calculator.AvailableQuote(ctx)
+	if err != nil {
+		log.WithError(err).Warn("failed to calculate available quote for ratios")
+	}
+
+	remainingRatio := fixedpoint.Zero
+	if err == nil {
+		remainingRatio = clampRatio(availableQuote.Div(netValue))
+	}
+
+	baseQty := ent.position.GetBase().Abs()
+	exposure := fixedpoint.Zero
+	if !baseQty.IsZero() && !referencePrice.IsZero() {
+		exposure = baseQty.Mul(referencePrice)
+	}
+
+	positionRatio := fixedpoint.Zero
+	if !exposure.IsZero() {
+		positionRatio = clampRatio(exposure.Div(netValue))
+	}
+
+	ent.position.UpdateFundRatios(remainingRatio, positionRatio)
 }
 
 // cleanupLimitOrders clears all unfilled limit orders

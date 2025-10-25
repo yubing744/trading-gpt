@@ -12,6 +12,8 @@ type PositionX struct {
 	Dust                   bool
 	historyProfits         []fixedpoint.Value
 	AccumulatedProfitValue fixedpoint.Value
+	RemainingFundsRatio    fixedpoint.Value
+	PositionFundsRatio     fixedpoint.Value
 }
 
 func NewPositionX(pos *types.Position) *PositionX {
@@ -47,4 +49,9 @@ func (pos *PositionX) GetProfitValues() floats.Slice {
 
 func (pos *PositionX) GetHoldingPeriod() int {
 	return len(pos.historyProfits)
+}
+
+func (pos *PositionX) UpdateFundRatios(remaining fixedpoint.Value, position fixedpoint.Value) {
+	pos.RemainingFundsRatio = remaining
+	pos.PositionFundsRatio = position
 }
