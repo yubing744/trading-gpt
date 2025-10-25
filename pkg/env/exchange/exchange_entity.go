@@ -72,14 +72,6 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 			Description: "Open long position (supports market and limit orders; unfilled limit orders auto-cancel at next cycle)",
 			Args: []ttypes.ArgmentDesc{
 				{
-					Name:        "stop_loss_trigger_price",
-					Description: "Stop-loss trigger price",
-				},
-				{
-					Name:        "take_profit_trigger_price",
-					Description: "Take-profit trigger price",
-				},
-				{
 					Name:        "order_type",
 					Description: "Order type: market|limit (default: market)",
 				},
@@ -95,6 +87,18 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 					Name:        "post_only",
 					Description: "Post only: true|false (default: false, maker only)",
 				},
+				{
+					Name:        "quote_ratio",
+					Description: "Optional ratio (0-1] of available quote balance to use before leverage",
+				},
+				{
+					Name:        "stop_loss_trigger_price",
+					Description: "Stop-loss trigger price",
+				},
+				{
+					Name:        "take_profit_trigger_price",
+					Description: "Take-profit trigger price",
+				},
 			},
 			Samples: []ttypes.Sample{
 				{
@@ -105,7 +109,7 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 						"Analyze data, generate trading cmd",
 					},
 					Output: []string{
-						"Execute cmd: /open_long_position",
+						"Execute cmd: /open_long_position quote_ratio=0.3",
 					},
 				},
 			},
@@ -114,14 +118,6 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 			Name:        "open_short_position",
 			Description: "Open short position (supports market and limit orders; unfilled limit orders auto-cancel at next cycle)",
 			Args: []ttypes.ArgmentDesc{
-				{
-					Name:        "stop_loss_trigger_price",
-					Description: "Stop-loss trigger price",
-				},
-				{
-					Name:        "take_profit_trigger_price",
-					Description: "Take-profit trigger price",
-				},
 				{
 					Name:        "order_type",
 					Description: "Order type: market|limit (default: market)",
@@ -137,6 +133,18 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 				{
 					Name:        "post_only",
 					Description: "Post only: true|false (default: false, maker only)",
+				},
+				{
+					Name:        "quote_ratio",
+					Description: "Optional ratio (0-1] of available quote balance to use before leverage",
+				},
+				{
+					Name:        "stop_loss_trigger_price",
+					Description: "Stop-loss trigger price",
+				},
+				{
+					Name:        "take_profit_trigger_price",
+					Description: "Take-profit trigger price",
 				},
 			},
 			Samples: []ttypes.Sample{
@@ -155,7 +163,7 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 		},
 		{
 			Name:        "update_position",
-			Description: "Update position stop-loss/take-profit (supports market and limit orders; unfilled limit orders auto-cancel at next cycle)",
+			Description: "Update position stop-loss/take-profit",
 			Args: []ttypes.ArgmentDesc{
 				{
 					Name:        "stop_loss_trigger_price",
@@ -164,22 +172,6 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 				{
 					Name:        "take_profit_trigger_price",
 					Description: "Take-profit trigger price",
-				},
-				{
-					Name:        "order_type",
-					Description: "Order type: market|limit (default: market)",
-				},
-				{
-					Name:        "limit_price",
-					Description: "Limit price or expression (required if order_type=limit)",
-				},
-				{
-					Name:        "time_in_force",
-					Description: "Time in force: GTC|IOC|FOK (default: GTC)",
-				},
-				{
-					Name:        "post_only",
-					Description: "Post only: true|false (default: false, maker only)",
 				},
 			},
 			Samples: []ttypes.Sample{
@@ -386,6 +378,39 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 	if cmd == "open_long_position" || cmd == "open_short_position" || cmd == "update_position" {
 		side := ent.cmdToSide(cmd)
 
+		var quoteRatio *fixedpoint.Value
+		if cmd == "open_long_position" || cmd == "open_short_position" {
+			if ratioArg, ok := args["quote_ratio"]; ok {
+				raw := strings.TrimSpace(ratioArg)
+				if raw != "" {
+					isPercent := strings.HasSuffix(raw, "%")
+					if isPercent {
+						raw = strings.TrimSuffix(raw, "%")
+					}
+
+					val, err := fixedpoint.NewFromString(strings.TrimSpace(raw))
+					if err != nil {
+						return errors.Wrap(err, "invalid quote_ratio")
+					}
+
+					if isPercent {
+						val = val.Div(fixedpoint.NewFromInt(100))
+					}
+
+					if val.Compare(fixedpoint.Zero) <= 0 {
+						return errors.New("quote_ratio must be greater than zero")
+					}
+
+					if val.Compare(fixedpoint.One) > 0 {
+						return errors.New("quote_ratio must be less than or equal to one")
+					}
+
+					ratio := val
+					quoteRatio = &ratio
+				}
+			}
+		}
+
 		// Close opposite position if any
 		if !ent.position.IsDust(closePrice) {
 			if (side == types.SideTypeSell && ent.position.IsLong()) || (side == types.SideTypeBuy && ent.position.IsShort()) {
@@ -395,7 +420,7 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 					return errors.Wrap(err, "close existing position error")
 				}
 			} else {
-				if cmd == "open_long_position" || cmd == "open_short_position" {
+				if (cmd == "open_long_position" || cmd == "open_short_position") && quoteRatio == nil {
 					return errors.Errorf("existing %s position has the same direction with the signal", ent.symbol)
 				}
 			}
@@ -464,6 +489,17 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 			opts = append(opts, &PostOnlyOpt{
 				Enabled: strings.EqualFold(postOnly, "true"),
 			})
+		}
+
+		if quoteRatio != nil {
+			opts = append(opts, &QuoteRatioOpt{
+				Value: *quoteRatio,
+			})
+
+			log.
+				WithField("ratio", quoteRatio.Float64()).
+				WithField("symbol", ent.symbol).
+				Debug("apply quote_ratio sizing")
 		}
 
 		// Validation: order_type=limit requires limit_price
@@ -852,6 +888,10 @@ type TakeProfitPrice struct {
 	Value fixedpoint.Value
 }
 
+type QuoteRatioOpt struct {
+	Value fixedpoint.Value
+}
+
 type OrderTypeOpt struct {
 	Type types.OrderType
 }
@@ -869,7 +909,20 @@ type PostOnlyOpt struct {
 }
 
 func (s *ExchangeEntity) OpenPosition(ctx context.Context, side types.SideType, closePrice fixedpoint.Value, args ...interface{}) error {
-	quantity := s.calculateQuantity(ctx, closePrice, side)
+	var quoteRatio *fixedpoint.Value
+	filteredArgs := make([]interface{}, 0, len(args))
+
+	for _, arg := range args {
+		switch val := arg.(type) {
+		case *QuoteRatioOpt:
+			r := val.Value
+			quoteRatio = &r
+		default:
+			filteredArgs = append(filteredArgs, arg)
+		}
+	}
+
+	quantity := s.calculateQuantity(ctx, closePrice, side, quoteRatio)
 
 	for {
 		if quantity.Compare(s.position.Market.MinQuantity) < 0 {
@@ -878,7 +931,7 @@ func (s *ExchangeEntity) OpenPosition(ctx context.Context, side types.SideType, 
 
 		orderForm := s.generateOrderForm(side, quantity, types.SideEffectTypeMarginBuy)
 
-		for _, arg := range args {
+		for _, arg := range filteredArgs {
 			switch val := arg.(type) {
 			case *StopLossPrice:
 				orderForm.StopPrice = val.Value
@@ -1097,11 +1150,21 @@ func (s *ExchangeEntity) generateOrderForm(side types.SideType, quantity fixedpo
 }
 
 // calculateQuantity returns leveraged quantity
-func (s *ExchangeEntity) calculateQuantity(ctx context.Context, currentPrice fixedpoint.Value, side types.SideType) fixedpoint.Value {
+func (s *ExchangeEntity) calculateQuantity(ctx context.Context, currentPrice fixedpoint.Value, side types.SideType, quoteRatio *fixedpoint.Value) fixedpoint.Value {
 	quoteQty, err := bbgo.CalculateQuoteQuantity(ctx, s.session, s.position.Market.QuoteCurrency, s.leverage)
 	if err != nil {
 		log.WithError(err).Errorf("can not update %s quote balance from exchange", s.symbol)
 		return fixedpoint.Zero
+	}
+
+	if quoteRatio != nil && quoteRatio.Compare(fixedpoint.Zero) > 0 {
+		ratio := *quoteRatio
+		if ratio.Compare(fixedpoint.One) > 0 {
+			log.WithField("ratio", ratio.Float64()).Warn("quote_ratio greater than one detected; clamping to 1")
+			ratio = fixedpoint.One
+		}
+
+		quoteQty = quoteQty.Mul(ratio)
 	}
 
 	if side == types.SideTypeSell {
