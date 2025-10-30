@@ -644,6 +644,9 @@ func (s *Strategy) handlePositionChanged(_ctx context.Context, session ttypes.IS
 
 	msg := "There are currently no open positions"
 
+	remainingPercent := position.RemainingFundsRatio.Float64() * 100
+	positionPercent := position.PositionFundsRatio.Float64() * 100
+
 	kline, ok := s.getKline(session)
 	if ok {
 		if position.IsOpened(kline.GetClose()) {
@@ -678,6 +681,10 @@ func (s *Strategy) handlePositionChanged(_ctx context.Context, session ttypes.IS
 				utils.JoinFloatSlicePercentage([]float64(profits), " "),
 				position.GetHoldingPeriod())
 		}
+
+		msg = msg + fmt.Sprintf("\nAvailable quote capital: %.2f%% of total equity; current position exposure: %.2f%%.",
+			remainingPercent,
+			positionPercent)
 
 		session.SetAttribute("position_msg", &ttypes.Message{
 			Text: msg,
