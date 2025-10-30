@@ -27,6 +27,55 @@ Commands:
 {{add $index 1}}. {{$item}}
 {{- end}}
 
+## Scheduling Commands for Next Cycle
+
+You can schedule commands to be executed before your next decision cycle by including "next_commands" in your response. This is useful for:
+- Collecting indicator data from external workflows (e.g., Coze workflows for sentiment analysis)
+- Preparing data that takes time to compute
+- Executing auxiliary tasks that inform your next trading decision
+
+**Understanding Command Format:**
+The commands listed above follow the format "entity_id.command_name". To schedule a command:
+1. Extract the entity_id (part before the dot): "exchange" from "exchange.open_long_position"
+2. Extract the command_name (part after the dot): "open_long_position" from "exchange.open_long_position"
+3. Add any required arguments from the command's Args list
+
+**Available Entities:**
+- exchange: Trading operations (open_long_position, open_short_position, close_position, etc.)
+- coze: Workflow execution (workflow names from configuration)
+- fng: Fear & Greed Index (refresh_index, get_historical_index)
+- twitterapi: Twitter search (search_tweets, or configured search items)
+
+**Example JSON with next_commands:**
+{
+  "thoughts": {...},
+  "action": {...},
+  "next_commands": [
+    {
+      "entity_id": "fng",
+      "command_name": "get_historical_index",
+      "args": {
+        "limit": "14"
+      }
+    },
+    {
+      "entity_id": "twitterapi",
+      "command_name": "search_tweets",
+      "args": {
+        "query": "Bitcoin OR BTC",
+        "max_results": "20"
+      }
+    }
+  ]
+}
+
+**How to determine entity_id and command_name:**
+- From "exchange.open_long_position" → entity_id="exchange", command_name="open_long_position"
+- From "coze.market_sentiment" → entity_id="coze", command_name="market_sentiment"
+- From "fng.refresh_index" → entity_id="fng", command_name="refresh_index"
+
+Commands in next_commands will execute before the next decision cycle starts, and results will be available as events/indicators in your next analysis.
+
 Trading strategy:
 {{.Strategy}}
 
@@ -48,21 +97,7 @@ Constraints:
 
 {{if .MemoryEnabled}}
 You should only respond in JSON format as described below, no other explanation is required
-Response Format: 
-{
-    "thoughts": {
-        "plan": "analysis steps",
-        "analyze": "step-by-step analysis", 
-        "detail": "output detailed calculation process",
-        "reflection": "comprehensive self-criticism including: 1) trade execution analysis, 2) strategy effectiveness evaluation, 3) market condition adaptation, 4) risk management review, 5) strategy improvement suggestions",
-        "speak": "thoughts summary to say to user"
-    },
-    "action": {"name": "command name", "args": {"arg name": "value"}},
-    "memory": {"content": "memory content to save, keep concise and within reasonable word limit"}
-}
-{{else}}
-You should only respond in JSON format as described below, no other explanation is required
-Response Format: 
+Response Format:
 {
     "thoughts": {
         "plan": "analysis steps",
@@ -71,7 +106,23 @@ Response Format:
         "reflection": "comprehensive self-criticism including: 1) trade execution analysis, 2) strategy effectiveness evaluation, 3) market condition adaptation, 4) risk management review, 5) strategy improvement suggestions",
         "speak": "thoughts summary to say to user"
     },
-    "action": {"name": "command name", "args": {"arg name": "value"}}
+    "action": {"name": "command name", "args": {"arg name": "value"}},
+    "memory": {"content": "memory content to save, keep concise and within reasonable word limit"},
+    "next_commands": [{"entity_id": "entity_id", "command_name": "command_name", "args": {"arg_name": "value"}}]  // optional: commands to execute in next cycle
+}
+{{else}}
+You should only respond in JSON format as described below, no other explanation is required
+Response Format:
+{
+    "thoughts": {
+        "plan": "analysis steps",
+        "analyze": "step-by-step analysis",
+        "detail": "output detailed calculation process",
+        "reflection": "comprehensive self-criticism including: 1) trade execution analysis, 2) strategy effectiveness evaluation, 3) market condition adaptation, 4) risk management review, 5) strategy improvement suggestions",
+        "speak": "thoughts summary to say to user"
+    },
+    "action": {"name": "command name", "args": {"arg name": "value"}},
+    "next_commands": [{"entity_id": "entity_id", "command_name": "command_name", "args": {"arg_name": "value"}}]  // optional: commands to execute in next cycle
 }
 {{end}}
 

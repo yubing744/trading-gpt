@@ -81,6 +81,9 @@ type Strategy struct {
 	memoryManager *memory.MemoryManager
 	memoryEnabled bool
 	currentMemory string
+
+	// command system
+	commandMemory *memory.CommandMemory
 }
 
 // ID should return the identity of this strategy
@@ -171,6 +174,12 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo.OrderExecutor, se
 
 	// Setup Memory
 	err = s.setupMemory(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Setup Commands
+	err = s.setupCommands(ctx)
 	if err != nil {
 		return err
 	}
@@ -310,6 +319,23 @@ func (s *Strategy) setupMemory(ctx context.Context) error {
 	} else {
 		s.memoryEnabled = false
 		log.Info("Memory system disabled")
+	}
+
+	return nil
+}
+
+func (s *Strategy) setupCommands(ctx context.Context) error {
+	// Initialize command memory manager if commands are enabled
+	if s.Commands.Enabled {
+		// Set default values if not configured
+		if s.Commands.CommandPath == "" {
+			s.Commands.CommandPath = "memory-bank/commands.json"
+		}
+
+		s.commandMemory = memory.NewCommandMemory(s.Commands.CommandPath)
+		log.Info("Command system enabled")
+	} else {
+		log.Info("Command system disabled")
 	}
 
 	return nil
@@ -490,6 +516,11 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 			// Process memory output if memory is enabled
 			if s.memoryEnabled && s.memoryManager != nil && result.Memory != nil {
 				s.processMemoryOutput(ctx, chatSession, result.Memory)
+			}
+
+			// Process next_commands if command system is enabled
+			if s.commandMemory != nil && result.NextCommands != nil && len(result.NextCommands) > 0 {
+				s.processNextCommands(ctx, chatSession, result.NextCommands)
 			}
 		} else {
 			s.replyMsg(ctx, chatSession, resultText)
@@ -693,6 +724,11 @@ func (s *Strategy) handlePositionChanged(_ctx context.Context, session ttypes.IS
 }
 
 func (s *Strategy) handleUpdateFinish(ctx context.Context, session ttypes.ISession) {
+	// Execute pending commands from previous cycle before collecting new data
+	if s.commandMemory != nil {
+		s.executeNextCycleCommands(ctx, session)
+	}
+
 	tempMsgs, ok := s.popMsgs(ctx, session)
 	log.WithField("tempMsgs", tempMsgs).Info("session tmp msgs")
 
@@ -1023,4 +1059,133 @@ func (s *Strategy) processMemoryOutput(ctx context.Context, chatSession ttypes.I
 		// Normal save case
 		s.replyMsg(ctx, chatSession, fmt.Sprintf("💾 Memory saved: %s", memory.Content))
 	}
+}
+
+// executeNextCycleCommands executes pending commands from previous cycle
+func (s *Strategy) executeNextCycleCommands(ctx context.Context, session ttypes.ISession) {
+	commands, err := s.commandMemory.LoadPendingCommands()
+	if err != nil {
+		log.WithError(err).Warn("Failed to load pending commands")
+		return
+	}
+
+	if len(commands) == 0 {
+		return
+	}
+
+	s.replyMsg(ctx, session, fmt.Sprintf("📋 Executing %d pending commands from previous cycle...", len(commands)))
+
+	for _, cmd := range commands {
+		if cmd.Status != "pending" && !(cmd.Status == "failed" && cmd.RetryCount < cmd.MaxRetries) {
+			continue
+		}
+
+		// Execute command with timeout
+		err := s.executeCommand(ctx, session, cmd)
+		if err != nil {
+			log.WithError(err).WithField("command", cmd).Error("Command execution failed")
+			cmd.Status = "failed"
+			cmd.Error = err.Error()
+			cmd.RetryCount++
+
+			if cmd.RetryCount >= cmd.MaxRetries {
+				s.replyMsg(ctx, session, fmt.Sprintf("❌ Command failed permanently: %s.%s - %s", cmd.EntityID, cmd.CommandName, err.Error()))
+			} else {
+				s.replyMsg(ctx, session, fmt.Sprintf("⚠️ Command failed (retry %d/%d): %s.%s", cmd.RetryCount, cmd.MaxRetries, cmd.EntityID, cmd.CommandName))
+			}
+		} else {
+			cmd.Status = "completed"
+			s.replyMsg(ctx, session, fmt.Sprintf("✅ Command executed successfully: %s.%s", cmd.EntityID, cmd.CommandName))
+		}
+
+		cmd.UpdatedAt = time.Now()
+	}
+
+	// Save updated command statuses
+	if err := s.commandMemory.SaveCommands(commands); err != nil {
+		log.WithError(err).Error("Failed to save command statuses")
+	}
+
+	// Archive old completed/failed commands
+	if err := s.commandMemory.ArchiveCompletedCommands(); err != nil {
+		log.WithError(err).Warn("Failed to archive commands")
+	}
+}
+
+// executeCommand executes a single command with timeout
+func (s *Strategy) executeCommand(ctx context.Context, session ttypes.ISession, cmd *memory.PendingCommand) error {
+	// Set 30-second timeout for command execution
+	cmdCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	// Build full command name
+	fullCommandName := cmd.EntityID + "." + cmd.CommandName
+
+	// Execute via world.SendCommand
+	return s.world.SendCommand(cmdCtx, fullCommandName, cmd.Args)
+}
+
+// processNextCommands processes next_commands from AI output and saves them for next cycle
+func (s *Strategy) processNextCommands(ctx context.Context, session ttypes.ISession, nextCommands []*ttypes.NextCommand) {
+	if len(nextCommands) == 0 {
+		return
+	}
+
+	s.replyMsg(ctx, session, fmt.Sprintf("📝 Scheduling %d commands for next cycle...", len(nextCommands)))
+
+	pendingCommands := make([]*memory.PendingCommand, 0)
+
+	for _, nc := range nextCommands {
+		// Validate entity exists
+		entity := s.world.GetEntity(nc.EntityID)
+		if entity == nil {
+			log.WithField("entityID", nc.EntityID).Warn("Entity not found, skipping command")
+			s.replyMsg(ctx, session, fmt.Sprintf("⚠️ Skipping command: entity '%s' not found", nc.EntityID))
+			continue
+		}
+
+		// Optional: Validate command is supported by entity
+		if !s.isCommandSupported(entity, nc.CommandName) {
+			log.WithField("command", nc.CommandName).WithField("entityID", nc.EntityID).Warn("Command not supported by entity")
+			s.replyMsg(ctx, session, fmt.Sprintf("⚠️ Skipping command: '%s' not supported by entity '%s'", nc.CommandName, nc.EntityID))
+			continue
+		}
+
+		// Create pending command
+		cmd := &memory.PendingCommand{
+			ID:          uuid.NewString(),
+			EntityID:    nc.EntityID,
+			CommandName: nc.CommandName,
+			Args:        nc.Args,
+			Status:      "pending",
+			RetryCount:  0,
+			MaxRetries:  1, // Default retry once
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		}
+
+		pendingCommands = append(pendingCommands, cmd)
+	}
+
+	// Save commands to file
+	if len(pendingCommands) > 0 {
+		err := s.commandMemory.SaveCommands(pendingCommands)
+		if err != nil {
+			log.WithError(err).Error("Failed to save next commands")
+			s.replyMsg(ctx, session, "⚠️ Failed to save commands for next cycle")
+		} else {
+			s.replyMsg(ctx, session, fmt.Sprintf("💾 Saved %d commands for next cycle", len(pendingCommands)))
+		}
+	}
+}
+
+// isCommandSupported checks if an entity supports a specific command
+func (s *Strategy) isCommandSupported(entity env.IEntity, commandName string) bool {
+	actions := entity.Actions()
+	for _, action := range actions {
+		if action.Name == commandName {
+			return true
+		}
+	}
+	return false
 }

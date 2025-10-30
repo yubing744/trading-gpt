@@ -19,6 +19,7 @@ type TwitterAPIEntity struct {
 	twitterClient twitterapi.ITwitterClient
 	config        *config.TwitterAPIEntityConfig
 	timers        map[string]*time.Ticker
+	eventChannel  chan types.IEvent // Store event channel for command execution
 }
 
 // NewTwitterAPIEntity creates a new instance of TwitterAPIEntity with the given ID, Twitter client, and configuration.
@@ -38,18 +39,177 @@ func (e *TwitterAPIEntity) GetID() string {
 	return e.id
 }
 
-// Actions returns a list of action descriptors.
+// Actions returns a list of action descriptors for available Twitter searches.
 func (e *TwitterAPIEntity) Actions() []*types.ActionDesc {
-	return []*types.ActionDesc{}
+	actions := make([]*types.ActionDesc, 0)
+
+	// Add configured search items as available actions
+	for _, item := range e.config.SearchItems {
+		action := &types.ActionDesc{
+			Name:        item.Name,
+			Description: item.Description,
+			Args: []types.ArgmentDesc{
+				{
+					Name:        "query",
+					Description: "Search query (optional, uses configured query if not specified)",
+				},
+				{
+					Name:        "query_type",
+					Description: "Query type: Top|Latest (optional, uses configured type if not specified)",
+				},
+				{
+					Name:        "max_results",
+					Description: "Maximum number of results to return (optional, uses configured max if not specified)",
+				},
+			},
+		}
+		actions = append(actions, action)
+	}
+
+	// Add a generic search action
+	actions = append(actions, &types.ActionDesc{
+		Name:        "search_tweets",
+		Description: "Search Twitter for tweets matching a query",
+		Args: []types.ArgmentDesc{
+			{
+				Name:        "query",
+				Description: "Search query (required)",
+			},
+			{
+				Name:        "query_type",
+				Description: "Query type: Top|Latest (default: Top)",
+			},
+			{
+				Name:        "max_results",
+				Description: "Maximum number of results to return (default: 10, max: 100)",
+			},
+		},
+	})
+
+	return actions
 }
 
 // HandleCommand handles a command directed at the entity.
 func (e *TwitterAPIEntity) HandleCommand(ctx context.Context, cmd string, args map[string]string) error {
+	if e.eventChannel == nil {
+		return fmt.Errorf("event channel not initialized, command can only be executed during Run()")
+	}
+
+	// Check if command matches a configured search item
+	for _, item := range e.config.SearchItems {
+		if item.Name == cmd {
+			return e.executeConfiguredSearch(ctx, item, args)
+		}
+	}
+
+	// Check if command is the generic search_tweets
+	if cmd == "search_tweets" {
+		return e.executeGenericSearch(ctx, args)
+	}
+
+	return fmt.Errorf("unknown command: %s", cmd)
+}
+
+// executeConfiguredSearch executes a configured search item with optional parameter overrides
+func (e *TwitterAPIEntity) executeConfiguredSearch(ctx context.Context, item *config.TwitterAPISearchItem, args map[string]string) error {
+	// Use configured values as defaults, override with args if provided
+	query := item.Query
+	if providedQuery, ok := args["query"]; ok && providedQuery != "" {
+		query = providedQuery
+	}
+
+	queryType := item.QueryType
+	if providedType, ok := args["query_type"]; ok && providedType != "" {
+		queryType = providedType
+	}
+
+	maxResults := item.MaxResults
+	if providedMax, ok := args["max_results"]; ok && providedMax != "" {
+		parsedMax, err := fmt.Sscanf(providedMax, "%d", &maxResults)
+		if err != nil || parsedMax != 1 {
+			return fmt.Errorf("invalid max_results parameter: %s", providedMax)
+		}
+	}
+
+	log.WithField("query", query).WithField("queryType", queryType).Info("Executing configured Twitter search command")
+
+	// Execute search
+	req := &twitterapi.SearchRequest{
+		Query:     query,
+		QueryType: queryType,
+	}
+
+	response, err := e.twitterClient.SearchTweets(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to search tweets: %w", err)
+	}
+
+	// Format and send results
+	content := e.formatTweets(response.Tweets, maxResults)
+	event := NewTwitterAPIEvent(item.Name, item.Description, content)
+	e.eventChannel <- event
+
+	log.WithField("tweetCount", len(response.Tweets)).Info("Twitter search command executed successfully")
+	return nil
+}
+
+// executeGenericSearch executes a generic Twitter search with parameters from args
+func (e *TwitterAPIEntity) executeGenericSearch(ctx context.Context, args map[string]string) error {
+	// Query is required
+	query, ok := args["query"]
+	if !ok || query == "" {
+		return fmt.Errorf("query parameter is required for search_tweets command")
+	}
+
+	// Query type defaults to "Top"
+	queryType := "Top"
+	if providedType, ok := args["query_type"]; ok && providedType != "" {
+		queryType = providedType
+	}
+
+	// Max results defaults to 10
+	maxResults := 10
+	if providedMax, ok := args["max_results"]; ok && providedMax != "" {
+		parsedMax, err := fmt.Sscanf(providedMax, "%d", &maxResults)
+		if err != nil || parsedMax != 1 {
+			return fmt.Errorf("invalid max_results parameter: %s", providedMax)
+		}
+		if maxResults > 100 {
+			maxResults = 100
+		}
+		if maxResults < 1 {
+			maxResults = 1
+		}
+	}
+
+	log.WithField("query", query).WithField("queryType", queryType).Info("Executing generic Twitter search command")
+
+	// Execute search
+	req := &twitterapi.SearchRequest{
+		Query:     query,
+		QueryType: queryType,
+	}
+
+	response, err := e.twitterClient.SearchTweets(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to search tweets: %w", err)
+	}
+
+	// Format and send results
+	content := e.formatTweets(response.Tweets, maxResults)
+	description := fmt.Sprintf("Twitter search results for: %s", query)
+	event := NewTwitterAPIEvent("search_tweets", description, content)
+	e.eventChannel <- event
+
+	log.WithField("tweetCount", len(response.Tweets)).Info("Generic Twitter search command executed successfully")
 	return nil
 }
 
 // Run starts the entity's main loop and sets up scheduled tasks based on the entity's configuration.
 func (e *TwitterAPIEntity) Run(ctx context.Context, ch chan types.IEvent) {
+	// Store event channel for command execution
+	e.eventChannel = ch
+
 	log.Info("twitterapi_run")
 
 	for _, item := range e.config.SearchItems {
