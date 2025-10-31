@@ -23,6 +23,22 @@ import (
 
 var log = logrus.WithField("entity", "exchange")
 
+const (
+	// Dynamic indicator limits
+	MaxDynamicIndicatorsPerCycle = 5
+	DynamicIndicatorCycleDuration = 15 * time.Minute
+
+	// Default parameter values
+	DefaultInterval = "5m"
+
+	DefaultWindowSizeRSI  = 14
+	DefaultWindowSizeBOLL = 20
+	DefaultWindowSizeSMA  = 20
+	DefaultWindowSizeATR  = 14
+
+	DefaultBandWidth = 2.0
+)
+
 type ExchangeEntity struct {
 	symbol   string
 	interval types.Interval
@@ -38,8 +54,10 @@ type ExchangeEntity struct {
 	Indicators  []*ExchangeIndicator
 	KLineWindow *types.KLineWindow
 
-	vm           *goja.Runtime
-	eventChannel atomic.Value // Store chan ttypes.IEvent for thread-safe access
+	vm                        *goja.Runtime
+	eventChannel              atomic.Value // Store chan ttypes.IEvent for thread-safe access
+	dynamicIndicatorCount     atomic.Int32 // Track dynamic indicator requests per cycle
+	dynamicIndicatorCycleTime time.Time    // Track current cycle start time
 }
 
 func NewExchangeEntity(
@@ -248,6 +266,10 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 				{
 					Name:        "band_width",
 					Description: "Band width for BOLL indicator (default: 2.0)",
+				},
+				{
+					Name:        "name",
+					Description: "Optional custom name for the indicator (e.g., 'fast_rsi', 'tight_boll')",
 				},
 			},
 			Samples: []ttypes.Sample{
@@ -597,11 +619,79 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 	return nil
 }
 
+// getDefaultWindowSize returns the default window size for an indicator type
+func (ent *ExchangeEntity) getDefaultWindowSize(indicatorType string) int {
+	switch indicatorType {
+	case "RSI", "ATR", "ATRP", "VR", "EMV":
+		return DefaultWindowSizeRSI
+	case "BOLL", "SMA", "EWMA", "VWMA":
+		return DefaultWindowSizeSMA
+	default:
+		return DefaultWindowSizeRSI
+	}
+}
+
+// isIndicatorMatch checks if a pre-configured indicator matches the requested parameters
+func (ent *ExchangeEntity) isIndicatorMatch(
+	indicator *ExchangeIndicator,
+	targetType string,
+	targetInterval string,
+	targetWindowSize int,
+	targetBandWidth float64,
+) bool {
+	// Check type
+	if string(indicator.Type) != targetType {
+		return false
+	}
+
+	// Check interval
+	configInterval := indicator.Config.GetString("interval", "")
+	if configInterval != targetInterval {
+		return false
+	}
+
+	// Check window_size
+	configWindowSize := indicator.Config.GetInt("window_size", ent.getDefaultWindowSize(targetType))
+	if targetWindowSize > 0 && configWindowSize != targetWindowSize {
+		return false
+	}
+
+	// For BOLL, check band_width
+	if targetType == "BOLL" {
+		configBandWidth := indicator.Config.GetFloat("band_width", DefaultBandWidth)
+		// Use small epsilon for float comparison
+		diff := configBandWidth - targetBandWidth
+		if targetBandWidth > 0 && (diff > 0.01 || diff < -0.01) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// resetDynamicIndicatorCount resets the dynamic indicator counter for new cycle
+func (ent *ExchangeEntity) resetDynamicIndicatorCount() {
+	now := time.Now()
+	if now.Sub(ent.dynamicIndicatorCycleTime) > DynamicIndicatorCycleDuration {
+		ent.dynamicIndicatorCount.Store(0)
+		ent.dynamicIndicatorCycleTime = now
+		log.Debug("Reset dynamic indicator counter for new cycle")
+	}
+}
+
 // executeGetIndicator dynamically calculates and returns indicator data
 func (ent *ExchangeEntity) executeGetIndicator(ctx context.Context, args map[string]string) error {
 	ch, err := ent.getEventChannel()
 	if err != nil {
 		return err
+	}
+
+	// Fix #4: Check frequency limit
+	ent.resetDynamicIndicatorCount()
+	count := ent.dynamicIndicatorCount.Add(1)
+	if count > MaxDynamicIndicatorsPerCycle {
+		return fmt.Errorf("too many dynamic indicator requests in this cycle (limit: %d, current: %d)",
+			MaxDynamicIndicatorsPerCycle, count)
 	}
 
 	// Parse required parameter: type
@@ -610,27 +700,67 @@ func (ent *ExchangeEntity) executeGetIndicator(ctx context.Context, args map[str
 		return fmt.Errorf("type parameter is required")
 	}
 
+	// Validate indicator type
+	validTypes := map[string]bool{
+		"RSI": true, "BOLL": true, "SMA": true, "EWMA": true,
+		"VWMA": true, "ATR": true, "ATRP": true, "VR": true, "EMV": true,
+	}
+	if !validTypes[indicatorType] {
+		return fmt.Errorf("unsupported indicator type: %s (valid types: RSI, BOLL, SMA, EWMA, VWMA, ATR, ATRP, VR, EMV)", indicatorType)
+	}
+
 	// Parse optional parameters with defaults
 	interval := strings.TrimSpace(args["interval"])
 	if interval == "" {
-		interval = "5m"
+		interval = DefaultInterval
 	}
 
+	// Fix #2: Improve parameter validation
 	windowSize := 0
 	if ws, ok := args["window_size"]; ok && ws != "" {
-		fmt.Sscanf(ws, "%d", &windowSize)
+		n, err := fmt.Sscanf(ws, "%d", &windowSize)
+		if err != nil || n != 1 {
+			return fmt.Errorf("invalid window_size parameter: %s (must be a positive integer)", ws)
+		}
+		if windowSize <= 0 {
+			return fmt.Errorf("window_size must be positive, got: %d", windowSize)
+		}
+	} else {
+		windowSize = ent.getDefaultWindowSize(indicatorType)
 	}
 
-	bandWidth := 2.0
+	bandWidth := DefaultBandWidth
 	if bw, ok := args["band_width"]; ok && bw != "" {
-		fmt.Sscanf(bw, "%f", &bandWidth)
+		n, err := fmt.Sscanf(bw, "%f", &bandWidth)
+		if err != nil || n != 1 {
+			return fmt.Errorf("invalid band_width parameter: %s (must be a positive number)", bw)
+		}
+		if bandWidth <= 0 {
+			return fmt.Errorf("band_width must be positive, got: %.2f", bandWidth)
+		}
 	}
+
+	// Fix #5: Custom name support
+	customName := strings.TrimSpace(args["name"])
 
 	log.WithField("type", indicatorType).
 		WithField("interval", interval).
 		WithField("windowSize", windowSize).
 		WithField("bandWidth", bandWidth).
+		WithField("customName", customName).
 		Info("Executing get_indicator command")
+
+	// Fix #1: Check for duplicate pre-configured indicators
+	for _, indicator := range ent.Indicators {
+		if ent.isIndicatorMatch(indicator, indicatorType, interval, windowSize, bandWidth) {
+			log.WithField("name", indicator.Name).
+				Info("Found matching pre-configured indicator, reusing instead of creating new one")
+
+			// Emit existing indicator data
+			ch <- ttypes.NewEvent("indicator_changed", indicator)
+			return nil
+		}
+	}
 
 	// Get kline data for the specified interval
 	dataStore, ok := ent.session.MarketDataStore(ent.symbol)
@@ -647,15 +777,20 @@ func (ent *ExchangeEntity) executeGetIndicator(ctx context.Context, args map[str
 		return fmt.Errorf("no kline data available for interval %s", interval)
 	}
 
+	// Fix #3: Check data sufficiency
+	requiredDataPoints := windowSize
+	if len(*klines) < requiredDataPoints {
+		return fmt.Errorf("insufficient kline data for %s: need at least %d data points, got %d (interval: %s)",
+			indicatorType, requiredDataPoints, len(*klines), interval)
+	}
+
 	// Create indicator configuration
 	indicatorCfg := &config.IndicatorConfig{
 		Type:   config.IndicatorType(indicatorType),
 		Params: make(map[string]string),
 	}
 	indicatorCfg.Params["interval"] = interval
-	if windowSize > 0 {
-		indicatorCfg.Params["window_size"] = fmt.Sprintf("%d", windowSize)
-	}
+	indicatorCfg.Params["window_size"] = fmt.Sprintf("%d", windowSize)
 	if indicatorType == "BOLL" {
 		indicatorCfg.Params["band_width"] = fmt.Sprintf("%.1f", bandWidth)
 	}
@@ -664,17 +799,24 @@ func (ent *ExchangeEntity) executeGetIndicator(ctx context.Context, args map[str
 	indicators := ent.session.StandardIndicatorSet(ent.symbol)
 
 	// Create dynamic indicator name
-	indicatorName := fmt.Sprintf("%s_%s_dynamic", strings.ToLower(indicatorType), interval)
+	var indicatorName string
+	if customName != "" {
+		indicatorName = customName
+	} else {
+		indicatorName = fmt.Sprintf("%s_%s_w%d_dynamic", strings.ToLower(indicatorType), interval, windowSize)
+		if indicatorType == "BOLL" {
+			indicatorName = fmt.Sprintf("%s_%s_w%d_b%.1f_dynamic",
+				strings.ToLower(indicatorType), interval, windowSize, bandWidth)
+		}
+	}
 
 	// Create and calculate the indicator
 	dynamicIndicator := NewExchangeIndicator(indicatorName, indicatorCfg, indicators)
 
-	// Feed historical kline data to the indicator (this updates the indicator)
-	// Note: The indicator is already subscribed to the kline stream in NewExchangeIndicator
-
 	log.WithField("name", indicatorName).
 		WithField("type", indicatorType).
 		WithField("klines", len(*klines)).
+		WithField("requestCount", count).
 		Info("Dynamic indicator created and calculated")
 
 	// Emit the calculated indicator data
@@ -687,6 +829,10 @@ func (ent *ExchangeEntity) executeGetIndicator(ctx context.Context, args map[str
 func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 	// Store event channel for command execution using atomic operation
 	ent.eventChannel.Store(ch)
+
+	// Initialize dynamic indicator tracking
+	ent.dynamicIndicatorCycleTime = time.Now()
+	ent.dynamicIndicatorCount.Store(0)
 
 	session := ent.session
 
