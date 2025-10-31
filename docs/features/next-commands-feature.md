@@ -159,7 +159,28 @@ func (e *TwitterAPIEntity) Actions() []*types.ActionDesc {
 ```
 
 **Exchange Entity:**
-The Exchange entity already has comprehensive command support for trading operations like `open_long_position`, `open_short_position`, `close_position`, `update_position`, etc.
+The Exchange entity has comprehensive command support for trading operations and technical indicator queries:
+
+**Trading Commands:**
+- `open_long_position` - Open long position with various order types (market/limit)
+- `open_short_position` - Open short position with various order types (market/limit)
+- `close_position` - Close position (full or partial)
+- `update_position` - Update position stop-loss/take-profit
+- `no_action` - No action to be taken
+
+**Dynamic Indicator Query:**
+```go
+{
+    Name:        "get_indicator",
+    Description: "Dynamically calculate and retrieve technical indicator data for any timeframe",
+    Args: []types.ArgmentDesc{
+        {Name: "type", Description: "Indicator type (required): RSI, BOLL, SMA, EWMA, VWMA, ATR, ATRP, VR, EMV"},
+        {Name: "interval", Description: "Time interval (default: 5m): 1m, 5m, 15m, 30m, 1h, 4h, 1d, etc."},
+        {Name: "window_size", Description: "Window size for calculation (default varies by indicator type)"},
+        {Name: "band_width", Description: "Band width for BOLL indicator (default: 2.0)"},
+    },
+}
+```
 
 ## Configuration
 
@@ -238,6 +259,263 @@ pending → (execute) → completed
               ↓ (max retries)
               permanently failed (archived)
 ```
+
+## Dynamic Technical Indicator Queries
+
+### Overview
+
+The Exchange entity's `get_indicator` command enables AI to dynamically request technical indicator calculations for **any timeframe and parameter combination**, without being limited to pre-configured indicators. This provides unprecedented flexibility for multi-timeframe analysis and adaptive strategy development.
+
+### Key Features
+
+- **No Configuration Required**: Calculate indicators on-demand without pre-defining them in config files
+- **Any Timeframe**: Support for all exchange timeframes (1m, 5m, 15m, 30m, 1h, 4h, 1d, etc.)
+- **Flexible Parameters**: Adjust window sizes, band widths, and other parameters dynamically
+- **Multi-Timeframe Analysis**: Request same indicator across different timeframes for trend confirmation
+- **Parameter Optimization**: Test different parameter combinations to find optimal settings
+
+### Supported Indicators
+
+| Indicator | Type Code | Default Window | Parameters |
+|-----------|-----------|----------------|------------|
+| Relative Strength Index | `RSI` | 14 | `window_size` |
+| Bollinger Bands | `BOLL` | 20 | `window_size`, `band_width` (default: 2.0) |
+| Simple Moving Average | `SMA` | 20 | `window_size` |
+| Exponential Moving Average | `EWMA` | 20 | `window_size` |
+| Volume Weighted MA | `VWMA` | 20 | `window_size` |
+| Average True Range | `ATR` | 14 | `window_size` |
+| ATR Percentage | `ATRP` | 14 | `window_size` |
+| Volume Ratio | `VR` | 14 | `window_size` |
+| Ease of Movement | `EMV` | 14 | `window_size` |
+
+### Command Structure
+
+```json
+{
+  "entity_id": "exchange",
+  "command_name": "get_indicator",
+  "args": {
+    "type": "RSI",           // Required: indicator type
+    "interval": "15m",       // Optional: default 5m
+    "window_size": "14",     // Optional: default varies by type
+    "band_width": "2.0"      // Optional: BOLL only, default 2.0
+  }
+}
+```
+
+### Usage Scenarios
+
+#### Scenario 1: Multi-Timeframe Trend Confirmation
+
+AI wants to confirm a trend by checking RSI across short, medium, and long timeframes:
+
+```json
+{
+  "action": {"name": "exchange.hold_position", "args": {}},
+  "next_commands": [
+    {
+      "entity_id": "exchange",
+      "command_name": "get_indicator",
+      "args": {
+        "type": "RSI",
+        "interval": "5m",
+        "window_size": "14"
+      }
+    },
+    {
+      "entity_id": "exchange",
+      "command_name": "get_indicator",
+      "args": {
+        "type": "RSI",
+        "interval": "1h",
+        "window_size": "14"
+      }
+    },
+    {
+      "entity_id": "exchange",
+      "command_name": "get_indicator",
+      "args": {
+        "type": "RSI",
+        "interval": "4h",
+        "window_size": "14"
+      }
+    }
+  ]
+}
+```
+
+#### Scenario 2: Adaptive Parameter Testing
+
+AI detects high volatility and wants tighter Bollinger Bands:
+
+```json
+{
+  "action": {"name": "exchange.hold_position", "args": {}},
+  "next_commands": [
+    {
+      "entity_id": "exchange",
+      "command_name": "get_indicator",
+      "args": {
+        "type": "BOLL",
+        "interval": "15m",
+        "window_size": "20",
+        "band_width": "2.0"
+      }
+    },
+    {
+      "entity_id": "exchange",
+      "command_name": "get_indicator",
+      "args": {
+        "type": "BOLL",
+        "interval": "15m",
+        "window_size": "20",
+        "band_width": "3.0"
+      }
+    }
+  ]
+}
+```
+
+#### Scenario 3: Fast vs Slow Moving Average Crossover
+
+AI wants to check for golden cross/death cross signals:
+
+```json
+{
+  "action": {"name": "exchange.hold_position", "args": {}},
+  "next_commands": [
+    {
+      "entity_id": "exchange",
+      "command_name": "get_indicator",
+      "args": {
+        "type": "SMA",
+        "interval": "1h",
+        "window_size": "10"
+      }
+    },
+    {
+      "entity_id": "exchange",
+      "command_name": "get_indicator",
+      "args": {
+        "type": "SMA",
+        "interval": "1h",
+        "window_size": "50"
+      }
+    }
+  ]
+}
+```
+
+#### Scenario 4: Volatility Analysis
+
+AI wants to assess market volatility before opening position:
+
+```json
+{
+  "action": {"name": "exchange.hold_position", "args": {}},
+  "next_commands": [
+    {
+      "entity_id": "exchange",
+      "command_name": "get_indicator",
+      "args": {
+        "type": "ATR",
+        "interval": "1h",
+        "window_size": "14"
+      }
+    },
+    {
+      "entity_id": "exchange",
+      "command_name": "get_indicator",
+      "args": {
+        "type": "ATRP",
+        "interval": "1h",
+        "window_size": "14"
+      }
+    },
+    {
+      "entity_id": "exchange",
+      "command_name": "get_indicator",
+      "args": {
+        "type": "BOLL",
+        "interval": "1h"
+      }
+    }
+  ]
+}
+```
+
+#### Scenario 5: Sensitive vs Conservative Indicators
+
+AI wants to compare fast-reacting vs slow-reacting indicators:
+
+```json
+{
+  "action": {"name": "exchange.hold_position", "args": {}},
+  "next_commands": [
+    {
+      "entity_id": "exchange",
+      "command_name": "get_indicator",
+      "args": {
+        "type": "RSI",
+        "interval": "5m",
+        "window_size": "7"
+      }
+    },
+    {
+      "entity_id": "exchange",
+      "command_name": "get_indicator",
+      "args": {
+        "type": "RSI",
+        "interval": "5m",
+        "window_size": "21"
+      }
+    }
+  ]
+}
+```
+
+### How It Works
+
+1. **Request**: AI schedules `get_indicator` command with desired parameters
+2. **Data Retrieval**: System fetches historical kline data for specified interval from MarketDataStore
+3. **Calculation**: Indicator is dynamically created and calculated using BBGO's StandardIndicatorSet
+4. **Event Emission**: Calculated indicator data is emitted as `indicator_changed` event
+5. **AI Analysis**: AI receives indicator data in next cycle and makes informed decision
+
+### Benefits vs Pre-Configured Indicators
+
+| Aspect | Pre-Configured | Dynamic `get_indicator` |
+|--------|----------------|-------------------------|
+| **Flexibility** | ❌ Limited to config | ✅ Unlimited combinations |
+| **Setup** | ❌ Must edit config file | ✅ Zero configuration |
+| **Timeframes** | ❌ Few pre-defined | ✅ All available timeframes |
+| **Parameters** | ❌ Fixed at startup | ✅ Adjust on-the-fly |
+| **Multi-timeframe** | ❌ Need many configs | ✅ Request as needed |
+| **Experimentation** | ❌ Requires restart | ✅ Instant testing |
+
+### Performance Considerations
+
+- **Caching**: Indicator calculations are performed on-demand; BBGO's MarketDataStore provides kline caching
+- **Computation**: Indicators use historical data already stored in memory
+- **Latency**: Typical calculation time: 10-50ms depending on window size and data availability
+- **Resource Usage**: Minimal; indicators are garbage collected after use
+
+### Best Practices
+
+1. **Start with Defaults**: Use default parameters first, then adjust based on results
+2. **Limit Requests**: Request only indicators needed for current decision (3-5 per cycle recommended)
+3. **Progressive Refinement**: Start with coarse timeframes (1h, 4h), drill down to finer (5m, 15m) if needed
+4. **Combine Indicators**: Use multiple indicator types for confirmation (e.g., RSI + BOLL + ATR)
+5. **Document Findings**: Have AI log which parameter combinations work best for different market conditions
+
+### Error Handling
+
+The command will fail if:
+- **Invalid Indicator Type**: Type not in supported list
+- **No Data Available**: Exchange hasn't provided data for requested interval
+- **Invalid Parameters**: Non-numeric window_size or band_width
+
+Error messages clearly indicate the issue for AI to adjust the request.
 
 ## Example Use Cases
 
@@ -322,6 +600,57 @@ pending → (execute) → completed
   ]
 }
 ```
+
+### 5. Combined Technical and Sentiment Analysis
+
+AI wants comprehensive market analysis by combining technical indicators with sentiment data:
+
+```json
+{
+  "action": {"name": "exchange.hold_position", "args": {}},
+  "next_commands": [
+    {
+      "entity_id": "exchange",
+      "command_name": "get_indicator",
+      "args": {
+        "type": "RSI",
+        "interval": "1h",
+        "window_size": "14"
+      }
+    },
+    {
+      "entity_id": "exchange",
+      "command_name": "get_indicator",
+      "args": {
+        "type": "BOLL",
+        "interval": "1h",
+        "window_size": "20"
+      }
+    },
+    {
+      "entity_id": "fng",
+      "command_name": "get_historical_index",
+      "args": {
+        "limit": "7"
+      }
+    },
+    {
+      "entity_id": "twitterapi",
+      "command_name": "search_tweets",
+      "args": {
+        "query": "Bitcoin OR BTC",
+        "max_results": "10"
+      }
+    }
+  ]
+}
+```
+
+This gives AI access to:
+- 1-hour RSI (technical momentum)
+- 1-hour Bollinger Bands (volatility and price position)
+- 7-day Fear & Greed Index history (market sentiment trend)
+- Recent Bitcoin tweets (real-time social sentiment)
 
 ## Implementation Details
 

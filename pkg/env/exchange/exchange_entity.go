@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/c9s/bbgo/pkg/bbgo"
@@ -37,7 +38,8 @@ type ExchangeEntity struct {
 	Indicators  []*ExchangeIndicator
 	KLineWindow *types.KLineWindow
 
-	vm *goja.Runtime
+	vm           *goja.Runtime
+	eventChannel atomic.Value // Store chan ttypes.IEvent for thread-safe access
 }
 
 func NewExchangeEntity(
@@ -228,6 +230,55 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 			},
 		},
 		{
+			Name:        "get_indicator",
+			Description: "Dynamically calculate and retrieve technical indicator data for any timeframe",
+			Args: []ttypes.ArgmentDesc{
+				{
+					Name:        "type",
+					Description: "Indicator type (required): RSI, BOLL, SMA, EWMA, VWMA, ATR, ATRP, VR, EMV",
+				},
+				{
+					Name:        "interval",
+					Description: "Time interval (default: 5m): 1m, 5m, 15m, 30m, 1h, 4h, 1d, etc.",
+				},
+				{
+					Name:        "window_size",
+					Description: "Window size for calculation (default varies by indicator type)",
+				},
+				{
+					Name:        "band_width",
+					Description: "Band width for BOLL indicator (default: 2.0)",
+				},
+			},
+			Samples: []ttypes.Sample{
+				{
+					Input: []string{
+						"Market conditions changed, need 30-minute RSI to confirm trend",
+					},
+					Output: []string{
+						"Execute cmd: /get_indicator type=RSI interval=30m window_size=14",
+					},
+				},
+				{
+					Input: []string{
+						"Want to check 1-hour Bollinger Bands for volatility analysis",
+					},
+					Output: []string{
+						"Execute cmd: /get_indicator type=BOLL interval=1h window_size=20 band_width=2.0",
+					},
+				},
+				{
+					Input: []string{
+						"Need to compare multiple timeframes, get 15m and 1h RSI",
+					},
+					Output: []string{
+						"Execute cmd: /get_indicator type=RSI interval=15m",
+						"Execute cmd: /get_indicator type=RSI interval=1h",
+					},
+				},
+			},
+		},
+		{
 			Name:        "no_action",
 			Description: "No action to be taken",
 			Samples: []ttypes.Sample{
@@ -265,11 +316,25 @@ func (ent *ExchangeEntity) getPositionSide(pos *PositionX) types.SideType {
 	}
 }
 
+// getEventChannel safely retrieves the event channel
+func (ent *ExchangeEntity) getEventChannel() (chan ttypes.IEvent, error) {
+	ch := ent.eventChannel.Load()
+	if ch == nil {
+		return nil, fmt.Errorf("event channel not initialized, command can only be executed during Run()")
+	}
+	return ch.(chan ttypes.IEvent), nil
+}
+
 func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args map[string]string) error {
 	log.
 		WithField("cmd", cmd).
 		WithField("args", args).
 		Infof("entity exchange handle command")
+
+	// Handle get_indicator command
+	if cmd == "get_indicator" {
+		return ent.executeGetIndicator(ctx, args)
+	}
 
 	if ent.KLineWindow == nil {
 		log.Warn("skip for current kline nil")
@@ -532,7 +597,97 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 	return nil
 }
 
+// executeGetIndicator dynamically calculates and returns indicator data
+func (ent *ExchangeEntity) executeGetIndicator(ctx context.Context, args map[string]string) error {
+	ch, err := ent.getEventChannel()
+	if err != nil {
+		return err
+	}
+
+	// Parse required parameter: type
+	indicatorType := strings.ToUpper(strings.TrimSpace(args["type"]))
+	if indicatorType == "" {
+		return fmt.Errorf("type parameter is required")
+	}
+
+	// Parse optional parameters with defaults
+	interval := strings.TrimSpace(args["interval"])
+	if interval == "" {
+		interval = "5m"
+	}
+
+	windowSize := 0
+	if ws, ok := args["window_size"]; ok && ws != "" {
+		fmt.Sscanf(ws, "%d", &windowSize)
+	}
+
+	bandWidth := 2.0
+	if bw, ok := args["band_width"]; ok && bw != "" {
+		fmt.Sscanf(bw, "%f", &bandWidth)
+	}
+
+	log.WithField("type", indicatorType).
+		WithField("interval", interval).
+		WithField("windowSize", windowSize).
+		WithField("bandWidth", bandWidth).
+		Info("Executing get_indicator command")
+
+	// Get kline data for the specified interval
+	dataStore, ok := ent.session.MarketDataStore(ent.symbol)
+	if !ok {
+		return fmt.Errorf("market data store not available for symbol %s", ent.symbol)
+	}
+
+	klines, ok := dataStore.KLinesOfInterval(types.Interval(interval))
+	if !ok {
+		return fmt.Errorf("kline data not available for interval %s", interval)
+	}
+
+	if klines == nil || len(*klines) == 0 {
+		return fmt.Errorf("no kline data available for interval %s", interval)
+	}
+
+	// Create indicator configuration
+	indicatorCfg := &config.IndicatorConfig{
+		Type:   config.IndicatorType(indicatorType),
+		Params: make(map[string]string),
+	}
+	indicatorCfg.Params["interval"] = interval
+	if windowSize > 0 {
+		indicatorCfg.Params["window_size"] = fmt.Sprintf("%d", windowSize)
+	}
+	if indicatorType == "BOLL" {
+		indicatorCfg.Params["band_width"] = fmt.Sprintf("%.1f", bandWidth)
+	}
+
+	// Get or create standard indicator set for this symbol
+	indicators := ent.session.StandardIndicatorSet(ent.symbol)
+
+	// Create dynamic indicator name
+	indicatorName := fmt.Sprintf("%s_%s_dynamic", strings.ToLower(indicatorType), interval)
+
+	// Create and calculate the indicator
+	dynamicIndicator := NewExchangeIndicator(indicatorName, indicatorCfg, indicators)
+
+	// Feed historical kline data to the indicator (this updates the indicator)
+	// Note: The indicator is already subscribed to the kline stream in NewExchangeIndicator
+
+	log.WithField("name", indicatorName).
+		WithField("type", indicatorType).
+		WithField("klines", len(*klines)).
+		Info("Dynamic indicator created and calculated")
+
+	// Emit the calculated indicator data
+	ch <- ttypes.NewEvent("indicator_changed", dynamicIndicator)
+
+	log.Info("Dynamic indicator data sent successfully")
+	return nil
+}
+
 func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
+	// Store event channel for command execution using atomic operation
+	ent.eventChannel.Store(ch)
+
 	session := ent.session
 
 	ent.Status = types.StrategyStatusRunning
