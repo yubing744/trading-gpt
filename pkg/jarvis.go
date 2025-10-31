@@ -1076,6 +1076,14 @@ func (s *Strategy) executeNextCycleCommands(ctx context.Context, session ttypes.
 	s.replyMsg(ctx, session, fmt.Sprintf("📋 Executing %d pending commands from previous cycle...", len(commands)))
 
 	for _, cmd := range commands {
+		// Check for context cancellation between iterations
+		select {
+		case <-ctx.Done():
+			log.Warn("Context cancelled, stopping command execution")
+			return
+		default:
+		}
+
 		if cmd.Status != "pending" && !(cmd.Status == "failed" && cmd.RetryCount < cmd.MaxRetries) {
 			continue
 		}
@@ -1125,10 +1133,19 @@ func (s *Strategy) executeCommand(ctx context.Context, session ttypes.ISession, 
 	return s.world.SendCommand(cmdCtx, fullCommandName, cmd.Args)
 }
 
+const MaxCommandsPerCycle = 10
+
 // processNextCommands processes next_commands from AI output and saves them for next cycle
 func (s *Strategy) processNextCommands(ctx context.Context, session ttypes.ISession, nextCommands []*ttypes.NextCommand) {
 	if len(nextCommands) == 0 {
 		return
+	}
+
+	// Enforce command count limit to prevent resource exhaustion
+	if len(nextCommands) > MaxCommandsPerCycle {
+		s.replyMsg(ctx, session, fmt.Sprintf("⚠️ Too many commands scheduled (%d), limiting to %d",
+			len(nextCommands), MaxCommandsPerCycle))
+		nextCommands = nextCommands[:MaxCommandsPerCycle]
 	}
 
 	s.replyMsg(ctx, session, fmt.Sprintf("📝 Scheduling %d commands for next cycle...", len(nextCommands)))

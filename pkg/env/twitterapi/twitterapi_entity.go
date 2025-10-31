@@ -3,7 +3,9 @@ package twitterapi
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -19,7 +21,7 @@ type TwitterAPIEntity struct {
 	twitterClient twitterapi.ITwitterClient
 	config        *config.TwitterAPIEntityConfig
 	timers        map[string]*time.Ticker
-	eventChannel  chan types.IEvent // Store event channel for command execution
+	eventChannel  atomic.Value // Store chan types.IEvent for thread-safe access
 }
 
 // NewTwitterAPIEntity creates a new instance of TwitterAPIEntity with the given ID, Twitter client, and configuration.
@@ -89,10 +91,19 @@ func (e *TwitterAPIEntity) Actions() []*types.ActionDesc {
 	return actions
 }
 
+// getEventChannel safely retrieves the event channel
+func (e *TwitterAPIEntity) getEventChannel() (chan types.IEvent, error) {
+	ch := e.eventChannel.Load()
+	if ch == nil {
+		return nil, fmt.Errorf("event channel not initialized, command can only be executed during Run()")
+	}
+	return ch.(chan types.IEvent), nil
+}
+
 // HandleCommand handles a command directed at the entity.
 func (e *TwitterAPIEntity) HandleCommand(ctx context.Context, cmd string, args map[string]string) error {
-	if e.eventChannel == nil {
-		return fmt.Errorf("event channel not initialized, command can only be executed during Run()")
+	if _, err := e.getEventChannel(); err != nil {
+		return err
 	}
 
 	// Check if command matches a configured search item
@@ -112,6 +123,11 @@ func (e *TwitterAPIEntity) HandleCommand(ctx context.Context, cmd string, args m
 
 // executeConfiguredSearch executes a configured search item with optional parameter overrides
 func (e *TwitterAPIEntity) executeConfiguredSearch(ctx context.Context, item *config.TwitterAPISearchItem, args map[string]string) error {
+	ch, err := e.getEventChannel()
+	if err != nil {
+		return err
+	}
+
 	// Use configured values as defaults, override with args if provided
 	query := item.Query
 	if providedQuery, ok := args["query"]; ok && providedQuery != "" {
@@ -125,10 +141,11 @@ func (e *TwitterAPIEntity) executeConfiguredSearch(ctx context.Context, item *co
 
 	maxResults := item.MaxResults
 	if providedMax, ok := args["max_results"]; ok && providedMax != "" {
-		parsedMax, err := fmt.Sscanf(providedMax, "%d", &maxResults)
-		if err != nil || parsedMax != 1 {
+		parsedMax, err := strconv.Atoi(providedMax)
+		if err != nil {
 			return fmt.Errorf("invalid max_results parameter: %s", providedMax)
 		}
+		maxResults = parsedMax
 	}
 
 	log.WithField("query", query).WithField("queryType", queryType).Info("Executing configured Twitter search command")
@@ -147,7 +164,7 @@ func (e *TwitterAPIEntity) executeConfiguredSearch(ctx context.Context, item *co
 	// Format and send results
 	content := e.formatTweets(response.Tweets, maxResults)
 	event := NewTwitterAPIEvent(item.Name, item.Description, content)
-	e.eventChannel <- event
+	ch <- event
 
 	log.WithField("tweetCount", len(response.Tweets)).Info("Twitter search command executed successfully")
 	return nil
@@ -155,6 +172,11 @@ func (e *TwitterAPIEntity) executeConfiguredSearch(ctx context.Context, item *co
 
 // executeGenericSearch executes a generic Twitter search with parameters from args
 func (e *TwitterAPIEntity) executeGenericSearch(ctx context.Context, args map[string]string) error {
+	ch, err := e.getEventChannel()
+	if err != nil {
+		return err
+	}
+
 	// Query is required
 	query, ok := args["query"]
 	if !ok || query == "" {
@@ -170,10 +192,11 @@ func (e *TwitterAPIEntity) executeGenericSearch(ctx context.Context, args map[st
 	// Max results defaults to 10
 	maxResults := 10
 	if providedMax, ok := args["max_results"]; ok && providedMax != "" {
-		parsedMax, err := fmt.Sscanf(providedMax, "%d", &maxResults)
-		if err != nil || parsedMax != 1 {
+		parsedMax, err := strconv.Atoi(providedMax)
+		if err != nil {
 			return fmt.Errorf("invalid max_results parameter: %s", providedMax)
 		}
+		maxResults = parsedMax
 		if maxResults > 100 {
 			maxResults = 100
 		}
@@ -199,7 +222,7 @@ func (e *TwitterAPIEntity) executeGenericSearch(ctx context.Context, args map[st
 	content := e.formatTweets(response.Tweets, maxResults)
 	description := fmt.Sprintf("Twitter search results for: %s", query)
 	event := NewTwitterAPIEvent("search_tweets", description, content)
-	e.eventChannel <- event
+	ch <- event
 
 	log.WithField("tweetCount", len(response.Tweets)).Info("Generic Twitter search command executed successfully")
 	return nil
@@ -207,8 +230,8 @@ func (e *TwitterAPIEntity) executeGenericSearch(ctx context.Context, args map[st
 
 // Run starts the entity's main loop and sets up scheduled tasks based on the entity's configuration.
 func (e *TwitterAPIEntity) Run(ctx context.Context, ch chan types.IEvent) {
-	// Store event channel for command execution
-	e.eventChannel = ch
+	// Store event channel for command execution using atomic operation
+	e.eventChannel.Store(ch)
 
 	log.Info("twitterapi_run")
 

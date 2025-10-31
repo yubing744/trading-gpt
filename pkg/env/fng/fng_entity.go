@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -17,7 +18,7 @@ type FearAndGreedEntity struct {
 	interval     time.Duration
 	delay        time.Duration
 	client       *alternative.AlternativeClient
-	eventChannel chan types.IEvent // Store event channel for command execution
+	eventChannel atomic.Value // Store chan types.IEvent for thread-safe access
 }
 
 func NewFearAndGreedEntity() *FearAndGreedEntity {
@@ -63,10 +64,20 @@ func (entity *FearAndGreedEntity) HandleCommand(ctx context.Context, cmd string,
 	}
 }
 
+// getEventChannel safely retrieves the event channel
+func (entity *FearAndGreedEntity) getEventChannel() (chan types.IEvent, error) {
+	ch := entity.eventChannel.Load()
+	if ch == nil {
+		return nil, fmt.Errorf("event channel not initialized, command can only be executed during Run()")
+	}
+	return ch.(chan types.IEvent), nil
+}
+
 // executeRefreshIndex manually refreshes the current Fear & Greed Index
 func (entity *FearAndGreedEntity) executeRefreshIndex(ctx context.Context) error {
-	if entity.eventChannel == nil {
-		return fmt.Errorf("event channel not initialized, command can only be executed during Run()")
+	ch, err := entity.getEventChannel()
+	if err != nil {
+		return err
 	}
 
 	log.Info("Executing refresh_index command")
@@ -78,7 +89,7 @@ func (entity *FearAndGreedEntity) executeRefreshIndex(ctx context.Context) error
 
 	if index != nil && len(index.Data) > 0 {
 		fng := index.Data[0].Value
-		entity.eventChannel <- types.NewEvent("fng_changed", &fng)
+		ch <- types.NewEvent("fng_changed", &fng)
 		log.WithField("value", fng).Info("Fear & Greed Index refreshed successfully")
 	} else {
 		return fmt.Errorf("no Fear & Greed Index data available")
@@ -89,8 +100,9 @@ func (entity *FearAndGreedEntity) executeRefreshIndex(ctx context.Context) error
 
 // executeGetHistoricalIndex retrieves historical Fear & Greed Index data
 func (entity *FearAndGreedEntity) executeGetHistoricalIndex(ctx context.Context, args map[string]string) error {
-	if entity.eventChannel == nil {
-		return fmt.Errorf("event channel not initialized, command can only be executed during Run()")
+	ch, err := entity.getEventChannel()
+	if err != nil {
+		return err
 	}
 
 	// Parse limit parameter (default: 7, max: 30)
@@ -123,7 +135,7 @@ func (entity *FearAndGreedEntity) executeGetHistoricalIndex(ctx context.Context,
 			historicalData += fmt.Sprintf("%d. %s: %s (%s)\n", i+1, data.Timestamp, data.Value, data.ValueClassification)
 		}
 
-		entity.eventChannel <- types.NewEvent("fng_historical_data", &historicalData)
+		ch <- types.NewEvent("fng_historical_data", &historicalData)
 		log.WithField("count", len(index.Data)).Info("Historical Fear & Greed Index retrieved successfully")
 	} else {
 		return fmt.Errorf("no historical Fear & Greed Index data available")
@@ -133,8 +145,8 @@ func (entity *FearAndGreedEntity) executeGetHistoricalIndex(ctx context.Context,
 }
 
 func (entity *FearAndGreedEntity) Run(ctx context.Context, ch chan types.IEvent) {
-	// Store event channel for command execution
-	entity.eventChannel = ch
+	// Store event channel for command execution using atomic operation
+	entity.eventChannel.Store(ch)
 
 	timer := time.NewTimer(entity.delay)
 	ticker := time.NewTicker(entity.interval)

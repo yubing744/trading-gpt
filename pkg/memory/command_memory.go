@@ -160,9 +160,9 @@ func (cm *CommandMemory) loadStore() (*CommandStore, error) {
 
 // saveStore saves the command store to file using atomic write
 func (cm *CommandMemory) saveStore(store *CommandStore) error {
-	// Ensure directory exists
+	// Ensure directory exists with restrictive permissions
 	dir := filepath.Dir(cm.commandPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("failed to create command directory: %w", err)
 	}
 
@@ -172,9 +172,9 @@ func (cm *CommandMemory) saveStore(store *CommandStore) error {
 		return fmt.Errorf("failed to marshal command store: %w", err)
 	}
 
-	// Atomic write: write to temp file, then rename
+	// Atomic write: write to temp file with restrictive permissions, then rename
 	tempPath := cm.commandPath + ".tmp"
-	if err := os.WriteFile(tempPath, data, 0644); err != nil {
+	if err := os.WriteFile(tempPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write temp command file: %w", err)
 	}
 
