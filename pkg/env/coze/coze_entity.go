@@ -2,6 +2,7 @@ package coze
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -38,15 +39,142 @@ func (e *CozeEntity) GetID() string {
 	return e.id
 }
 
-// Actions returns a list of action descriptors.
+// Actions returns a list of action descriptors for available workflows.
 func (e *CozeEntity) Actions() []*types.ActionDesc {
-	// TODO: Return the actual actions this entity can perform.
-	return []*types.ActionDesc{}
+	actions := make([]*types.ActionDesc, 0)
+
+	// Add workflow actions from configuration
+	for _, workflow := range e.config.WorkflowIndicatorItems {
+		action := &types.ActionDesc{
+			Name:        workflow.Name,
+			Description: workflow.Description,
+			Args: []types.ArgmentDesc{
+				{
+					Name:        "workflow_id",
+					Description: "Coze workflow ID (optional, uses configured ID if not specified)",
+				},
+			},
+		}
+
+		// Add dynamic parameters if workflow has them
+		if len(workflow.Params) > 0 {
+			for key := range workflow.Params {
+				action.Args = append(action.Args, types.ArgmentDesc{
+					Name:        key,
+					Description: fmt.Sprintf("Parameter %s for workflow", key),
+				})
+			}
+		}
+
+		actions = append(actions, action)
+	}
+
+	// Add bot actions from configuration
+	for _, bot := range e.config.IndicatorItems {
+		action := &types.ActionDesc{
+			Name:        bot.Name,
+			Description: bot.Description,
+			Args: []types.ArgmentDesc{
+				{
+					Name:        "message",
+					Description: "Message to send to Coze bot (optional, uses configured message if not specified)",
+				},
+			},
+		}
+		actions = append(actions, action)
+	}
+
+	return actions
 }
 
 // HandleCommand handles a command directed at the entity.
 func (e *CozeEntity) HandleCommand(ctx context.Context, cmd string, args map[string]string) error {
-	// TODO: Implement the logic to handle the command using CozeClient.
+	// Check if command matches a workflow
+	for _, workflow := range e.config.WorkflowIndicatorItems {
+		if workflow.Name == cmd {
+			return e.executeWorkflowCommand(ctx, workflow, args)
+		}
+	}
+
+	// Check if command matches a bot
+	for _, bot := range e.config.IndicatorItems {
+		if bot.Name == cmd {
+			return e.executeBotCommand(ctx, bot, args)
+		}
+	}
+
+	return fmt.Errorf("unknown command: %s", cmd)
+}
+
+// executeWorkflowCommand executes a Coze workflow command
+func (e *CozeEntity) executeWorkflowCommand(ctx context.Context, workflow *config.WorkflowIndicatorItem, args map[string]string) error {
+	// Use workflow ID from args if provided, otherwise use configured ID
+	workflowID := workflow.WorkflowID
+	if providedID, ok := args["workflow_id"]; ok && providedID != "" {
+		workflowID = providedID
+	}
+
+	// Merge args with configured params (args take precedence)
+	params := make(map[string]string)
+	for k, v := range workflow.Params {
+		params[k] = v
+	}
+	for k, v := range args {
+		if k != "workflow_id" { // Skip the special workflow_id parameter
+			params[k] = v
+		}
+	}
+
+	// Execute workflow
+	req := &coze.WorkflowRequest{
+		WorkflowID: workflowID,
+		Parameters: params,
+	}
+
+	log.WithField("workflowID", workflowID).WithField("params", params).Info("Executing workflow command")
+
+	resp, err := e.cozeClient.RunWorkflow(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to run workflow: %w", err)
+	}
+
+	if resp.Code != 0 {
+		return fmt.Errorf("workflow execution failed: %s (code: %d)", resp.Msg, resp.Code)
+	}
+
+	log.WithField("workflowID", workflowID).WithField("response", resp.Data).Info("Workflow command executed successfully")
+	return nil
+}
+
+// executeBotCommand executes a Coze bot command
+func (e *CozeEntity) executeBotCommand(ctx context.Context, bot *config.IndicatorItem, args map[string]string) error {
+	// Use message from args if provided, otherwise use configured message
+	message := bot.Message
+	if providedMsg, ok := args["message"]; ok && providedMsg != "" {
+		message = providedMsg
+	}
+
+	// Execute bot chat
+	req := &coze.ChatRequest{
+		ConversationID: uuid.NewString(),
+		BotID:          bot.BotID,
+		Query:          message,
+		User:           "29032201862555",
+		Stream:         false,
+	}
+
+	log.WithField("botID", bot.BotID).WithField("message", message).Info("Executing bot command")
+
+	response, err := e.cozeClient.Chat(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to execute bot chat: %w", err)
+	}
+
+	if response.Code != 0 {
+		return fmt.Errorf("bot execution failed: %s (code: %d)", response.Msg, response.Code)
+	}
+
+	log.WithField("botID", bot.BotID).Info("Bot command executed successfully")
 	return nil
 }
 

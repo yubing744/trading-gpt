@@ -32,6 +32,10 @@ func (env *Environment) RegisterEntity(entity IEntity) {
 	env.entites[entity.GetID()] = entity
 }
 
+func (env *Environment) GetEntity(entityID string) IEntity {
+	return env.entites[entityID]
+}
+
 func (env *Environment) Actions() []*types.ActionDesc {
 	actions := make([]*types.ActionDesc, 0)
 
