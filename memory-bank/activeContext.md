@@ -1,10 +1,10 @@
 # Active Context: Trading-AI
 
 ## Current Focus
-Successfully completed implementation of limit order support with automatic cleanup mechanism (Issue #58). The system now supports both market and limit orders with price expression capabilities while maintaining AI decision simplicity through automatic cleanup.
+Successfully implemented dynamic technical indicator query system for next commands feature (Issue #62). AI can now dynamically request any technical indicator with any timeframe and parameter combination without pre-configuration. Also addressed PR #65 code review with critical security and concurrency fixes.
 
 ## Current Mode
-**Act Mode** - Successfully implemented limit order feature with auto-cleanup as requested in GitHub issue #58.
+**Act Mode** - Completed dynamic indicator query implementation with comprehensive validation and optimization based on code review feedback.
 
 ## Technical Documentation Requirements
 The technical specification document (tech_spec.md) must include:
@@ -37,6 +37,55 @@ All diagrams must be created using Mermaid syntax, and each section should be co
 
 ## Recent Changes
 
+### Dynamic Indicator Query System (Issue #62) - 2025-11-01
+- **Implemented `get_indicator` command** for ExchangeEntity enabling zero-config dynamic indicator queries
+- **Support for 9 indicator types**: RSI, BOLL, SMA, EWMA, VWMA, ATR, ATRP, VR, EMV
+- **Any timeframe support**: 1m, 5m, 15m, 30m, 1h, 4h, 1d, etc. - unlimited flexibility
+- **Flexible parameters**: window_size, band_width with intelligent defaults
+- **AI-specified custom names**: Optional `name` parameter for better readability
+- **Comprehensive documentation**: Added detailed usage scenarios and examples to `docs/features/next-commands-feature.md`
+- **Multi-timeframe analysis**: AI can compare same indicator across different timeframes for trend confirmation
+- **Adaptive strategies**: AI can adjust indicator parameters based on market conditions
+
+### Code Review Fixes (PR #65) - 2025-11-01
+Addressed all critical issues from PR #65 code review with 5 major fixes:
+
+1. **Duplicate Indicator Detection** (High Priority)
+   - Check pre-configured indicators before creating new ones
+   - Match by type, interval, window_size, and band_width
+   - Reuse existing indicators to avoid resource waste
+   - Prevents data inconsistency and memory bloat
+
+2. **Enhanced Parameter Validation** (Medium Priority)
+   - Strict validation for window_size and band_width
+   - Verify positive values and valid ranges
+   - Type whitelist validation for security
+   - Clear error messages for AI troubleshooting
+
+3. **Data Sufficiency Check** (Medium Priority)
+   - Verify sufficient kline data before calculation
+   - Prevents crashes from insufficient historical data
+   - Critical for new trading pairs with limited history
+
+4. **Frequency Limiting** (Medium Priority)
+   - Limit to 5 dynamic indicator requests per 15-minute cycle
+   - Auto-reset counter each cycle
+   - Prevents resource exhaustion from excessive requests
+
+5. **Custom Name Support** (User Request)
+   - Optional `name` parameter for AI to specify indicator names
+   - Auto-generated names include all parameters: "rsi_5m_w14_dynamic"
+   - Improves debugging and prevents naming conflicts
+
+### Thread Safety Improvements (PR #65) - 2025-11-01
+- **FearAndGreedEntity**: Added thread-safe event channel using `atomic.Value`
+- **TwitterAPIEntity**: Added thread-safe event channel using `atomic.Value`
+- **ExchangeEntity**: Added thread-safe event channel using `atomic.Value`
+- **Command count limits**: Added `MaxCommandsPerCycle = 10` to prevent resource exhaustion
+- **Context cancellation**: Added proper context checking in command execution loops
+- **File permissions**: Restricted to 0600/0700 for enhanced security
+- **Integer parsing**: Replaced `fmt.Sscanf` with `strconv.Atoi` for consistency
+
 ### Limit Order Feature (Issue #58) - 2025-01-22
 - **Implemented limit order support** with price expression parsing
 - **Added automatic cleanup mechanism** - unfilled limit orders are canceled at each decision cycle
@@ -65,12 +114,12 @@ All diagrams must be created using Mermaid syntax, and each section should be co
 - Updated progress documentation to reflect memory system implementation
 
 ## Next Steps
-1. **Test limit order feature** in real trading scenarios to validate functionality
-2. **Monitor limit order cleanup** effectiveness and AI adaptation
-3. **Observe price expression usage** by AI to refine available variables if needed
-4. **Consider adding reduce_only support** if exchange APIs support it
-5. **Test the memory system** with real trading scenarios to ensure proper functionality
-6. **Monitor memory file growth** and adjust word limits as needed
+1. **Test dynamic indicator queries** in real trading scenarios with multi-timeframe analysis
+2. **Monitor indicator reuse effectiveness** to validate duplicate detection logic
+3. **Observe AI indicator parameter choices** to refine default values if needed
+4. **Consider adding indicator caching** for frequently requested combinations
+5. **Explore parallel command execution** to improve performance
+6. **Test frequency limits** under high-load scenarios
 
 ## Active Decisions and Considerations
 - **Documentation Approach**: Using structured Markdown files organized in a clear hierarchy to maintain project knowledge.
@@ -93,3 +142,8 @@ All diagrams must be created using Mermaid syntax, and each section should be co
 - **Simplicity in AI decision-making is crucial** - Auto-cleanup approach for limit orders prevents AI from needing to manage order state, keeping decision complexity low
 - **Expression-based parameters provide flexibility** - Price expressions like "last_close * 0.995" allow dynamic pricing without complex AI logic
 - **Cycle-based cleanup aligns with decision patterns** - Periodic cleanup matches the natural rhythm of strategy evaluation cycles
+- **Zero-config dynamic queries unlock AI potential** - Removing pre-configuration requirements enables true adaptive strategies
+- **Duplicate detection is critical for resource efficiency** - Reusing pre-configured indicators prevents waste and ensures consistency
+- **Comprehensive validation prevents silent failures** - Strict parameter checking with clear error messages helps AI learn and adapt
+- **Thread safety cannot be assumed** - `atomic.Value` for shared state access prevents race conditions in concurrent environments
+- **Frequency limits protect system stability** - Rate limiting prevents resource exhaustion from AI exploration behaviors

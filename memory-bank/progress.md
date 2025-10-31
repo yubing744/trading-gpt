@@ -1,7 +1,13 @@
 # Progress: Trading-AI
 
 ## Current Status
-The Trading-AI project is a functional trading system with LLM integration that allows users to express trading strategies in natural language. The Memory Bank documentation has been established to maintain comprehensive project knowledge. Currently, significant progress has been made on the technical specification document, with the conceptual design section now complete and featuring a simplified system architecture.
+The Trading-AI project is a functional trading system with LLM integration that allows users to express trading strategies in natural language. The Memory Bank documentation has been established to maintain comprehensive project knowledge. Recently completed major enhancements include:
+
+- **Dynamic Technical Indicator Queries (Issue #62)** - AI can now dynamically request any technical indicator with any timeframe and parameter combination without pre-configuration, enabling truly adaptive trading strategies
+- **Thread Safety & Security Hardening (PR #65)** - Fixed critical race conditions across all entities using atomic operations, enhanced file permissions, and added comprehensive validation
+- **Resource Protection** - Implemented frequency limiting, duplicate detection, and data sufficiency checks to prevent resource exhaustion and ensure system stability
+
+The system now provides a robust, secure, and flexible foundation for AI-driven trading strategies with comprehensive validation and optimization.
 
 ## What Works
 - Integration with bbgo trading engine
@@ -11,6 +17,12 @@ The Trading-AI project is a functional trading system with LLM integration that 
 - **Limit order support** - Create limit orders with price expressions (e.g., "last_close * 0.995")
 - **Automatic limit order cleanup** - Unfilled orders are canceled at each decision cycle
 - **Price expression engine** - Dynamic price calculation using market data variables
+- **Dynamic technical indicator queries** - AI can request any indicator (RSI, BOLL, SMA, EWMA, VWMA, ATR, ATRP, VR, EMV) with any timeframe and parameters without pre-configuration
+- **Intelligent indicator reuse** - Automatically detects and reuses pre-configured indicators to prevent resource waste
+- **Comprehensive parameter validation** - Strict validation with clear error messages for AI troubleshooting
+- **Frequency limiting** - Rate limiting (5 requests per 15-minute cycle) prevents resource exhaustion
+- **Thread-safe command execution** - Atomic operations for concurrent event channel access across all entities
+- **Enhanced security** - Restricted file permissions (0600/0700) and comprehensive argument validation
 - Chat interface for strategy interaction
 - Notification system for trading updates
 - Agent system with trading and keeper agents
@@ -46,3 +58,6 @@ The Trading-AI project is a functional trading system with LLM integration that 
 - Establishment of Memory Bank documentation system
 - **Implementation of file-based memory system** - AI can now learn from trading experiences and maintain persistent memory across sessions
 - **Implementation of limit order system** - Support for limit orders with price expressions and automatic cleanup mechanism (Issue #58, 2025-01-22)
+- **Implementation of dynamic indicator query system** - Zero-config dynamic queries for any technical indicator with any timeframe/parameter combination (Issue #62, 2025-11-01)
+- **Thread safety and security hardening** - Fixed race conditions across all entities (FearAndGreedEntity, TwitterAPIEntity, ExchangeEntity), enhanced file permissions, added comprehensive validation (PR #65, 2025-11-01)
+- **Resource protection mechanisms** - Implemented frequency limiting, duplicate detection, data sufficiency checks, and command count limits to prevent resource exhaustion (PR #65, 2025-11-01)
