@@ -96,13 +96,6 @@ exchangeStrategies:
     subscribe_intervals: ["15m"]
     leverage: 3
     max_num: 50
-    # Trading Reflection and Memory feature configuration
-    # Path where trade reflections will be stored (default: memory-bank/reflections/)
-    reflection_path: "memory-bank/reflections/"
-    # Enable or disable trade reflection generation (default: true)
-    reflection_enabled: true
-    # Enable or disable reading from memory bank for decision making (default: true)
-    read_memory_enabled: true
     # Memory configuration
     # The strategy runs in cycles, and AI memory resets at the beginning of each cycle.
     # This drives the AI to maintain perfect documentation in the memory file.
