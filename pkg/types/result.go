@@ -48,9 +48,10 @@ func interfaceToString(i interface{}) string {
 }
 
 type Result struct {
-	Thoughts *Thoughts `json:"thoughts"`
-	Action   *Action   `json:"action"`
-	Memory   *Memory   `json:"memory,omitempty"` // New memory field
+	Thoughts     *Thoughts      `json:"thoughts"`
+	Action       *Action        `json:"action"`
+	Memory       *Memory        `json:"memory,omitempty"`        // Memory field
+	NextCommands []*NextCommand `json:"next_commands,omitempty"` // Commands to execute in next cycle
 }
 
 // Memory represents memory content for AI learning
@@ -64,4 +65,11 @@ func (m *Memory) ToHumanText() string {
 		return ""
 	}
 	return m.Content
+}
+
+// NextCommand represents a command to be executed in the next decision cycle
+type NextCommand struct {
+	EntityID    string            `json:"entity_id"`    // Target entity ID (e.g., "exchange", "coze")
+	CommandName string            `json:"command_name"` // Command name (matches ActionDesc.Name)
+	Args        map[string]string `json:"args"`         // Command parameters
 }
