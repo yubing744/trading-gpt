@@ -429,108 +429,54 @@ flowchart TD
 
 ## 4. 详细设计 (Detailed Design)
 
-### 4.1 交易反思与记忆功能 (Trading Reflection and Memory Feature)
+### 4.1 记忆功能 (Memory Feature)
 
 #### 4.1.1 功能概述
 
-为了让 Trading-AI 具备学习和迭代能力，引入交易反思与记忆功能。当一个由特定策略管理的交易仓位关闭时，系统（由 `jarvis.go` 协调）将自动触发反思流程。该流程利用 LLM 分析本次交易的关键信息（入场、出场、盈亏、市场状况等），生成反思性总结。这个总结作为“记忆”被存储在 Markdown 文件中。在后续的交易决策周期中，系统（`jarvis.go`）会加载相关的历史“记忆”，并将其整合到发送给 `Trading Agent` 的上下文或提示词中，以期指导 LLM 做出更明智的决策。
+为了让 Trading-AI 具备学习和迭代能力，系统提供基于文件的记忆功能。记忆系统在每个交易决策周期中工作，AI 通过 `thoughts.reflection` 字段进行自我反思，并通过 `memory.content` 字段维护持久化的记忆内容。记忆内容存储在 `memory-bank/trading-memory.md` 文件中，在策略运行周期重置时，AI 完全依赖此记忆文件来理解项目状态和持续工作。
 
-#### 4.1.2 触发机制
+**Note**: 之前的 TradeReflection 功能（在仓位关闭时自动生成独立反思文件）已被移除，因其与 Memory 系统功能重叠。现在所有反思和学习都通过统一的 Memory 系统完成。
 
-1.  **事件源**: `pkg/env/exchange/exchange_entity.go` 中的交易所实体 (`Exchange Entity`) 负责监控仓位状态。
-2.  **触发条件**: 当检测到与某个策略实例关联的仓位完全关闭时（无论是通过止盈、止损还是手动平仓），`Exchange Entity` 将触发一个新的事件。
-3.  **事件类型**: 定义一个新的事件类型 `PositionClosedEvent` 在 `pkg/types/event.go` 中。该事件应包含必要的信息，例如：
-    *   `StrategyID`: 关联的策略标识符。
-    *   `Symbol`: 交易对。
-    *   `EntryPrice`: 入场价格。
-    *   `ExitPrice`: 出场价格。
-    *   `Quantity`: 数量。
-    *   `ProfitAndLoss`: 盈亏金额。
-    *   `CloseReason`: 平仓原因（\"TakeProfit\", \"StopLoss\", \"Manual\", \"Liquidation\" 等）。
-    *   `Timestamp`: 平仓时间戳。
-    *   `RelatedMarketData`: （可选）平仓前后的关键市场数据快照（如K线、指标值）。
-4.  **事件消费**: `pkg/jarvis.go` 中的核心事件循环将监听并处理 `PositionClosedEvent`。
+#### 4.1.2 仓位关闭事件处理
 
-#### 4.1.3 反思生成流程
+当交易仓位关闭时，系统会触发 `PositionClosedEvent` 事件。`pkg/jarvis.go` 中的 `handlePositionClosed()` 函数负责处理此事件：
 
-```mermaid
-sequenceDiagram
-    participant ExchangeEntity as 环境系统 (交易所实体)
-    participant Jarvis as Jarvis (核心协调器)
-    participant TradingAgent as 交易代理
-    participant LLMManager as LLM 管理器
-    participant FileSystem as 文件系统 (Memory Bank)
+1. **通知用户**: 发送仓位关闭通知，包含盈亏信息
+2. **记录到会话**: 将仓位数据存储到会话属性中供后续使用
+3. **添加消息**: 向消息队列添加仓位关闭摘要信息
 
-    ExchangeEntity->>Jarvis: 触发 PositionClosedEvent(data)
-    Jarvis->>Jarvis: 接收事件，提取 data
-    Jarvis->>TradingAgent: 请求与 data.StrategyID 相关的上下文 (如初始策略描述)
-    TradingAgent-->>Jarvis: 返回策略上下文
-    Jarvis->>LLMManager: 构建反思提示词 (包含交易 data 和策略上下文)
-    Note right of Jarvis: 提示词示例: \"反思以下已关闭的交易:\\n策略描述: [原始策略]\\n交易对: [Symbol]\\n入场价: [EntryPrice]\\n出场价: [ExitPrice]\\n盈亏: [PnL]\\n平仓原因: [CloseReason]\\n市场快照: [MarketData]\\n\\n总结本次交易的关键教训，并提出未来在类似情况下改进策略的建议。\"
-    LLMManager->>LLMManager: 调用 LLM 生成反思内容
-    LLMManager-->>Jarvis: 返回 LLM 生成的反思文本 (reflectionText)
-    Jarvis->>FileSystem: 将 reflectionText 保存到 Markdown 文件
-    Note right of Jarvis: 文件路径: memory-bank/reflections/<StrategyID>_<Timestamp>.md
-```
+AI 可以在后续的决策周期中通过 Memory 系统记录和学习这些交易经验。
 
-1.  **事件处理**: `pkg/jarvis.go` 中的核心逻辑负责处理 `PositionClosedEvent`。
-2.  **上下文收集**: `Jarvis` 接收事件数据，并可能向相关的 `Trading Agent` 实例请求额外的上下文信息（如原始策略描述）。
-3.  **提示词构建**: `Jarvis` 使用 `pkg/prompt/prompt.go` 中的模板功能，构建一个专门用于交易反思的提示词，将收集到的上下文信息结构化地输入给 LLM。
-4.  **LLM 调用**: `Jarvis` 通过 `LLM Manager` 调用配置的 LLM 服务，生成反思内容。
-5.  **记忆存储**:\n    *   `Jarvis` 将 LLM 返回的反思文本保存到一个新的 Markdown 文件中。\n    *   **存储位置**: 在 `memory-bank/` 目录下创建一个新的子目录 `reflections/`。\n    *   **文件命名**: 采用 `<StrategyID>_<UnixTimestamp>.md` 的格式，确保文件唯一且易于关联和排序。例如：`macd_cross_strategy_1713580800.md`。\n    *   **文件内容**: 文件主体为 LLM 生成的反思文本。可以在文件头部添加一些元数据（如交易对、盈亏、时间戳）作为注释或 Front Matter。
+#### 4.1.3 Memory 系统工作流程
 
-#### 4.1.4 记忆检索与整合
+Memory 系统在每个决策周期中工作：
 
-```mermaid
-sequenceDiagram
-    participant Jarvis as Jarvis (核心协调器)
-    participant FileSystem as 文件系统 (Memory Bank)
-    participant TradingAgent as 交易代理
-    participant LLMManager as LLM 管理器
+1. **加载记忆**: `pkg/jarvis.go` 从 `memory-bank/trading-memory.md` 加载现有记忆
+2. **构建提示词**: 将记忆内容整合到 AI 提示词中
+3. **AI 决策**: AI 分析市场数据、仓位信息和历史记忆，生成决策
+4. **反思输出**: AI 通过 `thoughts.reflection` 字段输出当前周期的反思
+5. **更新记忆**: AI 通过 `memory.content` 字段输出更新后的完整记忆内容
+6. **保存记忆**: 系统将更新后的记忆保存到文件中
 
-    Jarvis->>Jarvis: 开始新的决策周期 (如收到市场事件)
-    Jarvis->>FileSystem: 检查 memory-bank/reflections/ 目录下是否存在与 StrategyID 匹配的文件
-    FileSystem-->>Jarvis: 返回匹配的文件列表
-    alt 存在记忆文件
-        Jarvis->>Jarvis: 读取最新的一个或多个记忆文件内容 (memoryContent)
-        Jarvis->>Jarvis: 准备基础决策上下文 (baseContext)
-        Jarvis->>TradingAgent: 传递包含记忆的上下文 (baseContext + memoryContent) 或构建包含记忆的提示词
-        Note right of Jarvis: 整合方式取决于 Agent 设计，\n可以将记忆作为独立信息传递，\n或直接整合入提示词:\n\"...[基础决策上下文]...\\n\\n请参考以下过去的交易反思:\\n- [上次反思内容]\\n\\n基于以上信息和当前市场状况，请做出交易决策。\"
-    else 无记忆文件
-        Jarvis->>TradingAgent: 传递基础决策上下文 (baseContext) 或构建基础提示词
-    end
-    TradingAgent->>LLMManager: （使用收到的上下文/提示词）调用 LLM 获取决策
-    LLMManager->>LLMManager: 调用 LLM
-    LLMManager-->>TradingAgent: 返回 LLM 决策结果
-    TradingAgent-->>Jarvis: 返回决策动作
-```
-
-1.  **检索时机**: 在 `pkg/jarvis.go` 的核心决策循环中，为特定策略准备调用 `Trading Agent` 之前。
-2.  **检索逻辑**: `Jarvis` 检查 `memory-bank/reflections/` 目录下与该策略 `StrategyID` 匹配的所有 `.md` 文件。
-3.  **内容选择**:\n    *   默认策略：读取最新创建的一个反思文件。\n    *   可选策略（未来扩展）：读取最近的 N 个反思文件，或者对多个反思进行摘要后再整合。
-4.  **上下文/提示词整合**:\n    *   `Jarvis` 将检索到的反思内容 (`memoryContent`) 与当前的基础决策上下文 (`baseContext`) 结合。\n    *   整合后的信息被传递给 `Trading Agent`。这可以通过两种方式实现：\n        *   将 `memoryContent` 作为独立的上下文信息传递给 `Trading Agent`，由 Agent 负责将其整合到最终的 LLM 提示词中。\n        *   `Jarvis` 直接构建包含 `memoryContent` 的完整提示词，然后将此提示词传递给 `Trading Agent`，Agent 直接使用该提示词调用 LLM。\n    *   选择哪种方式取决于 `Trading Agent` 的接口设计和职责划分。
-5.  **Agent 调用**: `Jarvis` 调用 `Trading Agent` 的决策方法，传递包含（或准备好的）历史记忆的上下文/提示词。
-
-#### 4.1.5 组件和配置变更
+#### 4.1.4 组件和配置
 
 *   **`pkg/jarvis.go`**:
-    *   增加处理 `PositionClosedEvent` 的逻辑。
-    *   实现反思上下文收集（可能需要与 Agent 交互）、LLM 调用、文件保存逻辑。
-    *   实现记忆文件检索和加载逻辑。
-    *   修改调用 `Trading Agent` 的逻辑，以传递整合了记忆的上下文或提示词。
-*   **`pkg/env/exchange/exchange_entity.go`**: 增加仓位关闭检测逻辑，触发 `PositionClosedEvent`。
-*   **`pkg/types/event.go`**: 定义 `PositionClosedEvent` 结构体。
-*   **`pkg/agents/trading/trading_agent.go`**:
-    *   可能需要调整接口，以接收包含历史记忆的上下文或提示词。
-    *   可能需要提供方法供 `Jarvis` 获取策略相关的上下文信息。
-*   **`pkg/prompt/prompt.go`**: 可能需要添加或修改提示词模板，以支持反思生成和记忆整合（无论是在 Jarvis 还是 Agent 中构建）。
-*   **`pkg/config/config.go` (及相关子配置)**:\n    *   增加配置项以启用/禁用此记忆功能 (`memory.enabled: bool`)。\n    *   增加配置项指定记忆文件的存储路径 (`memory.path: string`)，默认为 `\"memory-bank/reflections\"`。\n    *   增加配置项控制加载记忆的数量或策略 (`memory.retrieval_count: int`)。
+    *   实现记忆加载逻辑 (`setupMemory()`)
+    *   处理 AI 的记忆输出 (`processMemoryOutput()`)
+    *   管理记忆字数限制和截断
+*   **`pkg/memory/memory_manager.go`**:
+    *   提供记忆文件的读写操作
+    *   实施字数限制和验证
+*   **`pkg/types/result.go`**: 定义 `Memory` 结构体
+*   **`pkg/prompt/prompt.go`**: 包含记忆相关的提示词模板
+*   **`pkg/config/config.go`**:
+    *   `memory.enabled`: 启用/禁用记忆功能
+    *   `memory.memory_path`: 记忆文件存储路径，默认为 `"memory-bank/trading-memory.md"`
+    *   `memory.max_words`: 记忆字数上限，默认为 `1000`
 
-#### 4.1.6 技术考虑
+#### 4.1.5 技术考虑
 
-*   **文件管理**: 需要考虑旧记忆文件的清理策略，避免无限增长。可以按时间或数量限制。
-*   **性能**: 文件 I/O 操作应异步执行或在非关键路径上执行，避免阻塞交易决策流程。
-*   **提示词长度**: 大量历史记忆可能导致提示词过长，超出 LLM 的上下文限制。需要实现截断、摘要或选择性加载机制。
-*   **反思质量**: LLM 生成的反思质量直接影响其效果。需要精心设计反思提示词，并可能需要对结果进行后处理或筛选。
-*   **错误处理**: 文件读写、LLM 调用失败等情况需要健壮的错误处理。
-*   **并发**: 如果多个策略实例并发运行，需要确保文件读写和状态更新是并发安全的。
+*   **字数限制**: 通过 `max_words` 配置项限制记忆大小，防止无限增长
+*   **周期重置**: 策略周期重置时 AI 的上下文清空，完全依赖记忆文件
+*   **错误处理**: 文件读写失败时记录日志并提供用户反馈
+*   **并发安全**: 当前实现为单实例，多实例并发需要额外的文件锁机制
