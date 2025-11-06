@@ -2,10 +2,18 @@
 Trading-GPT is a trading bot based on [bbgo](https://github.com/c9s/bbgo) and [langchaingo](https://github.com/tmc/langchaingo).
 
 ## Features
-- Writing Trading Strategies Using Natural Language
-- Supports multiple LLMs: Google AI, Open AI, Claude AI and ollama
-- Support for setting take profit and stop loss in the strategy
-- Chat with strategy
+
+- **Natural Language Strategy Writing** - Define trading strategies in plain language without coding
+- **Multiple LLM Support** - OpenAI, Google AI, Claude AI, and Ollama
+- **Dynamic Technical Indicators** - Query any indicator (RSI, BOLL, SMA, EWMA, etc.) with any timeframe on-demand
+- **Limit Orders with Price Expressions** - Dynamic pricing like `last_close * 0.995` for better entry
+- **Persistent Memory System** - AI learns from trading experiences across sessions
+- **Multi-Timeframe Analysis** - Compare indicators across different timeframes for trend confirmation
+- **Risk Management** - Stop loss, take profit, trailing stops, and partial position management
+- **External Integrations** - Coze workflows, Fear & Greed Index, Twitter sentiment analysis
+- **Chat with Strategy** - Interact with your strategy to refine behavior in real-time
+
+**[Documentation →](docs/)**
 
 ## Example
 * Moving average strategy
@@ -27,6 +35,65 @@ Trading strategy: Calculate the MACD indicator based on the K-line. The short pe
 ```
 Trading strategy: This strategy utilizes the Bollinger Bands and RSI indicators, capturing overbought and oversold signals when the stock price reaches the upper and lower Bollinger Bands, confirms the timing by combining with the RSI indicator, and sets stop-loss levels, aiming to profit from both upward and downward cycles.
 ```
+
+## Architecture
+
+Trading-GPT employs a modular, layered architecture (from bottom to top):
+
+```mermaid
+graph BT
+    subgraph Layer1["📊 Exchange Layer"]
+        Exchanges[Multiple Exchanges<br/>Binance · OKEx · etc.]
+    end
+
+    subgraph Layer2["⚙️ Core Engine Layer"]
+        BBGO[BBGO Trading Framework]
+    end
+
+    subgraph Layer3["🌍 Environment Layer"]
+        Exchange[Exchange Entity<br/>Orders · Indicators]
+        Coze[Coze Entity<br/>Workflows]
+        FNG[FNG Entity<br/>Sentiment]
+        Twitter[Twitter Entity<br/>Social Data]
+    end
+
+    subgraph Layer4["🤖 AI Layer"]
+        TradingAgent[Trading Agent]
+        LLM[LLM Manager]
+        Memory[Memory System]
+    end
+
+    subgraph Layer5["👤 User Layer"]
+        Chat[Chat Interface]
+        Notify[Notifications]
+    end
+
+    Exchanges <--> BBGO
+    BBGO --> Exchange
+    BBGO --> Coze
+    BBGO --> FNG
+    BBGO --> Twitter
+
+    Exchange --> TradingAgent
+    Coze --> TradingAgent
+    FNG --> TradingAgent
+    Twitter --> TradingAgent
+
+    LLM --> TradingAgent
+    Memory -.-> TradingAgent
+
+    TradingAgent --> Chat
+    TradingAgent --> Notify
+    Chat --> TradingAgent
+```
+
+### Architecture Layers
+
+- **Exchange Layer**: Multiple cryptocurrency exchanges providing market data
+- **Core Engine**: BBGO framework handling exchange connections and order execution
+- **Environment Layer**: Modular entities for trading, workflows, and data collection
+- **AI Layer**: Trading agent powered by LLM with persistent memory
+- **User Layer**: Chat interface for input and notifications for updates
 
 ## Usage
 Prepare your dotenv file .env.local and BBGO yaml config file bbgo.yaml

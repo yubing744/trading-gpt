@@ -1,10 +1,10 @@
 # Active Context: Trading-AI
 
 ## Current Focus
-Successfully implemented dynamic technical indicator query system for next commands feature (Issue #62). AI can now dynamically request any technical indicator with any timeframe and parameter combination without pre-configuration. Also addressed PR #65 code review with critical security and concurrency fixes.
+Enhanced README.md documentation to better showcase Trading-GPT's capabilities. Updated Features section and added comprehensive Architecture diagram to improve project presentation and user understanding.
 
 ## Current Mode
-**Act Mode** - Completed dynamic indicator query implementation with comprehensive validation and optimization based on code review feedback.
+**Documentation Mode** - Completed README.md enhancement with simplified, layered architecture visualization and streamlined feature presentation.
 
 ## Technical Documentation Requirements
 The technical specification document (tech_spec.md) must include:
@@ -36,6 +36,18 @@ The technical specification document (tech_spec.md) must include:
 All diagrams must be created using Mermaid syntax, and each section should be concise and clear.
 
 ## Recent Changes
+
+### README.md Enhancement - 2025-11-06
+- **Updated Features section** - Simplified from 3-category 18-item structure to single-level 9-item list
+- **Added Architecture diagram** - Created layered Mermaid diagram showing 5 architectural layers (Exchange → Core Engine → Environment → AI → User)
+- **Improved visual clarity** - Used `graph BT` (bottom-to-top) layout for clear layer separation without misalignment
+- **Streamlined presentation** - Removed color styling and emoji categories for cleaner, more professional appearance
+- **Better documentation links** - Consolidated to single documentation link
+- **Key design decisions**:
+  - Chose balanced approach over comprehensive (avoided information overload) or minimal (met all requirements)
+  - Bottom-to-top layer visualization provides intuitive understanding of data flow
+  - Single-level feature list improves scannability while preserving key capabilities
+  - Maintained all existing content (examples, configuration, usage instructions)
 
 ### Dynamic Indicator Query System (Issue #62) - 2025-11-01
 - **Implemented `get_indicator` command** for ExchangeEntity enabling zero-config dynamic indicator queries
@@ -114,12 +126,11 @@ Addressed all critical issues from PR #65 code review with 5 major fixes:
 - Updated progress documentation to reflect memory system implementation
 
 ## Next Steps
-1. **Test dynamic indicator queries** in real trading scenarios with multi-timeframe analysis
-2. **Monitor indicator reuse effectiveness** to validate duplicate detection logic
-3. **Observe AI indicator parameter choices** to refine default values if needed
-4. **Consider adding indicator caching** for frequently requested combinations
-5. **Explore parallel command execution** to improve performance
-6. **Test frequency limits** under high-load scenarios
+1. Consider adding README badges (build status, version, license)
+2. Monitor user feedback on new documentation structure
+3. Continue feature development with updated documentation standards
+4. Update README when major features are added
+5. Consider adding screenshots or quick-start guide
 
 ## Active Decisions and Considerations
 - **Documentation Approach**: Using structured Markdown files organized in a clear hierarchy to maintain project knowledge.
@@ -147,3 +158,7 @@ Addressed all critical issues from PR #65 code review with 5 major fixes:
 - **Comprehensive validation prevents silent failures** - Strict parameter checking with clear error messages helps AI learn and adapt
 - **Thread safety cannot be assumed** - `atomic.Value` for shared state access prevents race conditions in concurrent environments
 - **Frequency limits protect system stability** - Rate limiting prevents resource exhaustion from AI exploration behaviors
+- **Documentation clarity matters for adoption** - Simplified, layered presentation improves understanding without sacrificing completeness
+- **Bottom-to-top architecture visualization is intuitive** - Showing data flow from exchanges upward to user helps readers understand system structure naturally
+- **Less is more in feature presentation** - Streamlined single-level list (9 items) is more scannable than multi-category structure (18 items)
+- **Iterative refinement based on feedback** - User review led to three successive improvements (remove colors, simplify categories, fix layer alignment)
