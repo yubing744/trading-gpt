@@ -1,5 +1,5 @@
-# Trading-AI
-Trading-AI is a trading bot based on [bbgo](https://github.com/c9s/bbgo) and [langchaingo](https://github.com/tmc/langchaingo).
+# Trading-GPT
+Trading-GPT is a trading bot based on [bbgo](https://github.com/c9s/bbgo) and [langchaingo](https://github.com/tmc/langchaingo).
 
 ## Features
 - Writing Trading Strategies Using Natural Language
