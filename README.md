@@ -38,62 +38,50 @@ Trading strategy: This strategy utilizes the Bollinger Bands and RSI indicators,
 
 ## Architecture
 
-Trading-GPT employs a modular, layered architecture (from bottom to top):
+Trading-GPT employs a three-layer architecture:
 
 ```mermaid
-graph BT
-    subgraph Layer1["📊 Exchange Layer"]
-        Exchanges[Multiple Exchanges<br/>Binance · OKEx · etc.]
+graph TD
+    subgraph UserLayer["User Layer"]
+        Chat[Chat Interface]
+        Notify[Notifications]
     end
 
-    subgraph Layer2["⚙️ Core Engine Layer"]
-        BBGO[BBGO Trading Framework]
-    end
-
-    subgraph Layer3["🌍 Environment Layer"]
-        Exchange[Exchange Entity<br/>Orders · Indicators]
-        Coze[Coze Entity<br/>Workflows]
-        FNG[FNG Entity<br/>Sentiment]
-        Twitter[Twitter Entity<br/>Social Data]
-    end
-
-    subgraph Layer4["🤖 AI Layer"]
+    subgraph AILayer["AI Layer"]
         TradingAgent[Trading Agent]
         LLM[LLM Manager]
         Memory[Memory System]
     end
 
-    subgraph Layer5["👤 User Layer"]
-        Chat[Chat Interface]
-        Notify[Notifications]
+    subgraph EnvLayer["Environment Layer"]
+        Exchange[Exchange Entity]
+        Coze[Coze Entity]
+        FNG[FNG Entity]
+        Twitter[Twitter Entity]
     end
 
-    Exchanges <--> BBGO
-    BBGO --> Exchange
-    BBGO --> Coze
-    BBGO --> FNG
-    BBGO --> Twitter
+    Chat --> TradingAgent
+    TradingAgent --> Notify
+
+    TradingAgent --> Exchange
+    TradingAgent --> Coze
+    TradingAgent --> FNG
+    TradingAgent --> Twitter
+
+    LLM -.-> TradingAgent
+    Memory -.-> TradingAgent
 
     Exchange --> TradingAgent
     Coze --> TradingAgent
     FNG --> TradingAgent
     Twitter --> TradingAgent
-
-    LLM --> TradingAgent
-    Memory -.-> TradingAgent
-
-    TradingAgent --> Chat
-    TradingAgent --> Notify
-    Chat --> TradingAgent
 ```
 
-### Architecture Layers
-
-- **Exchange Layer**: Multiple cryptocurrency exchanges providing market data
-- **Core Engine**: BBGO framework handling exchange connections and order execution
-- **Environment Layer**: Modular entities for trading, workflows, and data collection
-- **AI Layer**: Trading agent powered by LLM with persistent memory
-- **User Layer**: Chat interface for input and notifications for updates
+**Architecture Layers:**
+- **User Layer**: Chat Interface, Notifications
+- **AI Layer**: Trading Agent, LLM Manager, Memory System
+- **Environment Layer**: Exchange Entity, Coze Entity, FNG Entity, Twitter Entity
+  - *Exchange Entity uses BBGO framework for exchange connections and order execution*
 
 ## Usage
 Prepare your dotenv file .env.local and BBGO yaml config file bbgo.yaml
