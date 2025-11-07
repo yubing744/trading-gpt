@@ -147,53 +147,60 @@ func fixSingleQuotes(text string) string {
 
 // fixUnescapedNewlines fixes unescaped newlines within JSON strings
 func fixUnescapedNewlines(text string) string {
-	// This is complex because we need to identify strings that span multiple lines
-	// For now, we'll replace literal newlines between quotes with \n
-	lines := strings.Split(text, "\n")
-	var inString bool
-	var result strings.Builder
+	var (
+		builder  strings.Builder
+		inString bool
+		escape   bool
+	)
 
-	for i := range len(lines) {
-		line := lines[i]
+	builder.Grow(len(text))
 
-		// Count unescaped quotes to determine if we're inside a string
-		quoteCount := 0
-		escapeNext := false
+	for i := 0; i < len(text); i++ {
+		ch := text[i]
 
-		for j := 0; j < len(line); j++ {
-			if escapeNext {
-				escapeNext = false
-				continue
-			}
-
-			if line[j] == '\\' {
-				escapeNext = true
-				continue
-			}
-
-			if line[j] == '"' {
-				quoteCount++
-			}
+		if escape {
+			builder.WriteByte(ch)
+			escape = false
+			continue
 		}
 
-		result.WriteString(line)
-
-		// If we have an odd number of quotes, toggle string state
-		if quoteCount%2 == 1 {
+		switch ch {
+		case '\\':
+			escape = true
+			builder.WriteByte(ch)
+		case '"':
 			inString = !inString
-		}
-
-		// Add newline if not at the end, escape if inside a string
-		if i < len(lines)-1 {
+			builder.WriteByte(ch)
+		case '\r':
 			if inString {
-				result.WriteString("\\n")
+				// Normalize CRLF into \n to avoid double escaping
+				if i+1 < len(text) && text[i+1] == '\n' {
+					builder.WriteString(`\n`)
+					i++
+				} else {
+					builder.WriteString(`\r`)
+				}
 			} else {
-				result.WriteString("\n")
+				builder.WriteByte(ch)
 			}
+		case '\n':
+			if inString {
+				builder.WriteString(`\n`)
+			} else {
+				builder.WriteByte(ch)
+			}
+		case '\t':
+			if inString {
+				builder.WriteString(`\t`)
+			} else {
+				builder.WriteByte(ch)
+			}
+		default:
+			builder.WriteByte(ch)
 		}
 	}
 
-	return result.String()
+	return builder.String()
 }
 
 // extractJSONObject finds and extracts the JSON object from text more aggressively
