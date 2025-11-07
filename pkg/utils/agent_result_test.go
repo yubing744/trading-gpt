@@ -302,3 +302,66 @@ func TestParseResultWithoutThoughts(t *testing.T) {
 	assert.Nil(t, ret.Thoughts)
 	assert.Equal(t, "exchange.close_position", ret.Action.Name)
 }
+
+func TestParseResultWithComplexMultilineContent(t *testing.T) {
+	raw := `{
+    "thoughts": {
+        "plan": "1. Assess current position status
+2. Evaluate macro risk using recent tweets
+3. Tighten risk controls before macro events",
+        "analyze": "Step 1: Long position +53% PnL.
+- Macro risk: Low opportunity window.
+- F&G rising from 23 to 24 indicates fear is receding.",
+        "detail": "Current price: 2.171<CRLF>SL calc: 2.171 * 0.92 = 1.997<CRLF>TP target: 2.250",
+        "reflection": "Keep momentum but secure gains.\tConsider partial profits if volatility spikes.",
+        "speak": "Updating risk controls on the existing long position."
+    },
+    "action": {
+        "name": "exchange.update_position",
+        "args": {
+            "stop_loss_trigger_price": "2.000",
+            "take_profit_trigger_price": "2.250"
+        }
+    }
+}`
+
+	testDatas := strings.ReplaceAll(raw, "<CRLF>", "\r\n")
+
+	ret, err := ParseResult(testDatas)
+	assert.NoError(t, err)
+	assert.Equal(t, "exchange.update_position", ret.Action.Name)
+	assert.Equal(t, "2.000", ret.Action.Args["stop_loss_trigger_price"])
+	assert.Equal(t, "2.250", ret.Action.Args["take_profit_trigger_price"])
+
+	plan, ok := ret.Thoughts.Plan.(string)
+	assert.True(t, ok)
+	assert.Contains(t, plan, "Assess current position status")
+	assert.Contains(t, plan, "\n2. Evaluate macro risk using recent tweets")
+
+	detail, ok := ret.Thoughts.Detail.(string)
+	assert.True(t, ok)
+	assert.Contains(t, detail, "Current price: 2.171")
+	assert.Contains(t, detail, "\nSL calc: 2.171 * 0.92 = 1.997")
+}
+
+func TestParseResultWithMemory(t *testing.T) {
+	testDatas := `{
+    "thoughts": {
+        "plan": "Hold position and tighten risk"
+    },
+    "memory": {
+        "content": "# Snapshot\nRisk window tightening.\nRemember to watch BTC correlation."
+    },
+    "action": {
+        "name": "exchange.keep_position"
+    }
+}`
+
+	ret, err := ParseResult(testDatas)
+	assert.NoError(t, err)
+	assert.Equal(t, "exchange.keep_position", ret.Action.Name)
+	if assert.NotNil(t, ret.Memory) {
+		assert.Contains(t, ret.Memory.Content, "# Snapshot")
+		assert.Contains(t, ret.Memory.Content, "BTC correlation")
+	}
+}
