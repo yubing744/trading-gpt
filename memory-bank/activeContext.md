@@ -1,7 +1,7 @@
 # Active Context: Trading-AI
 
 ## Current Focus
-The current focus is on implementing the file-based memory function for trading-gpt. This feature allows the AI to learn from trading experiences and maintain persistent memory across sessions, enabling continuous improvement in trading decisions.
+Current efforts center on (1) the file-based memory function that lets the AI learn from trading experiences across sessions and (2) hardening the agent result parser so malformed or richly formatted LLM JSON (including multi-line thoughts and memory payloads) can still be recovered reliably.
 
 ## Current Mode
 **Act Mode** - Successfully implemented the file-based memory system as requested in GitHub issue #40.
@@ -52,6 +52,8 @@ All diagrams must be created using Mermaid syntax, and each section should be co
 - Created example configuration file `bbgo-memory-example.yaml`
 - Created sample memory file `memory-bank/trading-memory.md`
 - Updated progress documentation to reflect memory system implementation
+- **Hardened agent result parsing** in `pkg/utils/agent_result.go` by adding a byte-wise sanitizer that escapes raw newlines/tabs within quoted strings so long-form LLM responses (thoughts + memory) can be parsed without data loss
+- **Expanded parser test suite** in `pkg/utils/agent_result_test.go` to cover multi-paragraph responses, CRLF/tab handling, and Result memory deserialization
 
 ## Next Steps
 1. **Test the memory system** with real trading scenarios to ensure proper functionality
@@ -60,6 +62,7 @@ All diagrams must be created using Mermaid syntax, and each section should be co
 4. **Add memory analytics** to track learning effectiveness over time
 5. **Consider memory backup and versioning** for important trading insights
 6. **Document memory system usage** and best practices for users
+7. **Monitor LLM output formats** to identify additional parser edge cases worth codifying in tests
 
 ## Active Decisions and Considerations
 - **Documentation Approach**: Using structured Markdown files organized in a clear hierarchy to maintain project knowledge.
