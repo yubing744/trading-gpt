@@ -461,12 +461,11 @@ func (s *Strategy) agentAction(ctx context.Context, chatSession ttypes.ISession,
 				if retryTime > 0 {
 					time.Sleep(time.Second * 5)
 
+					// Improved retry prompt to maintain command consistency
+					// Only notify about the JSON format error, don't ask LLM to reconsider the action
 					newMsgs := append(msgs, []*ttypes.Message{
 						{
-							Text: errMsg,
-						},
-						{
-							Text: "Please try to fix the above error by responding with JSON again.",
+							Text: fmt.Sprintf("The previous response had a JSON format error: %v. Please respond with the SAME action decision in valid JSON format. Do not change your trading decision, only fix the JSON structure.", err),
 						},
 					}...)
 					s.agentAction(ctx, chatSession, newMsgs, retryTime-1)

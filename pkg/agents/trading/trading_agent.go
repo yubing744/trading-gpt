@@ -161,6 +161,10 @@ func (a *TradingAgent) GenActions(ctx context.Context, session types.ISession, m
 	callOpts = append(callOpts, llms.WithTemperature(float64(a.temperature)))
 	callOpts = append(callOpts, llms.WithMaxTokens(a.maxContextLength))
 
+	// Request JSON mode to reduce malformed JSON responses
+	callOpts = append(callOpts, llms.WithJSONMode())
+	callOpts = append(callOpts, llms.WithResponseMIMEType("application/json"))
+
 	if a.model != "" {
 		callOpts = append(callOpts, llms.WithModel(a.model))
 	}
