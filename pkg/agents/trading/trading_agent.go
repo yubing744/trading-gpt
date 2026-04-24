@@ -161,6 +161,9 @@ func (a *TradingAgent) GenActions(ctx context.Context, session types.ISession, m
 	callOpts = append(callOpts, llms.WithTemperature(float64(a.temperature)))
 	callOpts = append(callOpts, llms.WithMaxTokens(a.maxContextLength))
 
+	// Request JSON mode to reduce malformed JSON responses
+	callOpts = append(callOpts, llms.WithJSONMode())
+
 	if a.model != "" {
 		callOpts = append(callOpts, llms.WithModel(a.model))
 	}
@@ -204,12 +207,17 @@ func (a *TradingAgent) GenActions(ctx context.Context, session types.ISession, m
 func (agent *TradingAgent) GenLLMMessages(sessionChats []string, msgs []*types.Message) ([]llms.MessageContent, error) {
 	llmMsgs := make([]llms.MessageContent, 0)
 
+	// Backgougroup — append JSON instruction to satisfy providers
+	// (e.g. DeepSeek) that require "json" in the prompt when
+	// response_format is set to json_object.
+	systemPrompt := agent.backgroup + "\n\nYou must respond in valid JSON format."
+
 	// Backgougroup
 	llmMsgs = append(llmMsgs, llms.MessageContent{
 		Role: llms.ChatMessageTypeSystem,
 		Parts: []llms.ContentPart{
 			llms.TextContent{
-				Text: agent.backgroup,
+				Text: systemPrompt,
 			},
 		},
 	})
