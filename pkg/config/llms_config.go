@@ -34,4 +34,6 @@ type LLMConfig struct {
 	Anthropic  *AnthropicConfig `json:"anthropic,omitempty"`
 	GoogleAI   *GoogleAIConfig  `json:"googleai,omitempty"`
 	OpenRouter *OpenAIConfig    `json:"openrouter,omitempty"`
+	// DeepSeek2 is a second DeepSeek-v4-pro instance used as the backup (secondly). Optional: only registered when LLM_DEEPSEEK2_TOKEN is set.
+	DeepSeek2  *OpenAIConfig    `json:"deepseek2,omitempty"`
 }

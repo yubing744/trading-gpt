@@ -138,6 +138,34 @@ func (mgr *LLMManager) Init() error {
 		mgr.llms["openrouter"] = llm
 	}
 
+	// init second DeepSeek model (OpenAI-compatible endpoint) as backup.
+	// Optional: only registered when LLM_DEEPSEEK2_TOKEN is set, so the robot
+	// keeps running on primary when no second key is provided.
+	if mgr.cfg.DeepSeek2 != nil {
+		deepseek2Cfg := mgr.cfg.DeepSeek2
+		token := os.Getenv("LLM_DEEPSEEK2_TOKEN")
+		if token == "" {
+			log.Warn("LLM_DEEPSEEK2_TOKEN not set; second DeepSeek backup inactive")
+		} else {
+			deepseek2Cfg.Token = token
+			opts := make([]openai.Option, 0)
+			opts = append(opts, openai.WithToken(deepseek2Cfg.Token))
+			opts = append(opts, openai.WithModel(deepseek2Cfg.Model))
+			if deepseek2Cfg.BaseURL != "" {
+				opts = append(opts, openai.WithBaseURL(deepseek2Cfg.BaseURL))
+			}
+			noSystemRole := false
+			if deepseek2Cfg.NoSystemRole != nil {
+				noSystemRole = *deepseek2Cfg.NoSystemRole
+			}
+			if llm, err := openaix.New(noSystemRole, opts...); err != nil {
+				log.WithError(err).Warn("New deepseek2 fail; skipping")
+			} else {
+				mgr.llms["deepseek2"] = llm
+			}
+		}
+	}
+
 	// init ollama model
 	if mgr.cfg.Ollama != nil {
 		ollamaCfg := mgr.cfg.Ollama
