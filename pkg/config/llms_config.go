@@ -18,7 +18,7 @@ type AnthropicConfig struct {
 	Model            string `json:"model"`
 	BaseURL          string `json:"base_url"`
 	ExtendedThinking bool   `json:"extended_thinking"`
-	ThinkingBudget   int64  `json:"thinking_budget"`
+	ThinkingBudget   int64 `json:"thinking_budget"`
 }
 
 type GoogleAIConfig struct {
@@ -27,10 +27,11 @@ type GoogleAIConfig struct {
 }
 
 type LLMConfig struct {
-	Primary   string           `json:"primary,omitempty"`
-	Secondly  string           `json:"secondly,omitempty"`
-	OpenAI    *OpenAIConfig    `json:"openai,omitempty"`
-	Ollama    *OllamaConfig    `json:"ollama,omitempty"`
-	Anthropic *AnthropicConfig `json:"anthropic,omitempty"`
-	GoogleAI  *GoogleAIConfig  `json:"googleai,omitempty"`
+	Primary    string           `json:"primary,omitempty"`
+	Secondly   string           `json:"secondly,omitempty"`
+	OpenAI     *OpenAIConfig    `json:"openai,omitempty"`
+	Ollama     *OllamaConfig    `json:"ollama,omitempty"`
+	Anthropic  *AnthropicConfig `json:"anthropic,omitempty"`
+	GoogleAI   *GoogleAIConfig  `json:"googleai,omitempty"`
+	OpenRouter *OpenAIConfig    `json:"openrouter,omitempty"`
 }

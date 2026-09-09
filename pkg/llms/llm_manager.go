@@ -115,6 +115,29 @@ func (mgr *LLMManager) Init() error {
 		mgr.llms["googleai"] = llm
 	}
 
+	// init openrouter model (OpenAI-compatible endpoint)
+	if mgr.cfg.OpenRouter != nil {
+		openRouterCfg := mgr.cfg.OpenRouter
+
+		token := os.Getenv("LLM_OPENROUTER_TOKEN")
+		if token == "" {
+			return errors.New("LLM_OPENROUTER_TOKEN not set in .env.local")
+		}
+		openRouterCfg.Token = token
+
+		opts := make([]openai.Option, 0)
+		opts = append(opts, openai.WithToken(openRouterCfg.Token))
+		opts = append(opts, openai.WithModel(openRouterCfg.Model))
+		opts = append(opts, openai.WithBaseURL("https://openrouter.ai/api/v1"))
+
+		llm, err := openaix.New(false, opts...)
+		if err != nil {
+			return errors.Wrap(err, "New openrouter fail")
+		}
+
+		mgr.llms["openrouter"] = llm
+	}
+
 	// init ollama model
 	if mgr.cfg.Ollama != nil {
 		ollamaCfg := mgr.cfg.Ollama
