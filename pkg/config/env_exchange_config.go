@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
 )
 
@@ -100,9 +101,60 @@ type EnvExchangeConfig struct {
 	Indicators          map[string]*IndicatorConfig `json:"indicators"`
 	HandlePositionClose bool                        `json:"handle_position_close"`
 	CleanPosition       CleanPositionConfig         `json:"clean_position"`
+	RiskControl         RiskControlConfig           `json:"risk_control"`
 }
 
 type CleanPositionConfig struct {
 	Enabled  bool           `json:"enabled"`
 	Interval types.Interval `json:"interval"`
+}
+
+// RiskControlConfig defines code-level hard risk-control gates that operate
+// independently of the LLM decision. Any configured limit that is breached
+// causes the corresponding order submission to be rejected (defensive deny),
+// never a new/active order. See issue #86 (KR3).
+//
+// Threshold semantics: a zero (unset) limit disables that individual check,
+// so an unconfigured deployment keeps its exact prior behaviour. Operators
+// tighten the gate by setting positive thresholds (recommended, sized to the
+// live account). The master `enabled` switch defaults to true.
+type RiskControlConfig struct {
+	// Enabled is the master switch for all hard risk gates. Pointer so that an
+	// absent config field defaults to enabled (true); set `enabled: false` to
+	// explicitly disable. Individual checks are still no-ops until their
+	// thresholds are set to positive values.
+	Enabled *bool `json:"enabled"`
+
+	// MaxLeverage caps the effective leverage used to open/add a position.
+	// Orders whose leverage exceeds this are rejected. Zero disables the check.
+	MaxLeverage fixedpoint.Value `json:"max_leverage"`
+
+	// MaxOrderQuote caps the notional (in quote currency) of a single open/add
+	// order. Zero disables the check.
+	MaxOrderQuote fixedpoint.Value `json:"max_order_quote"`
+
+	// MaxPositionQuote caps the total notional (in quote currency) of the
+	// resulting position (existing exposure + this order). Zero disables it.
+	MaxPositionQuote fixedpoint.Value `json:"max_position_quote"`
+
+	// MaxDailyLoss is the absolute realized loss (quote currency, positive
+	// number) that trips the daily kill-switch. Once tripped, all new
+	// open/add orders are rejected for the remainder of the trading day. The
+	// state resets automatically at the next trading day. Zero disables it.
+	MaxDailyLoss fixedpoint.Value `json:"max_daily_loss"`
+
+	// AutoCloseOnKill, when true, would close open positions on kill-switch
+	// trip. This is an ACTIVE fund action and is intentionally NOT performed
+	// autonomously by this code (requires owner approval); the flag is kept
+	// for forward compatibility and only emits an alert. Default false.
+	AutoCloseOnKill bool `json:"auto_close_on_kill"`
+}
+
+// IsEnabled reports whether the hard risk gate is active. Defaults to true
+// when the config omits the `enabled` field.
+func (c RiskControlConfig) IsEnabled() bool {
+	if c.Enabled == nil {
+		return true
+	}
+	return *c.Enabled
 }

@@ -25,7 +25,7 @@ var log = logrus.WithField("entity", "exchange")
 
 const (
 	// Dynamic indicator limits
-	MaxDynamicIndicatorsPerCycle = 5
+	MaxDynamicIndicatorsPerCycle  = 5
 	DynamicIndicatorCycleDuration = 15 * time.Minute
 
 	// Default parameter values
@@ -49,6 +49,7 @@ type ExchangeEntity struct {
 	session       *bbgo.ExchangeSession
 	orderExecutor *bbgo.GeneralOrderExecutor
 	position      *PositionX
+	riskGate      *RiskGate
 
 	Status      types.StrategyStatus
 	Indicators  []*ExchangeIndicator
@@ -77,6 +78,7 @@ func NewExchangeEntity(
 		session:       session,
 		orderExecutor: orderExecutor,
 		position:      NewPositionX(position),
+		riskGate:      NewRiskGate(cfg.RiskControl),
 		vm:            goja.New(),
 	}
 }
@@ -959,6 +961,16 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 
 			ent.updatePositionFundRatios(ctx, fixedpoint.NewFromFloat(exitPrice))
 
+			// Feed realized PnL to the hard risk gate so the daily-loss
+			// kill-switch (issue #86 / KR3) can trip. Recording only; no order.
+			if ent.riskGate != nil {
+				ent.riskGate.RecordRealizedPnL(ent.position.AccumulatedProfitValue)
+				if ent.riskGate.KillSwitchActive() {
+					log.Warnf("risk_gate: daily-loss kill-switch is ACTIVE for %s; new open orders will be rejected until next trading day", ent.symbol)
+					bbgo.Notify("[RISK] daily-loss kill-switch ACTIVE for %s; blocking new opens until next trading day", ent.symbol)
+				}
+			}
+
 			// Emit the position closed event
 			go func() {
 				log.WithField("positionData", positionData).Info("Emitting position_closed event")
@@ -1297,6 +1309,34 @@ func (s *ExchangeEntity) OpenPosition(ctx context.Context, side types.SideType, 
 		}
 	}
 
+	// Hard risk gate (issue #86 / KR3): a code-level, LLM-independent defensive
+	// check. If any configured limit is breached the order is rejected here and
+	// NOT submitted. This never triggers any active order/close on its own.
+	if s.riskGate != nil {
+		orderNotional := s.calculateOrderNotional(ctx, quoteRatio)
+		positionNotional := s.position.GetBase().Abs().Mul(closePrice)
+		decision := s.riskGate.Evaluate(orderNotional, positionNotional, s.leverage)
+		if !decision.Allow {
+			log.WithFields(logrus.Fields{
+				"symbol":            s.symbol,
+				"reason_code":       decision.Code,
+				"order_notional":    orderNotional.Float64(),
+				"position_notional": positionNotional.Float64(),
+				"leverage":          s.leverage.Float64(),
+			}).Errorf("risk_gate: rejecting open position order: %s", decision.Reason)
+			bbgo.Notify("[RISK] rejecting %s open order: %s", s.symbol, decision.Reason)
+
+			if decision.Code == RiskCodeKillSwitch && s.cfg.RiskControl.AutoCloseOnKill {
+				// Auto-close is an ACTIVE fund action; intentionally NOT performed
+				// autonomously (requires owner approval). Alert only.
+				log.Warnf("risk_gate: auto_close_on_kill is set but auto-close is intentionally disabled in code (requires owner approval); no close order submitted for %s", s.symbol)
+				bbgo.Notify("[RISK] kill-switch tripped for %s; auto-close requested but NOT executed (needs owner approval)", s.symbol)
+			}
+
+			return fmt.Errorf("risk gate rejected %s open order [%s]: %s", s.symbol, decision.Code, decision.Reason)
+		}
+	}
+
 	quantity := s.calculateQuantity(ctx, closePrice, side, quoteRatio)
 
 	for {
@@ -1522,6 +1562,28 @@ func (s *ExchangeEntity) generateOrderForm(side types.SideType, quantity fixedpo
 	}
 
 	return orderForm
+}
+
+// calculateOrderNotional returns the intended notional (in quote currency) of a
+// new open/add order, i.e. the leveraged quote budget the order will deploy.
+// It mirrors the quote budget used by calculateQuantity and is used only by the
+// hard risk gate (read-only; never places an order).
+func (s *ExchangeEntity) calculateOrderNotional(ctx context.Context, quoteRatio *fixedpoint.Value) fixedpoint.Value {
+	quoteQty, err := bbgo.CalculateQuoteQuantity(ctx, s.session, s.position.Market.QuoteCurrency, s.leverage)
+	if err != nil {
+		log.WithError(err).Errorf("risk_gate: can not read %s quote balance for notional", s.symbol)
+		return fixedpoint.Zero
+	}
+
+	if quoteRatio != nil && quoteRatio.Compare(fixedpoint.Zero) > 0 {
+		ratio := *quoteRatio
+		if ratio.Compare(fixedpoint.One) > 0 {
+			ratio = fixedpoint.One
+		}
+		quoteQty = quoteQty.Mul(ratio)
+	}
+
+	return quoteQty
 }
 
 // calculateQuantity returns leveraged quantity
