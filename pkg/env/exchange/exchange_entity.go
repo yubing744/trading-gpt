@@ -1354,16 +1354,33 @@ func (s *ExchangeEntity) ClosePosition(ctx context.Context, percentage fixedpoin
 	posBeforeClose := *s.position
 	isFullClose := percentage.Compare(fixedpoint.One) == 0
 
-	// make it negative
-	quantity := s.position.GetBase().Mul(percentage).Abs()
+	// #89: size the close off the exchange-authoritative net position when it is
+	// available, not the internally tracked base which can be gross/stale. This
+	// prevents a market close from selling more than is actually held and
+	// flipping the account into an unintended opposite position.
+	authNetBase, hasAuth := s.queryAuthoritativeNetBase(ctx)
+	sizing := resolveCloseBaseQuantity(
+		s.position.GetBase(),
+		authNetBase,
+		hasAuth,
+		percentage,
+		s.position.Market.MinQuantity,
+	)
+	if sizing.SkipDust {
+		log.WithField("symbol", s.symbol).
+			WithField("internalBase", s.position.GetBase()).
+			WithField("authoritativeNetBase", authNetBase).
+			WithField("hasAuthoritative", hasAuth).
+			WithField("minQuantity", s.position.Market.MinQuantity).
+			Info("ClosePosition_skip_dust_no_reverse_order")
+		return nil
+	}
+
+	quantity := sizing.BaseQuantity
 	side := types.SideTypeBuy
 
 	if s.position.IsLong() {
 		side = types.SideTypeSell
-
-		if quantity.Compare(s.position.Market.MinQuantity) < 0 {
-			return fmt.Errorf("%s order quantity %v is too small, less than %v", s.symbol, quantity, s.position.Market.MinQuantity)
-		}
 	} else {
 		quantity = quantity.Mul(closePrice)
 	}
@@ -1439,6 +1456,30 @@ func (s *ExchangeEntity) ClosePosition(ctx context.Context, percentage fixedpoin
 	}
 
 	return err
+}
+
+// queryAuthoritativeNetBase best-effort reads the exchange's real net position
+// base for the traded symbol. It returns (base, true) on success and
+// (zero, false) when the exchange does not expose position info or the query
+// fails, in which case callers fall back to the internally tracked base.
+func (s *ExchangeEntity) queryAuthoritativeNetBase(ctx context.Context) (fixedpoint.Value, bool) {
+	service, implemented := s.session.Exchange.(types.ExchangePositionUpdateService)
+	if !implemented {
+		return fixedpoint.Zero, false
+	}
+
+	queryCtx, cancel := context.WithTimeout(ctx, time.Second*20)
+	defer cancel()
+
+	posInfo, err := service.QueryPositionInfo(queryCtx, s.symbol)
+	if err != nil || posInfo == nil {
+		log.WithError(err).
+			WithField("symbol", s.symbol).
+			Warn("ClosePosition_queryAuthoritativeNetBase_fail_fallback_to_internal")
+		return fixedpoint.Zero, false
+	}
+
+	return posInfo.Base, true
 }
 
 func (s *ExchangeEntity) UpdatePosition(ctx context.Context, side types.SideType, closePrice fixedpoint.Value, args ...interface{}) error {
