@@ -100,6 +100,23 @@ type EnvExchangeConfig struct {
 	Indicators          map[string]*IndicatorConfig `json:"indicators"`
 	HandlePositionClose bool                        `json:"handle_position_close"`
 	CleanPosition       CleanPositionConfig         `json:"clean_position"`
+	WSHealth            WSHealthConfig              `json:"ws_health"`
+}
+
+// WSHealthConfig configures the WebSocket health watchdog. It is purely
+// observational (logging only) and never touches orders or positions. It
+// surfaces OKX WebSocket reconnect churn and market-data (kline) gaps so that
+// dropped/delayed feed around reconnects (issue #90) is visible.
+type WSHealthConfig struct {
+	// Disabled turns the watchdog off. It is enabled by default (zero value)
+	// because it only adds logging and is safe in production.
+	Disabled bool `json:"disabled"`
+	// CheckInterval is how often health is evaluated. 0 => default (30s).
+	CheckInterval types.Duration `json:"check_interval"`
+	// GapGraceFactor multiplies the kline interval to decide a gap. 0 => 1.5.
+	GapGraceFactor float64 `json:"gap_grace_factor"`
+	// MinGapAlertInterval throttles repeated gap alerts. 0 => default (5m).
+	MinGapAlertInterval types.Duration `json:"min_gap_alert_interval"`
 }
 
 type CleanPositionConfig struct {

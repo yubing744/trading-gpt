@@ -58,6 +58,8 @@ type ExchangeEntity struct {
 	eventChannel              atomic.Value // Store chan ttypes.IEvent for thread-safe access
 	dynamicIndicatorCount     atomic.Int32 // Track dynamic indicator requests per cycle
 	dynamicIndicatorCycleTime time.Time    // Track current cycle start time
+
+	wsHealth *WSHealthMonitor // Tracks WebSocket reconnect churn and market-data gaps
 }
 
 func NewExchangeEntity(
@@ -78,6 +80,7 @@ func NewExchangeEntity(
 		orderExecutor: orderExecutor,
 		position:      NewPositionX(position),
 		vm:            goja.New(),
+		wsHealth:      NewWSHealthMonitor(),
 	}
 }
 
@@ -846,12 +849,25 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 		log.Infof("connected")
 	})
 
+	// WebSocket health monitoring (issue #90): OKX periodically closes the WS
+	// connection (e.g. service-upgrade notice code 64008) which bbgo recovers
+	// via auto reconnect + re-subscribe, but the reconnect gap can drop or
+	// delay klines. bbgo already re-subscribes on reconnect, so here we only
+	// observe: surface reconnect churn and alert on market-data gaps.
+	ent.startWSHealthWatchdog(ctx, session)
+
 	log.
 		WithField("symbol", ent.symbol).
 		WithField("interval", ent.interval).
 		Info("exchange entity run")
 
 	session.MarketDataStream.OnKLineClosed(types.KLineWith(ent.symbol, ent.interval, func(kline types.KLine) {
+		// Record liveness for WS gap detection before any status gating so a
+		// paused strategy does not produce false gap alerts.
+		if ent.wsHealth != nil {
+			ent.wsHealth.RecordKLine(time.Now())
+		}
+
 		// StrategyController
 		if ent.Status != types.StrategyStatusRunning {
 			log.Info("strategy status not running")
@@ -1001,6 +1017,96 @@ func (ent *ExchangeEntity) Run(ctx context.Context, ch chan ttypes.IEvent) {
 			ent.handleCleanPosition(ctx, kline)
 		}))
 	}
+}
+
+// startWSHealthWatchdog wires WebSocket connection-state callbacks and starts a
+// background watchdog that alerts on market-data (kline) gaps. It is purely
+// observational: it emits logs/notifications only and never touches orders,
+// positions or the underlying connection. bbgo's StandardStream owns the actual
+// reconnect + re-subscribe; this is an upper-layer safety net for issue #90.
+func (ent *ExchangeEntity) startWSHealthWatchdog(ctx context.Context, session *bbgo.ExchangeSession) {
+	cfg := ent.cfg.WSHealth
+	if cfg.Disabled {
+		log.Info("ws health watchdog disabled")
+		return
+	}
+
+	if ent.wsHealth == nil {
+		ent.wsHealth = NewWSHealthMonitor()
+	}
+	monitor := ent.wsHealth
+
+	checkInterval := cfg.CheckInterval.Duration()
+	if checkInterval <= 0 {
+		checkInterval = DefaultWSCheckInterval
+	}
+
+	graceFactor := cfg.GapGraceFactor
+	if graceFactor <= 0 {
+		graceFactor = DefaultWSGraceFactor
+	}
+
+	minGapAlert := cfg.MinGapAlertInterval.Duration()
+	if minGapAlert <= 0 {
+		minGapAlert = DefaultWSMinGapAlertInterval
+	}
+
+	intervalDuration := ent.interval.Duration()
+
+	// Track connection state transitions on the market data stream. bbgo
+	// re-subscribes automatically on (re)connect, so no manual re-subscribe is
+	// needed here; we only surface the churn.
+	session.MarketDataStream.OnConnect(func() {
+		monitor.RecordConnect(time.Now())
+		log.WithField("symbol", ent.symbol).
+			WithField("reconnect_count", monitor.ReconnectCount()).
+			Info("market data stream connected")
+	})
+	session.MarketDataStream.OnDisconnect(func() {
+		monitor.RecordDisconnect(time.Now())
+		log.WithField("symbol", ent.symbol).
+			WithField("reconnect_count", monitor.ReconnectCount()).
+			Warn("market data stream disconnected")
+	})
+
+	log.WithField("symbol", ent.symbol).
+		WithField("check_interval", checkInterval).
+		WithField("gap_grace_factor", graceFactor).
+		WithField("kline_interval", intervalDuration).
+		Info("ws health watchdog started")
+
+	go func() {
+		ticker := time.NewTicker(checkInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				log.Info("ws health watchdog stopped")
+				return
+			case <-ticker.C:
+				now := time.Now()
+
+				// Alert on prolonged disconnects with exponential backoff so a
+				// long outage does not spam the log.
+				if monitor.ShouldAlertDisconnect(now, DefaultWSDisconnectAlertBase, DefaultWSDisconnectAlertMax) {
+					log.WithField("symbol", ent.symbol).
+						WithField("reconnect_count", monitor.ReconnectCount()).
+						Warn("ws still disconnected, market data may be stale")
+				}
+
+				// Alert on market-data (kline) gaps that reconnect churn can
+				// produce, which is the impact that matters for the strategy.
+				if alert, gap := monitor.EvaluateKLineGap(now, intervalDuration, graceFactor, minGapAlert); alert {
+					log.WithField("symbol", ent.symbol).
+						WithField("gap", gap).
+						WithField("kline_interval", intervalDuration).
+						WithField("reconnect_count", monitor.ReconnectCount()).
+						Warn("ws kline gap detected: no kline received within expected window, feed may be delayed or dropped around reconnect")
+				}
+			}
+		}
+	}()
 }
 
 func (ent *ExchangeEntity) handleCleanPosition(ctx context.Context, kline types.KLine) {
