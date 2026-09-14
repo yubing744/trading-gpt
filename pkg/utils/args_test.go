@@ -2,6 +2,7 @@ package utils
 
 import (
 	"testing"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/stretchr/testify/assert"
@@ -62,4 +63,21 @@ func TestArgToFixedpointWithExpress(t *testing.T) {
 	val, err := ArgToFixedpoint(vm, "1.22*2")
 	assert.NoError(t, err)
 	assert.Equal(t, 2.44, val.Float64())
+}
+
+func TestArgToFixedpointIntegerResult(t *testing.T) {
+	vm := goja.New()
+	val, err := ArgToFixedpoint(vm, "70000")
+	assert.NoError(t, err)
+	assert.NotNil(t, val)
+	assert.Equal(t, 70000.0, val.Float64())
+}
+
+func TestArgToFixedpointInfiniteLoopTimesOut(t *testing.T) {
+	vm := goja.New()
+	start := time.Now()
+	val, err := ArgToFixedpoint(vm, "while(true){}")
+	assert.Error(t, err)
+	assert.Nil(t, val)
+	assert.Less(t, time.Since(start), 5*time.Second)
 }

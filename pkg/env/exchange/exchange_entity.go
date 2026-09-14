@@ -54,7 +54,6 @@ type ExchangeEntity struct {
 	Indicators  []*ExchangeIndicator
 	KLineWindow *types.KLineWindow
 
-	vm                        *goja.Runtime
 	eventChannel              atomic.Value // Store chan ttypes.IEvent for thread-safe access
 	dynamicIndicatorCount     atomic.Int32 // Track dynamic indicator requests per cycle
 	dynamicIndicatorCycleTime time.Time    // Track current cycle start time
@@ -77,7 +76,6 @@ func NewExchangeEntity(
 		session:       session,
 		orderExecutor: orderExecutor,
 		position:      NewPositionX(position),
-		vm:            goja.New(),
 	}
 }
 
@@ -517,7 +515,7 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 
 		// config stop losss
 		if stopLoss, ok := args["stop_loss_trigger_price"]; ok && stopLoss != "" {
-			stopLoss, err := utils.ParseStopLoss(ent.vm, side, closePrice, stopLoss)
+			stopLoss, err := utils.ParseStopLoss(goja.New(), side, closePrice, stopLoss)
 			if err != nil {
 				return errors.Wrapf(err, "the stop loss invalid: %s", stopLoss)
 			}
@@ -531,7 +529,7 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 
 		// config take profix
 		if takeProfix, ok := args["take_profit_trigger_price"]; ok && takeProfix != "" {
-			takeProfix, err := utils.ParseTakeProfit(ent.vm, side, closePrice, takeProfix)
+			takeProfix, err := utils.ParseTakeProfit(goja.New(), side, closePrice, takeProfix)
 			if err != nil {
 				return errors.Wrapf(err, "the take profit invalid: %s", takeProfix)
 			}
@@ -552,7 +550,7 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 
 		// config limit price
 		if limitPrice, ok := args["limit_price"]; ok && limitPrice != "" {
-			price, err := utils.ParsePrice(ent.vm, ent.KLineWindow, closePrice, limitPrice)
+			price, err := utils.ParsePrice(goja.New(), ent.KLineWindow, closePrice, limitPrice)
 			if err != nil {
 				return errors.Wrapf(err, "invalid limit_price: %s", limitPrice)
 			}
