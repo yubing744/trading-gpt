@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -54,7 +55,9 @@ type ExchangeEntity struct {
 	Indicators  []*ExchangeIndicator
 	KLineWindow *types.KLineWindow
 
-	vm                        *goja.Runtime
+	vm   *goja.Runtime
+	vmMu sync.Mutex // serializes access to vm; goja.Runtime is not thread-safe (issue #93)
+
 	eventChannel              atomic.Value // Store chan ttypes.IEvent for thread-safe access
 	dynamicIndicatorCount     atomic.Int32 // Track dynamic indicator requests per cycle
 	dynamicIndicatorCycleTime time.Time    // Track current cycle start time
@@ -319,6 +322,18 @@ func (ent *ExchangeEntity) Actions() []*ttypes.ActionDesc {
 	}
 }
 
+// evalWithVM serializes access to the shared goja runtime (ent.vm) so that
+// concurrent command handling cannot race on it (issue #93). The runtime is not
+// safe for concurrent use, and callers set variables on it before evaluating an
+// expression, so the whole set+eval sequence must be held under the lock. The
+// per-eval timeout that guards against runaway scripts (issue #92) lives in
+// utils.ArgToFixedpoint.
+func (ent *ExchangeEntity) evalWithVM(fn func(vm *goja.Runtime) (*fixedpoint.Value, error)) (*fixedpoint.Value, error) {
+	ent.vmMu.Lock()
+	defer ent.vmMu.Unlock()
+	return fn(ent.vm)
+}
+
 func (ent *ExchangeEntity) cmdToSide(cmd string) types.SideType {
 	switch cmd {
 	case "open_long_position":
@@ -517,7 +532,9 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 
 		// config stop losss
 		if stopLoss, ok := args["stop_loss_trigger_price"]; ok && stopLoss != "" {
-			stopLoss, err := utils.ParseStopLoss(ent.vm, side, closePrice, stopLoss)
+			stopLoss, err := ent.evalWithVM(func(vm *goja.Runtime) (*fixedpoint.Value, error) {
+				return utils.ParseStopLoss(vm, side, closePrice, stopLoss)
+			})
 			if err != nil {
 				return errors.Wrapf(err, "the stop loss invalid: %s", stopLoss)
 			}
@@ -531,7 +548,9 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 
 		// config take profix
 		if takeProfix, ok := args["take_profit_trigger_price"]; ok && takeProfix != "" {
-			takeProfix, err := utils.ParseTakeProfit(ent.vm, side, closePrice, takeProfix)
+			takeProfix, err := ent.evalWithVM(func(vm *goja.Runtime) (*fixedpoint.Value, error) {
+				return utils.ParseTakeProfit(vm, side, closePrice, takeProfix)
+			})
 			if err != nil {
 				return errors.Wrapf(err, "the take profit invalid: %s", takeProfix)
 			}
@@ -552,7 +571,9 @@ func (ent *ExchangeEntity) HandleCommand(ctx context.Context, cmd string, args m
 
 		// config limit price
 		if limitPrice, ok := args["limit_price"]; ok && limitPrice != "" {
-			price, err := utils.ParsePrice(ent.vm, ent.KLineWindow, closePrice, limitPrice)
+			price, err := ent.evalWithVM(func(vm *goja.Runtime) (*fixedpoint.Value, error) {
+				return utils.ParsePrice(vm, ent.KLineWindow, closePrice, limitPrice)
+			})
 			if err != nil {
 				return errors.Wrapf(err, "invalid limit_price: %s", limitPrice)
 			}
